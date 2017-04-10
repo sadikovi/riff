@@ -1,7 +1,7 @@
-package com.github.sadikovi;
+package com.github.sadikovi.serde;
 
 import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
+import java.io.ObjectOutputStream;
 import java.io.IOException;
 
 import java.nio.ByteBuffer;
@@ -9,7 +9,9 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.HashSet;
 
-import org.apache.spark.sql.Row;
+import org.apache.spark.sql.catalyst.InternalRow;
+
+import org.apache.spark.sql.types.BooleanType;
 import org.apache.spark.sql.types.ByteType;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.IntegerType;
@@ -18,6 +20,8 @@ import org.apache.spark.sql.types.ShortType;
 import org.apache.spark.sql.types.StringType;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
+
+import org.apache.spark.unsafe.types.UTF8String;
 
 /**
  * Row is serialized similar to Spark SQL, meaning we have null bits region, fixed length values
@@ -29,16 +33,19 @@ public class Serde {
   private final StructType schema;
   private final String[] keyColumns;
   // buffer to store data for key columns
-  private DataOutputStream keyBuffer;
+  private ObjectOutputStream keyBuffer;
   // buffer to write fixed portion of row
-  private DataOutputStream fixBuffer;
+  private ObjectOutputStream fixBuffer;
   // buffer to write variable portion of row
-  private DataOutputStream varBuffer;
+  private ObjectOutputStream varBuffer;
+  // data type writers
+  private RowValueWriter[] writers;
 
   public Serde(StructType schema, String[] keys) {
     // make sure that schema is supported
     assertSchema(schema);
     this.schema = schema;
+    this.writers = initializeWriters(this.schema);
     // make sure that key columns are part of the schema
     assertKeyColumns(this.schema, keys);
     this.keyColumns = keys;
@@ -49,7 +56,7 @@ public class Serde {
    * @param row row to write, must confirm to the schema
    * @param out output buffer to write
    */
-  public void writeRow(Row row, ByteBuffer out) throws IOException {
+  public void writeRow(InternalRow row, ByteBuffer out) throws IOException {
     // reset current buffers
     prepareWrite();
     writeKeyColumns(row);
@@ -57,12 +64,12 @@ public class Serde {
     flush(out);
   }
 
-  private void prepareWrite() {
+  private void prepareWrite() throws IOException {
     // reset temporary buffers and state
     // use buffers as simple byte streams, since we need to grow size of underlying byte array
-    keyBuffer = new DataOutputStream(new ByteArrayOutputStream());
-    fixBuffer = new DataOutputStream(new ByteArrayOutputStream());
-    varBuffer = new DataOutputStream(new ByteArrayOutputStream());
+    keyBuffer = new ObjectOutputStream(new ByteArrayOutputStream());
+    fixBuffer = new ObjectOutputStream(new ByteArrayOutputStream());
+    varBuffer = new ObjectOutputStream(new ByteArrayOutputStream());
   }
 
   /**
@@ -76,42 +83,25 @@ public class Serde {
    * +--------------+----------------+-------------------+
    * If null bit is set, no following bytes are expected
    */
-  private void writeKeyColumns(Row row) throws IOException {
+  private void writeKeyColumns(InternalRow row) throws IOException {
     // extract key columns and write them into temporary buffer
     int i = 0;
-    StructField field = null;
     while (i < this.keyColumns.length) {
       int index = schema.fieldIndex(this.keyColumns[i]);
       this.keyBuffer.writeBoolean(row.isNullAt(index));
       if (!row.isNullAt(index)) {
-        field = schema.apply(index);
-        writeDirect(row.get(index), field.dataType(), this.keyBuffer);
+        this.writers[index].write(row, index, this.keyBuffer);
       }
       ++i;
     }
   }
 
-  /** Write direct value, value is guaranteed to be non-null */
-  private void writeDirect(Object value, DataType dataType, DataOutputStream out) {
-
-  }
-
-  private void writeValues(Row row) {
+  private void writeValues(InternalRow row) {
     // write the rest of the values
   }
 
   private void flush(ByteBuffer out) {
     // write all buffers into output buffer, release resources.
-  }
-
-  /** Return true, if type is supported, currently only support non-complex types */
-  private boolean isTypeSupported(DataType tpe) {
-    return
-      (tpe instanceof IntegerType) ||
-      (tpe instanceof LongType) ||
-      (tpe instanceof ShortType) ||
-      (tpe instanceof ByteType) ||
-      (tpe instanceof StringType);
   }
 
   /**
@@ -122,13 +112,6 @@ public class Serde {
     if (schema == null || schema.fields().length < 1) {
       throw new UnsupportedOperationException(
         "Schema has insufficient number of columns, " + schema);
-    }
-
-    for (StructField field : schema.fields()) {
-      if (!isTypeSupported(field.dataType())) {
-        throw new UnsupportedOperationException("Unsupported type " + field.dataType() +
-          " in schema " + schema);
-      }
     }
   }
 
@@ -159,6 +142,84 @@ public class Serde {
     if (!set.isEmpty()) {
       throw new UnsupportedOperationException("Could not resolve fields " + set +
         ", they do not exist in schema " + schema);
+    }
+  }
+
+  /** Initialize writers for each supported field type */
+  private RowValueWriter[] initializeWriters(StructType schema) {
+    RowValueWriter[] writers = new RowValueWriter[schema.fields().length];
+    int i = 0;
+    while (i < schema.fields().length) {
+      DataType dataType = schema.apply(i).dataType();
+      if (dataType instanceof IntegerType) {
+        writers[i] = new RowInteger();
+      } else if (dataType instanceof LongType) {
+        writers[i] = new RowLong();
+      } else if (dataType instanceof ShortType) {
+        writers[i] = new RowShort();
+      } else if (dataType instanceof ByteType) {
+        writers[i] = new RowByte();
+      } else if (dataType instanceof BooleanType) {
+        writers[i] = new RowBoolean();
+      } else if (dataType instanceof StringType) {
+        writers[i] = new RowString();
+      } else {
+        throw new UnsupportedOperationException("Type " + dataType);
+      }
+    }
+    return writers;
+  }
+
+  //////////////////////////////////////////////////////////////
+  // == Row writers and readers ==
+  //////////////////////////////////////////////////////////////
+
+  static class RowInteger implements RowValueWriter {
+    @Override
+    public void write(InternalRow row, int ordinal, ObjectOutputStream buffer) throws IOException {
+      // method avoids unboxing because of internal row specialized getters
+      buffer.writeInt(row.getInt(ordinal));
+    }
+  }
+
+  static class RowLong implements RowValueWriter {
+    @Override
+    public void write(InternalRow row, int ordinal, ObjectOutputStream buffer) throws IOException {
+      // method avoids unboxing because of internal row specialized getters
+      buffer.writeLong(row.getLong(ordinal));
+    }
+  }
+
+  static class RowShort implements RowValueWriter {
+    @Override
+    public void write(InternalRow row, int ordinal, ObjectOutputStream buffer) throws IOException {
+      // method avoids unboxing because of internal row specialized getters
+      buffer.writeShort(row.getShort(ordinal));
+    }
+  }
+
+  static class RowByte implements RowValueWriter {
+    @Override
+    public void write(InternalRow row, int ordinal, ObjectOutputStream buffer) throws IOException {
+      // method avoids unboxing because of internal row specialized getters
+      buffer.writeByte(row.getByte(ordinal));
+    }
+  }
+
+  static class RowBoolean implements RowValueWriter {
+    @Override
+    public void write(InternalRow row, int ordinal, ObjectOutputStream buffer) throws IOException {
+      // method avoids unboxing because of internal row specialized getters
+      buffer.writeBoolean(row.getBoolean(ordinal));
+    }
+  }
+
+  static class RowString implements RowValueWriter {
+    @Override
+    public void write(InternalRow row, int ordinal, ObjectOutputStream buffer) throws IOException {
+      UTF8String value = row.getUTF8String(ordinal);
+      // string is written as (bytes length) -> (bytes sequence)
+      value.writeExternal(buffer);
     }
   }
 }
