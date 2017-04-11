@@ -1,6 +1,5 @@
 package com.github.sadikovi.serde;
 
-import java.io.ObjectOutputStream;
 import java.io.IOException;
 
 import org.apache.spark.sql.catalyst.InternalRow;
@@ -14,10 +13,7 @@ abstract class RowValueConverter {
    * Write index value from internal row into output stream. Value is guaranteed to be non-null
    * and stream is guaranteed to be correct; do not close stream after writing.
    */
-  public abstract void write(
-      InternalRow row,
-      int ordinal,
-      ObjectOutputStream buffer) throws IOException;
+  public abstract void write(InternalRow row, int ordinal, OutputBuffer buffer) throws IOException;
 
   /**
    * Read value from buffer and insert into field with ordinal in internal row.

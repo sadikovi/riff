@@ -1,8 +1,8 @@
 package com.github.sadikovi.serde;
 
 import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 
 import org.apache.spark.sql.catalyst.InternalRow;
@@ -19,28 +19,20 @@ import org.apache.spark.sql.types.StructType;
 public class RowWriter {
   private final TypeDescription desc;
   // buffer to store data for indexed columns
-  private ByteArrayOutputStream indexedBuffer;
+  private OutputBuffer indexedBuffer;
   // buffer to write fixed portion of row
-  private ByteArrayOutputStream fixedBuffer;
+  private OutputBuffer fixedBuffer;
   // buffer to write variable portion of row
-  private ByteArrayOutputStream variableBuffer;
-  // object output stream handlers
-  private ObjectOutputStream indexedBufHandler;
-  private ObjectOutputStream fixedBufHandler;
-  private ObjectOutputStream variableBufHandler;
+  private OutputBuffer variableBuffer;
   // set of converters to use
   private final RowValueConverter[] converters;
 
   public RowWriter(StructType schema, String[] indexedColumns) {
     this.desc = new TypeDescription(schema, indexedColumns);
     // these byte buffers are reset and reused between serializations
-    this.indexedBuffer = new ByteArrayOutputStream();
-    this.fixedBuffer = new ByteArrayOutputStream();
-    this.variableBuffer = new ByteArrayOutputStream();
-    // these object output streams are reinitialized for every serialization
-    this.indexedBufHandler = null;
-    this.fixedBufHandler = null;
-    this.variableBufHandler = null;
+    this.indexedBuffer = new OutputBuffer();
+    this.fixedBuffer = new OutputBuffer();
+    this.variableBuffer = new OutputBuffer();
     // initialize converters, they are reused across rows
     this.converters = new RowValueConverter[this.desc.size()];
     for (int i = 0; i < this.desc.size(); i++) {
@@ -66,10 +58,6 @@ public class RowWriter {
     this.indexedBuffer.reset();
     this.fixedBuffer.reset();
     this.variableBuffer.reset();
-    // use buffers as simple byte streams, since we need to grow size of underlying byte array
-    this.indexedBufHandler = new ObjectOutputStream(this.indexedBuffer);
-    this.fixedBufHandler = new ObjectOutputStream(this.fixedBuffer);
-    this.variableBufHandler = new ObjectOutputStream(this.variableBuffer);
   }
 
   /**
@@ -88,9 +76,9 @@ public class RowWriter {
     int i = 0;
     while (i < this.desc.indexFields().length) {
       int ordinal = this.desc.fieldIndex(this.desc.indexFields()[i].name());
-      this.indexedBufHandler.writeBoolean(row.isNullAt(ordinal));
+      this.indexedBuffer.writeBoolean(row.isNullAt(ordinal));
       if (!row.isNullAt(ordinal)) {
-        this.converters[ordinal].write(row, ordinal, this.indexedBufHandler);
+        this.converters[ordinal].write(row, ordinal, this.indexedBuffer);
       }
       ++i;
     }
