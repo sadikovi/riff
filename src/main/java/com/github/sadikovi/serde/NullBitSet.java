@@ -5,15 +5,15 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 
 /**
- * [[BitArray]] class is used to set individual bits similar to bit set, but with forced size, and
+ * [[NullBitSet]] class is used to set individual bits similar to bit set, but with forced size, and
  * friendly write methods. Values are stored in little endian (bits order is right to left, so
  * position is read from right to left).
  */
-public class BitArray {
+public class NullBitSet {
   private static final int OCTETS = 8;
   private byte[] bits;
 
-  public BitArray(int numBits) {
+  public NullBitSet(int numBits) {
     if (numBits < 0) {
       throw new IllegalArgumentException("Negative number of bits requested, " + numBits);
     }
@@ -22,8 +22,15 @@ public class BitArray {
   }
 
   /** Number of allocated bytes in array */
-  public int length() {
+  public int allocatedBytes() {
     return this.bits.length;
+  }
+
+  /** Return number of bytes that would actually be written, up to right-most non-empty byte */
+  public int compressedBytes() {
+    int right = this.bits.length - 1;
+    while (right >= 0 && this.bits[right] == 0) right--;
+    return right + 1;
   }
 
   /**
@@ -79,12 +86,11 @@ public class BitArray {
    */
   public void writeTo(DataOutputStream out) throws IOException {
     // find right most byte that should be written
-    int right = this.bits.length - 1;
-    while (right >= 0 && this.bits[right] == 0) right--;
+    int len = compressedBytes();
     // write length, use 0 if right = -1
-    out.writeInt(right + 1);
+    out.writeInt(len);
     int i = 0;
-    while (i <= right) {
+    while (i < len) {
       out.writeByte(this.bits[i]);
       ++i;
     }

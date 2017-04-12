@@ -60,7 +60,7 @@ public class OutputBuffer extends ByteArrayOutputStream {
    * Writes out a byte to the underlying output stream as a 1-byte value.
    * @param v byte value to write
    */
-  public void	writeByte(int v) throws IOException {
+  public void writeByte(int v) throws IOException {
     this.stream.writeByte(v);
   }
 
@@ -70,7 +70,7 @@ public class OutputBuffer extends ByteArrayOutputStream {
    * first.
    * @param v double value to write
    */
-  public void	writeDouble(double v) throws IOException {
+  public void writeDouble(double v) throws IOException {
     this.stream.writeDouble(v);
   }
 
@@ -79,7 +79,7 @@ public class OutputBuffer extends ByteArrayOutputStream {
    * writes that int value to the underlying output stream as a 4-byte quantity, high byte first.
    * @param v float value to write
    */
-  public void	writeFloat(float v) throws IOException {
+  public void writeFloat(float v) throws IOException {
     this.stream.writeFloat(v);
   }
 
@@ -87,7 +87,7 @@ public class OutputBuffer extends ByteArrayOutputStream {
    * Writes an int to the underlying output stream as four bytes, high byte first.
    * @param v integer value to write
    */
-  public void	writeInt(int v) throws IOException {
+  public void writeInt(int v) throws IOException {
     this.stream.writeInt(v);
   }
 
@@ -95,7 +95,7 @@ public class OutputBuffer extends ByteArrayOutputStream {
    * Writes a long to the underlying output stream as eight bytes, high byte first.
    * @param v long value to write
    */
-  public void	writeLong(long v) throws IOException {
+  public void writeLong(long v) throws IOException {
     this.stream.writeLong(v);
   }
 
@@ -103,7 +103,7 @@ public class OutputBuffer extends ByteArrayOutputStream {
    * Writes a short to the underlying output stream as two bytes, high byte first.
    * @param v short value to write
    */
-  public void	writeShort(int v) throws IOException {
+  public void writeShort(int v) throws IOException {
     this.stream.writeShort(v);
   }
 }

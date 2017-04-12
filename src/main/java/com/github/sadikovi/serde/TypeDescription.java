@@ -11,7 +11,8 @@ import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 
 /**
- * Intermediate type to manipulate Spark SQL schema.
+ * Internal schema specification based on Spark SQL schema, that acts as proxy to write and read
+ * SQL rows. Note that type description columns index might be different from Spark SQL schema.
  */
 public class TypeDescription {
   private final StructType schema;
@@ -54,6 +55,7 @@ public class TypeDescription {
     this(schema, null);
   }
 
+  /** Check if schema is valid, contains supported types */
   private void assertSchema(StructType schema) {
     if (schema == null || schema.fields().length < 1) {
       throw new UnsupportedOperationException(
@@ -92,7 +94,6 @@ public class TypeDescription {
 
   /**
    * Return non-indexed fields; if no such fields exist, empty array is returned.
-   *
    */
   public StructField[] nonIndexFields() {
     return this.nonIndexFields;
@@ -113,14 +114,45 @@ public class TypeDescription {
   }
 
   /**
-   * Return global schema index for field name.
+   * Return type description index for field name.
    */
-  public int fieldIndex(String name) {
+  public int index(String name) {
+    int i = 0;
+    // check indexed columns
+    while (i < this.indexFields.length) {
+      if (this.indexFields[i].name().equals(name)) {
+        return i;
+      }
+      ++i;
+    }
+    // check non-indexed columns
+    while (i < this.nonIndexFields.length) {
+      if (this.nonIndexFields[i - this.indexFields.length].name().equals(name)) {
+        return i;
+      }
+      ++i;
+    }
+    throw new IllegalArgumentException("Invalid field name " + name + ", desc " + this);
+  }
+
+  /**
+   * Index of the field in underlying struct type, that was provided to construct this type
+   * description.
+   */
+  public int structTypeIndex(String name) {
     return this.schema.fieldIndex(name);
   }
 
   @Override
   public String toString() {
-    return "TypeDescription[" + this.schema + "]";
+    StringBuilder sb = new StringBuilder();
+    for (int i = 0; i < this.schema.fields().length; i++) {
+      StructField field = this.schema.fields()[i];
+      sb.append(field.name() + ": " + field.dataType().simpleString());
+      if (i < this.schema.fields().length - 1) {
+        sb.append(", ");
+      }
+    }
+    return "TypeDescription[" + sb.toString() + "]";
   }
 }

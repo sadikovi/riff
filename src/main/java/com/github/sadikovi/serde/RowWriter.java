@@ -75,7 +75,7 @@ public class RowWriter {
     // extract indexed fields and write them into temporary buffer
     int i = 0;
     while (i < this.desc.indexFields().length) {
-      int ordinal = this.desc.fieldIndex(this.desc.indexFields()[i].name());
+      int ordinal = this.desc.structTypeIndex(this.desc.indexFields()[i].name());
       this.indexedBuffer.writeBoolean(row.isNullAt(ordinal));
       if (!row.isNullAt(ordinal)) {
         this.converters[ordinal].write(row, ordinal, this.indexedBuffer);
@@ -95,7 +95,7 @@ public class RowWriter {
   private void writeFields(InternalRow row) {
     int i = 0;
     while (i < this.desc.nonIndexFields().length) {
-      int ordinal = this.desc.fieldIndex(this.desc.indexFields()[i].name());
+      int ordinal = this.desc.structTypeIndex(this.desc.indexFields()[i].name());
       if (row.isNullAt(ordinal)) {
         // set null bit at ordinal position
       } else {
