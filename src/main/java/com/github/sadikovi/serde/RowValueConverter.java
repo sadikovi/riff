@@ -10,10 +10,20 @@ import org.apache.spark.sql.catalyst.InternalRow;
  */
 abstract class RowValueConverter {
   /**
-   * Write index value from internal row into output stream. Value is guaranteed to be non-null
-   * and stream is guaranteed to be correct; do not close stream after writing.
+   * Write index value from internal row into output buffer. Value is guaranteed to be non-null
+   * and buffer is guaranteed to be correct; do not clear buffer after writing.
    */
   public abstract void write(InternalRow row, int ordinal, OutputBuffer buffer) throws IOException;
+
+  /**
+   * Write value with either fixed or variable length into output buffer. Value is guaranteed to be
+   * non-null and buffer is valid.
+   */
+  public abstract void writeFixedVar(
+      InternalRow row,
+      int ordinal,
+      OutputBuffer fixedBuffer,
+      OutputBuffer variableBuffer) throws IOException;
 
   /**
    * Read value from buffer and insert into field with ordinal in internal row.

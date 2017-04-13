@@ -1,7 +1,7 @@
 package com.github.sadikovi.serde;
 
+import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 
 import java.util.Iterator;
 
@@ -16,6 +16,10 @@ import org.apache.spark.sql.catalyst.InternalRow;
  */
 public class RowWriter {
   private final TypeDescription desc;
+  // null bit set for indexed fields
+  private NullBitSet indexedNullSet;
+  // null bit set for non-indexed fields
+  private NullBitSet fixedNullSet;
   // buffer to store data for indexed columns
   private OutputBuffer indexedBuffer;
   // buffer to write fixed portion of row
@@ -27,6 +31,9 @@ public class RowWriter {
 
   public RowWriter(TypeDescription desc) {
     this.desc = desc;
+    // null bit sets
+    this.indexedNullSet = new NullBitSet(this.desc.indexFields().length);
+    this.fixedNullSet = new NullBitSet(this.desc.nonIndexFields().length);
     // these byte buffers are reset and reused between serializations
     this.indexedBuffer = new OutputBuffer();
     this.fixedBuffer = new OutputBuffer();
@@ -47,7 +54,7 @@ public class RowWriter {
    * @param row row to write, must confirm to the schema
    * @param out output buffer to write
    */
-  public void writeRow(InternalRow row, OutputStream out) throws IOException {
+  public void writeRow(InternalRow row, DataOutputStream out) throws IOException {
     // reset current buffers
     prepareWrite();
     writeIndexedFields(row);
@@ -56,6 +63,9 @@ public class RowWriter {
   }
 
   private void prepareWrite() throws IOException {
+    // reset null bits
+    this.indexedNullSet.clear();
+    this.fixedNullSet.clear();
     // reset temporary buffers and state
     this.indexedBuffer.reset();
     this.fixedBuffer.reset();
@@ -64,20 +74,25 @@ public class RowWriter {
 
   /**
    * Indexed fields are written directly, in the format:
-   * +--------------+--------------------------+
-   * | is_null byte | fixed length value bytes |
-   * +--------------+--------------------------+
-   * For variable length fields we write:
-   * +--------------+----------------+-------------------+
-   * | is_null byte | length 4 bytes | sequence of bytes |
-   * +--------------+----------------+-------------------+
-   * If null bit is set, no following bytes are expected
+   * +---------------+------------------------+--------------+--------------+-----+--------------+
+   * | is_nulls byte | optional nulls bit set | value1 bytes | value2 bytes | ... | valueN bytes |
+   * +---------------+------------------------+--------------+--------------+-----+--------------+
+   * For variable length fields are written:
+   * +----------------+-------------------+
+   * | length 4 bytes | sequence of bytes |
+   * +----------------+-------------------+
+   * If null bit is set, no bytes are written for values. Optional nulls bit set can be excluded
    */
   private void writeIndexedFields(InternalRow row) throws IOException {
     // extract indexed fields and write them into temporary buffer
     int i = 0;
     while (i < this.desc.indexFields().length) {
       int ordinal = this.desc.indexFields()[i].origSQLPos();
+      if (row.isNullAt(ordinal)) {
+        this.indexedNullSet.setBit(i);
+      } else {
+        this.converters[ordinal].write(row, ordinal, this.indexedBuffer);
+      }
       ++i;
     }
   }
@@ -88,18 +103,67 @@ public class RowWriter {
    * | null bits | fixed length values | variable length values |
    * +-----------+---------------------+------------------------+
    * Values are written back-to-back.
+   * For fields with variable length bytes are written:
+   * +----------------+     +-------------------+
+   * | length 4 bytes | ... | sequence of bytes |
+   * +----------------+     +-------------------+
    * If null bit is set, nothing is written at field position.
    */
-  private void writeFields(InternalRow row) {
+  private void writeFields(InternalRow row) throws IOException {
     int i = 0;
     while (i < this.desc.nonIndexFields().length) {
+      int ordinal = this.desc.nonIndexFields()[i].origSQLPos();
+      if (row.isNullAt(ordinal)) {
+        this.fixedNullSet.setBit(i);
+      } else {
+        this.converters[ordinal].
+          writeFixedVar(row, ordinal, this.fixedBuffer, this.variableBuffer);
+      }
       ++i;
     }
   }
 
-  private void flush(OutputStream out) throws IOException {
-    // write all buffers into output buffer, release resources.
+  /**
+   * Flush content of buffers and null bit sets into output stream.
+   * No need to reset buffers, this code should be done in `prepareWrite` method.
+   * Bytes are written in certain order:
+   * +---------------+-----------------------+----------------+
+   * | is_nulls byte | optional null bit set | indexed buffer |
+   * +---------------+-----------------------+----------------+
+   * ...
+   * +----------------------------------------+---------------+-----------------------+
+   * | record size (excluding indexed fields) | is_nulls byte | optional null bit set |
+   * +----------------------------------------+---------------+-----------------------+
+   * ...
+   * +------------------+--------------+-----------------+
+   * | fixed chunk size | fixed buffer | variable buffer |
+   * +------------------+--------------+-----------------+
+   */
+  private void flush(DataOutputStream out) throws IOException {
+    // write index part
+    if (this.indexedNullSet.isEmpty()) {
+      out.write(0x0);
+    } else {
+      out.write(0x1);
+      this.indexedNullSet.writeTo(out);
+    }
     this.indexedBuffer.writeTo(out);
+    // write values part
+    // record size = 1 null byte + optional compressed bytes of null bit set + fixed size integer +
+    // fixed buffer size + variable buffer size
+    boolean isNullSet = this.fixedNullSet.isEmpty();
+    int recordSize = 1 + (isNullSet ? 0 : this.fixedNullSet.compressedBytes());
+    recordSize += 4 + this.fixedBuffer.bytesWritten() + this.variableBuffer.bytesWritten();
+    out.writeInt(recordSize);
+    if (isNullSet) {
+      out.write(0x0);
+    } else {
+      out.write(0x1);
+      this.fixedNullSet.writeTo(out);
+    }
+    // write fixed size
+    out.writeInt(this.fixedBuffer.bytesWritten());
+    // write buffers
     this.fixedBuffer.writeTo(out);
     this.variableBuffer.writeTo(out);
   }

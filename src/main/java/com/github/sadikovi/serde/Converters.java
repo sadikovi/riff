@@ -8,8 +8,6 @@ import org.apache.spark.sql.types.IntegerType;
 import org.apache.spark.sql.types.LongType;
 import org.apache.spark.sql.types.StringType;
 
-import org.apache.spark.unsafe.types.UTF8String;
-
 /**
  * Placeholder for specific implementations of row value converters.
  */
@@ -43,6 +41,15 @@ public class Converters {
     }
 
     @Override
+    public void writeFixedVar(
+        InternalRow row,
+        int ordinal,
+        OutputBuffer fixedBuffer,
+        OutputBuffer variableBuffer) throws IOException {
+      fixedBuffer.writeInt(row.getInt(ordinal));
+    }
+
+    @Override
     public void read(InternalRow row, int ordinal, byte[] buffer) throws IOException {
       // TODO: implement read method
       throw new UnsupportedOperationException();
@@ -57,6 +64,15 @@ public class Converters {
     }
 
     @Override
+    public void writeFixedVar(
+        InternalRow row,
+        int ordinal,
+        OutputBuffer fixedBuffer,
+        OutputBuffer variableBuffer) throws IOException {
+      fixedBuffer.writeLong(row.getLong(ordinal));
+    }
+
+    @Override
     public void read(InternalRow row, int ordinal, byte[] buffer) throws IOException {
       // TODO: implement read method
       throw new UnsupportedOperationException();
@@ -66,11 +82,23 @@ public class Converters {
   public static class RowStringConverter extends RowValueConverter {
     @Override
     public void write(InternalRow row, int ordinal, OutputBuffer buffer) throws IOException {
-      UTF8String value = row.getUTF8String(ordinal);
       // string is written as (bytes length) -> (bytes sequence)
-      byte[] bytes = value.getBytes();
+      byte[] bytes = row.getUTF8String(ordinal).getBytes();
       buffer.writeInt(bytes.length);
       buffer.write(bytes);
+    }
+
+    @Override
+    public void writeFixedVar(
+        InternalRow row,
+        int ordinal,
+        OutputBuffer fixedBuffer,
+        OutputBuffer variableBuffer) throws IOException {
+      byte[] bytes = row.getUTF8String(ordinal).getBytes();
+      // write length into fixed buffer
+      fixedBuffer.writeInt(bytes.length);
+      // write content bytes into variable buffer
+      variableBuffer.write(bytes);
     }
 
     @Override
