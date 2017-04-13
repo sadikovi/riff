@@ -1,15 +1,11 @@
 package com.github.sadikovi.serde;
 
-import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 
 import java.util.Iterator;
 
 import org.apache.spark.sql.catalyst.InternalRow;
-
-import org.apache.spark.sql.types.StructType;
 
 /**
  * Row is serialized similar to Spark SQL, meaning we have null bits region, fixed length values

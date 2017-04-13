@@ -1,6 +1,5 @@
 package com.github.sadikovi.serde;
 
-import java.io.ObjectOutputStream;
 import java.io.IOException;
 
 import org.apache.spark.sql.catalyst.InternalRow;
@@ -28,7 +27,7 @@ public class Converters {
     } else if (dataType instanceof StringType) {
       return new RowStringConverter();
     } else {
-      throw new UnsupportedOperationException("Type " + dataType);
+      throw new RuntimeException("No converter registered for type " + dataType);
     }
   }
 
@@ -38,7 +37,7 @@ public class Converters {
 
   public static class RowIntegerConverter extends RowValueConverter {
     @Override
-    public void write(InternalRow row, int ordinal, ObjectOutputStream buffer) throws IOException {
+    public void write(InternalRow row, int ordinal, OutputBuffer buffer) throws IOException {
       // method avoids unboxing because of internal row specialized getters
       buffer.writeInt(row.getInt(ordinal));
     }
@@ -52,7 +51,7 @@ public class Converters {
 
   public static class RowLongConverter extends RowValueConverter {
     @Override
-    public void write(InternalRow row, int ordinal, ObjectOutputStream buffer) throws IOException {
+    public void write(InternalRow row, int ordinal, OutputBuffer buffer) throws IOException {
       // method avoids unboxing because of internal row specialized getters
       buffer.writeLong(row.getLong(ordinal));
     }
@@ -66,10 +65,12 @@ public class Converters {
 
   public static class RowStringConverter extends RowValueConverter {
     @Override
-    public void write(InternalRow row, int ordinal, ObjectOutputStream buffer) throws IOException {
+    public void write(InternalRow row, int ordinal, OutputBuffer buffer) throws IOException {
       UTF8String value = row.getUTF8String(ordinal);
       // string is written as (bytes length) -> (bytes sequence)
-      value.writeExternal(buffer);
+      byte[] bytes = value.getBytes();
+      buffer.writeInt(bytes.length);
+      buffer.write(bytes);
     }
 
     @Override
