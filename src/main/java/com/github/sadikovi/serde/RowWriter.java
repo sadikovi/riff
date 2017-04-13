@@ -5,6 +5,8 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 
+import java.util.Iterator;
+
 import org.apache.spark.sql.catalyst.InternalRow;
 
 import org.apache.spark.sql.types.StructType;
@@ -27,16 +29,20 @@ public class RowWriter {
   // set of converters to use
   private final RowValueConverter[] converters;
 
-  public RowWriter(StructType schema, String[] indexedColumns) {
-    this.desc = new TypeDescription(schema, indexedColumns);
+  public RowWriter(TypeDescription desc) {
+    this.desc = desc;
     // these byte buffers are reset and reused between serializations
     this.indexedBuffer = new OutputBuffer();
     this.fixedBuffer = new OutputBuffer();
     this.variableBuffer = new OutputBuffer();
     // initialize converters, they are reused across rows
+    // converters are created for sql schema ordinals, not type description positions, because we
+    // fetch data from internal row
     this.converters = new RowValueConverter[this.desc.size()];
-    for (int i = 0; i < this.desc.size(); i++) {
-      this.converters[i] = Converters.sqlTypeToConverter(this.desc.fields()[i].dataType());
+    Iterator<TypeSpec> iter = this.desc.fields();
+    while (iter.hasNext()) {
+      TypeSpec spec = iter.next();
+      this.converters[spec.origSQLPos()] = Converters.sqlTypeToConverter(spec.dataType());
     }
   }
 
@@ -75,11 +81,7 @@ public class RowWriter {
     // extract indexed fields and write them into temporary buffer
     int i = 0;
     while (i < this.desc.indexFields().length) {
-      int ordinal = this.desc.structTypeIndex(this.desc.indexFields()[i].name());
-      this.indexedBuffer.writeBoolean(row.isNullAt(ordinal));
-      if (!row.isNullAt(ordinal)) {
-        this.converters[ordinal].write(row, ordinal, this.indexedBuffer);
-      }
+      int ordinal = this.desc.indexFields()[i].origSQLPos();
       ++i;
     }
   }
@@ -95,13 +97,7 @@ public class RowWriter {
   private void writeFields(InternalRow row) {
     int i = 0;
     while (i < this.desc.nonIndexFields().length) {
-      int ordinal = this.desc.structTypeIndex(this.desc.indexFields()[i].name());
-      if (row.isNullAt(ordinal)) {
-        // set null bit at ordinal position
-      } else {
-        // skip null bit, write fixed portion of value
-        // write variable portion of value
-      }
+      ++i;
     }
   }
 

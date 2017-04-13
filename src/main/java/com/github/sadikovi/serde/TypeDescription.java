@@ -2,6 +2,7 @@ package com.github.sadikovi.serde;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 import org.apache.spark.sql.types.DataType;
@@ -16,49 +17,6 @@ import org.apache.spark.sql.types.StructType;
  * SQL rows. Note that type description columns index might be different from Spark SQL schema.
  */
 public class TypeDescription {
-  public static class TypeSpec {
-    // SQL field specification
-    private StructField field;
-    // whether or not this field should be used for indexing
-    private boolean indexed;
-    // position for type description
-    private int pos;
-    // original position of the StructField in SQL schema, used for writes
-    private int origPos;
-
-    TypeSpec(StructField field, boolean indexed, int pos, int origPos) {
-      this.field = field;
-      this.indexed = indexed;
-      this.pos = pos;
-      this.origPos = origPos;
-    }
-
-    /** Get field */
-    public StructField field() {
-      return this.field;
-    }
-
-    public boolean isIndexed() {
-      return this.indexed;
-    }
-
-    /** Get field position */
-    public int position() {
-      return this.pos;
-    }
-
-    /** Get original position for StructField, used for writes only */
-    public int origSQLPos() {
-      return this.origPos;
-    }
-
-    @Override
-    public String toString() {
-      return "TypeSpec(" + this.field.name() + ": " + this.field.dataType().simpleString() +
-        ", indexed=" + this.indexed + ", position=" + this.pos + ", origPos=" + this.origPos + ")";
-    }
-  }
-
   private HashMap<String, TypeSpec> schema;
   // quick access arrays for specific field types
   private TypeSpec[] indexFields;
@@ -172,6 +130,15 @@ public class TypeDescription {
    */
   public TypeSpec[] nonIndexFields() {
     return this.nonIndexFields;
+  }
+
+  /**
+   * Get an iterator of all type spec instances in this type description. Entries are returned in
+   * no particular order, instead of position methods on spec to determine location.
+   * @return iterator of TypeSpec instances
+   */
+  public Iterator<TypeSpec> fields() {
+    return this.schema.values().iterator();
   }
 
   /**
