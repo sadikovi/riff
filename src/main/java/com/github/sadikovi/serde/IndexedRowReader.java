@@ -11,7 +11,7 @@ import org.apache.spark.sql.catalyst.InternalRow;
  */
 public class IndexedRowReader {
   private final TypeDescription desc;
-  // buffer for primitive fields
+  // buffer for primitive fields (used for conversion)
   private byte[] buf;
   // bit set to mark indexed fields
   private long indexed;
@@ -36,39 +36,68 @@ public class IndexedRowReader {
     }
   }
 
+  /**
+   * Read row from input stream. This should reflect write logic in `IndexedRowWriter`. We check
+   * magic byte and buffer optional null bit set; then copy index region and data region into
+   * indexed row.
+   *
+   * @param in input stream to read from
+   * @return indexed row as InternalRow
+   */
   public InternalRow readRow(InputStream in) throws IOException {
-    boolean hasNulls = readByte(in) != 0;
-    long bitset = 0L;
-    if (hasNulls) {
-      bitset = readLong(in);
+    int magic = readByte(in);
+    if (magic != IndexedRow.MAGIC1 && magic != IndexedRow.MAGIC2) {
+      throw new AssertionError("Wrong magic number " + magic);
     }
-    IndexedRow row = new IndexedRow(this.indexed, rowOffsets(bitset));
-    // set nulls for row
-    row.setNulls(bitset);
-    // read index region
+    long nulls = (magic == IndexedRow.MAGIC1) ? 0L : readLong(in);
+    // prepare row, compute row offsets
+    IndexedRow row = new IndexedRow(this.indexed, nulls, rowOffsets(nulls));
+    // read index region, note that if no bytes were written, we do not set index region at all
     int indexBytes = readInt(in);
     if (indexBytes > 0) {
       byte[] indexRegion = new byte[indexBytes];
       readFully(in, indexRegion, 0, indexBytes);
-      row.setIndexRegion(indexRegion, 0, indexBytes);
+      row.setIndexRegion(indexRegion);
     }
-    // read data region
+    // read data region, similarly we do not initialize data region, if no bytes were written
     int dataBytes = readInt(in);
     if (dataBytes > 0) {
       byte[] dataRegion = new byte[dataBytes];
       readFully(in, dataRegion, 0, dataBytes);
-      row.setDataRegion(dataRegion, 0, dataBytes);
+      row.setDataRegion(dataRegion);
     }
     return row;
   }
 
-  private void relativeRowOffset(int[] offsets, long bitset, TypeSpec[] fields) {
+  /** Compute relative row offsets for indexed row */
+  private int[] rowOffsets(long nulls) {
+    int[] offsets = new int[this.desc.size()];
+    // update index fields
+    relativeRowOffset(offsets, nulls, this.desc.indexFields());
+    // update data fields
+    relativeRowOffset(offsets, nulls, this.desc.dataFields());
+    return offsets;
+  }
+
+  /**
+   * Relative row offset is computed for absolute position of the type spec, but relative to the
+   * region, e.g. if 4 fields exist: 2 (long, int) in index region and 2 (int, int) in data region,
+   * we will write:
+   * +---+---+---+---+
+   * | 0 | 1 | 2 | 3 |
+   * +---+---+---+---+
+   * | 0 | 8 | 0 | 4 |
+   * +---+---+---+---+
+   * If value is null, then we write -1 as default value and next non-null position starts from
+   * previous non-null + offset.
+   */
+  private void relativeRowOffset(int[] offsets, long nulls, TypeSpec[] fields) {
     int offset = 0;
     for (int i = 0; i < fields.length; i++) {
-      if ((bitset & 1L << fields[i].position()) == 0) {
+      if ((nulls & 1L << fields[i].position()) == 0) {
         // update offset
         offsets[fields[i].position()] = offset;
-        offset += this.converters[fields[i].position()].offset();
+        offset += this.converters[fields[i].position()].byteOffset();
       } else {
         // set null value
         offsets[fields[i].position()] = -1;
@@ -76,31 +105,29 @@ public class IndexedRowReader {
     }
   }
 
-  private int[] rowOffsets(long bitset) {
-    int[] offsets = new int[this.desc.size()];
-    // update index fields
-    relativeRowOffset(offsets, bitset, this.desc.indexFields());
-    // update data fields
-    relativeRowOffset(offsets, bitset, this.desc.dataFields());
-    return offsets;
-  }
-
+  /** Read long value from input stream */
   private long readLong(InputStream in) throws IOException {
     readFully(in, this.buf, 0, 8);
     return convertToLong(this.buf);
   }
 
+  /** Read int value from input stream */
   private int readInt(InputStream in) throws IOException {
     readFully(in, this.buf, 0, 4);
     return convertToInt(this.buf);
   }
 
+  /** Read byte value from input stream */
   private int readByte(InputStream in) throws IOException {
     int bytes = in.read();
     if (bytes < 0) throw new EOFException();
     return bytes;
   }
 
+  /**
+   * Copy bytes from input stream into buffer for offset and length.
+   * Method keeps buffering input stream until all bytes are read, of EOF is reached.
+   */
   private void readFully(InputStream in, byte[] buffer, int offset, int len) throws IOException {
     if (len < 0) {
       throw new IndexOutOfBoundsException("Negative length: " + len);
@@ -114,6 +141,7 @@ public class IndexedRowReader {
     }
   }
 
+  /** Convert buffer to long value, used after readFully method */
   private static long convertToLong(byte[] buffer) {
     return
       ((long) (buffer[0] & 0xff) << 56) |
@@ -126,6 +154,7 @@ public class IndexedRowReader {
       ((long) (buffer[7] & 0xff));
   }
 
+  /** Convert buffer to int value, used after readFully method */
   private static int convertToInt(byte[] buffer) {
     return
       ((buffer[0] & 0xff) << 24) |

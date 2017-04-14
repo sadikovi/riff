@@ -45,7 +45,7 @@ public class Converters {
     }
 
     @Override
-    public int offset() {
+    public int byteOffset() {
       return 4;
     }
   }
@@ -62,7 +62,7 @@ public class Converters {
     }
 
     @Override
-    public int offset() {
+    public int byteOffset() {
       return 8;
     }
   }
@@ -84,7 +84,7 @@ public class Converters {
     }
 
     @Override
-    public int offset() {
+    public int byteOffset() {
       // metadata size (offset + length)
       return 8;
     }

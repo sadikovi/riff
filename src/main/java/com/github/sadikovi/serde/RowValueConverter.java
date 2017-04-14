@@ -24,7 +24,7 @@ abstract class RowValueConverter {
    * Fixed offset in bytes for data type, this either includes value for primitive types, or fixed
    * sized metadata (either int or long) for non-primitive types, e.g. UTF8String.
    */
-  public abstract int offset();
+  public abstract int byteOffset();
 
   @Override
   public boolean equals(Object other) {

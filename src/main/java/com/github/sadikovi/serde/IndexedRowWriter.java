@@ -34,28 +34,63 @@ public class IndexedRowWriter {
     }
   }
 
+  /**
+   * Write content of internal row into output stream. This follows specification of [[IndexedRow]]
+   * +-----------------------+----------------------------------+
+   * | magic as is_null byte | optional null bit set as 8 bytes |
+   * +-----------------------+----------------------------------+
+   * ...
+   * +------------------------+--------------+-----------------------+-------------+
+   * | length of index region | index region | length of data region | data region |
+   * +------------------------+--------------+-----------------------+-------------+
+   * Each region is written similar to Spark SQL UnsafeRow: write fixed part first, where each
+   * primitive type is written directly, variable type is written according to row converter,
+   * usuallly metadata; write variable part of bytes back to back.
+   * If value is null, bit is set and value is skipped.
+   *
+   * @param row row to write
+   * @param out output stream to write to
+   */
   public void writeRow(InternalRow row, OutputStream out) throws IOException {
     prepareWrite();
+    // collect null information
+    long bitset = getNullSet(row);
+    // bufffer index region, this fills fixed and variable buffers
     bufferIndexRegion(row);
+    // bufffer data region, this fills fixed and variable buffers
     bufferDataRegion(row);
     // write values according to specification
-    long bitset = getNullSet(row);
+    // we use magic numbers to check if row is written correctly and as indicators of nullability
+    // for each row; nulls are only written if exist
     if (bitset == 0) {
-      out.write(0x0);
+      out.write(IndexedRow.MAGIC1);
     } else {
-      out.write(0x1);
+      out.write(IndexedRow.MAGIC2);
       writeLong(bitset, out);
     }
-    // TODO: add check on overflow
+    // write index region
+    checkOverflow(this.indexFixedBuffer.bytesWritten(), this.indexVariableBuffer.bytesWritten());
     writeInt(this.indexFixedBuffer.bytesWritten() + this.indexVariableBuffer.bytesWritten(), out);
     out.write(this.indexFixedBuffer.array());
     out.write(this.indexVariableBuffer.array());
-    // TODO: add check on overflow
+    // write data region
+    checkOverflow(this.dataFixedBuffer.bytesWritten(), this.dataVariableBuffer.bytesWritten());
     writeInt(this.dataFixedBuffer.bytesWritten() + this.dataVariableBuffer.bytesWritten(), out);
     out.write(this.dataFixedBuffer.array());
     out.write(this.dataVariableBuffer.array());
   }
 
+  /** Check if two numbers result in int overflow */
+  private void checkOverflow(int value1, int value2) {
+    if (Integer.MAX_VALUE - value1 < value2) {
+      throw new AssertionError("Overflow (" + value1 + " + " + value2 + ")");
+    }
+  }
+
+  /**
+   * Prepare for write.
+   * Method resets all buffers (index + data) and tracking data structures. Called once per write.
+   */
   private void prepareWrite() {
     this.indexFixedBuffer.reset();
     this.indexVariableBuffer.reset();
@@ -63,6 +98,11 @@ public class IndexedRowWriter {
     this.dataVariableBuffer.reset();
   }
 
+  /**
+   * Mark all null fields in row in null bit set. This assumes that internal row matches provided
+   * struct type from type description, meaning it uses original SQL position to access values, not
+   * type spec position.
+   */
   private long getNullSet(InternalRow row) {
     long bitset = 0L;
     int i = 0;
@@ -75,6 +115,7 @@ public class IndexedRowWriter {
     return bitset;
   }
 
+  /** Write long value into stream, added since output stream does not have this method */
   private void writeLong(long value, OutputStream out) throws IOException {
     out.write((byte) (0xff & (value >> 56)));
     out.write((byte) (0xff & (value >> 48)));
@@ -86,6 +127,7 @@ public class IndexedRowWriter {
     out.write((byte) (0xff & value));
   }
 
+  /** Write int value into stream, added since output stream does not have this method */
   private void writeInt(int value, OutputStream out) throws IOException {
     out.write((byte) (0xff & (value >> 24)));
     out.write((byte) (0xff & (value >> 16)));
@@ -93,38 +135,45 @@ public class IndexedRowWriter {
     out.write((byte) (0xff & value));
   }
 
-  private void assertWrittenBytes(int bytes, int expectedBytes) {
-    if (bytes != expectedBytes) {
-      throw new AssertionError("Written bytes " + bytes + " != " + expectedBytes + " bytes");
-    }
-  }
-
+  /**
+   * Buffer current region into fixed and variable buffers.
+   * If field is not null we write fixed portion of value and variable bytes (if applicable). For
+   * variable part we maintain offset (as total number of bytes written for fixed part) so each row
+   * converter is supposed to write necessary metadata to access raw bytes in variable part.
+   */
   private void bufferRegion(
       InternalRow row,
       TypeSpec[] fields,
       OutputBuffer fixedBuffer,
       OutputBuffer variableBuffer) throws IOException {
     int fixedOffset = 0;
+    // compute total offset for fixed part
     for (int i = 0; i < fields.length; i++) {
-      // TODO: check if using null bit set directly is faster
       if (!row.isNullAt(fields[i].origSQLPos())) {
-        fixedOffset += this.converters[fields[i].position()].offset();
+        fixedOffset += this.converters[fields[i].position()].byteOffset();
       }
     }
+    // write value using row converters
     for (int i = 0; i < fields.length; i++) {
       if (!row.isNullAt(fields[i].origSQLPos())) {
         this.converters[fields[i].position()].writeDirect(
           row, fields[i].origSQLPos(), fixedBuffer, fixedOffset, variableBuffer);
       }
     }
-    assertWrittenBytes(fixedBuffer.bytesWritten(), fixedOffset);
+    // assertion should hold for fixed part
+    if (fixedBuffer.bytesWritten() != fixedOffset) {
+      throw new AssertionError(
+        "Written bytes " + fixedBuffer.bytesWritten() + " != " + fixedOffset + " bytes");
+    }
   }
 
+  /** Buffer index region */
   private void bufferIndexRegion(InternalRow row) throws IOException {
     bufferRegion(row, this.desc.indexFields(), this.indexFixedBuffer, this.indexVariableBuffer);
 
   }
 
+  /** Buffer data region */
   private void bufferDataRegion(InternalRow row) throws IOException {
     bufferRegion(row, this.desc.dataFields(), this.dataFixedBuffer, this.dataVariableBuffer);
   }
