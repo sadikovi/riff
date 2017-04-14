@@ -106,4 +106,22 @@ public class OutputBuffer extends ByteArrayOutputStream {
   public void writeShort(int v) throws IOException {
     this.stream.writeShort(v);
   }
+
+  /**
+   * Write byte array from specified offset of specified length.
+   * @param b byte array to write
+   * @param off offset
+   * @param len length to write
+   */
+  public void writeBytes(byte[] b, int off, int len) throws IOException {
+    this.stream.write(b, off, len);
+  }
+
+  /**
+   * Write byte array with offset 0 and full length of the array.
+   * @param b byte array to write
+   */
+  public void writeBytes(byte[] b) throws IOException {
+    this.stream.write(b);
+  }
 }

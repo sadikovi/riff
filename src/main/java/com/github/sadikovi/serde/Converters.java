@@ -19,11 +19,11 @@ public class Converters {
    */
   public static RowValueConverter sqlTypeToConverter(DataType dataType) {
     if (dataType instanceof IntegerType) {
-      return new RowIntegerConverter();
+      return new IndexedRowIntConverter();
     } else if (dataType instanceof LongType) {
-      return new RowLongConverter();
+      return new IndexedRowLongConverter();
     } else if (dataType instanceof StringType) {
-      return new RowStringConverter();
+      return new IndexedRowUTF8Converter();
     } else {
       throw new RuntimeException("No converter registered for type " + dataType);
     }
@@ -33,78 +33,60 @@ public class Converters {
   // Supported row value converters
   //////////////////////////////////////////////////////////////
 
-  public static class RowIntegerConverter extends RowValueConverter {
+  public static class IndexedRowIntConverter extends RowValueConverter {
     @Override
-    public void write(InternalRow row, int ordinal, OutputBuffer buffer) throws IOException {
-      // method avoids unboxing because of internal row specialized getters
-      buffer.writeInt(row.getInt(ordinal));
-    }
-
-    @Override
-    public void writeFixedVar(
+    public void writeDirect(
         InternalRow row,
         int ordinal,
         OutputBuffer fixedBuffer,
+        int fixedOffset,
         OutputBuffer variableBuffer) throws IOException {
       fixedBuffer.writeInt(row.getInt(ordinal));
     }
 
     @Override
-    public void read(InternalRow row, int ordinal, byte[] buffer) throws IOException {
-      // TODO: implement read method
-      throw new UnsupportedOperationException();
+    public int offset() {
+      return 4;
     }
   }
 
-  public static class RowLongConverter extends RowValueConverter {
+  public static class IndexedRowLongConverter extends RowValueConverter {
     @Override
-    public void write(InternalRow row, int ordinal, OutputBuffer buffer) throws IOException {
-      // method avoids unboxing because of internal row specialized getters
-      buffer.writeLong(row.getLong(ordinal));
-    }
-
-    @Override
-    public void writeFixedVar(
+    public void writeDirect(
         InternalRow row,
         int ordinal,
         OutputBuffer fixedBuffer,
+        int fixedOffset,
         OutputBuffer variableBuffer) throws IOException {
       fixedBuffer.writeLong(row.getLong(ordinal));
     }
 
     @Override
-    public void read(InternalRow row, int ordinal, byte[] buffer) throws IOException {
-      // TODO: implement read method
-      throw new UnsupportedOperationException();
+    public int offset() {
+      return 8;
     }
   }
 
-  public static class RowStringConverter extends RowValueConverter {
+  public static class IndexedRowUTF8Converter extends RowValueConverter {
     @Override
-    public void write(InternalRow row, int ordinal, OutputBuffer buffer) throws IOException {
-      // string is written as (bytes length) -> (bytes sequence)
-      byte[] bytes = row.getUTF8String(ordinal).getBytes();
-      buffer.writeInt(bytes.length);
-      buffer.write(bytes);
-    }
-
-    @Override
-    public void writeFixedVar(
+    public void writeDirect(
         InternalRow row,
         int ordinal,
         OutputBuffer fixedBuffer,
+        int fixedOffset,
         OutputBuffer variableBuffer) throws IOException {
       byte[] bytes = row.getUTF8String(ordinal).getBytes();
-      // write length into fixed buffer
-      fixedBuffer.writeInt(bytes.length);
-      // write content bytes into variable buffer
-      variableBuffer.write(bytes);
+      // write offset + length into fixed buffer and content into variable length buffer
+      long offset = variableBuffer.bytesWritten() + fixedOffset;
+      long metadata = (offset << 32) + bytes.length;
+      fixedBuffer.writeLong(metadata);
+      variableBuffer.writeBytes(bytes);
     }
 
     @Override
-    public void read(InternalRow row, int ordinal, byte[] buffer) throws IOException {
-      // TODO: implement read method
-      throw new UnsupportedOperationException();
+    public int offset() {
+      // metadata size (offset + length)
+      return 8;
     }
   }
 }

@@ -5,35 +5,26 @@ import java.io.IOException;
 import org.apache.spark.sql.catalyst.InternalRow;
 
 /**
- * Row value converter provies specialized method to write non-null value into output stream and
- * read values from buffer into internal row.
+ * Row value converter provies specialized method to write non-null value into output stream.
  */
 abstract class RowValueConverter {
   /**
-   * Write index value from internal row into output buffer. Value is guaranteed to be non-null
-   * and buffer is guaranteed to be correct; do not clear buffer after writing.
-   */
-  public abstract void write(InternalRow row, int ordinal, OutputBuffer buffer) throws IOException;
-
-  /**
    * Write value with either fixed or variable length into output buffer. Value is guaranteed to be
-   * non-null and buffer is valid.
+   * non-null and buffer is valid. Offset is length of fixed part, used for writing values with
+   * variable part.
    */
-  public abstract void writeFixedVar(
+  public abstract void writeDirect(
       InternalRow row,
       int ordinal,
       OutputBuffer fixedBuffer,
+      int fixedOffset,
       OutputBuffer variableBuffer) throws IOException;
 
   /**
-   * Read value from buffer and insert into field with ordinal in internal row.
+   * Fixed offset in bytes for data type, this either includes value for primitive types, or fixed
+   * sized metadata (either int or long) for non-primitive types, e.g. UTF8String.
    */
-  public abstract void read(InternalRow row, int ordinal, byte[] buffer) throws IOException;
-
-  @Override
-  public int hashCode() {
-    return super.hashCode();
-  }
+  public abstract int offset();
 
   @Override
   public boolean equals(Object other) {

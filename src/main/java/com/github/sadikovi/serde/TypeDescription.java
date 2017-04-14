@@ -2,7 +2,6 @@ package com.github.sadikovi.serde;
 
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 import org.apache.spark.sql.types.DataType;
@@ -18,9 +17,11 @@ import org.apache.spark.sql.types.StructType;
  */
 public class TypeDescription {
   private HashMap<String, TypeSpec> schema;
+  // quick access to type spec by type description ordinal index
+  private TypeSpec[] ordinalFields;
   // quick access arrays for specific field types
   private TypeSpec[] indexFields;
-  private TypeSpec[] nonIndexFields;
+  private TypeSpec[] dataFields;
 
   public TypeDescription(StructType schema, String[] indexColumns) {
     assertSchema(schema);
@@ -45,31 +46,40 @@ public class TypeDescription {
     }
 
     // resolve non-indexed fields
-    this.nonIndexFields = new TypeSpec[schema.length() - this.indexFields.length];
+    this.dataFields = new TypeSpec[schema.length() - this.indexFields.length];
     int index = 0;
     for (StructField field : schema.fields()) {
       if (!this.schema.containsKey(field.name())) {
         TypeSpec spec = new TypeSpec(field, false, numFields, schema.fieldIndex(field.name()));
         // internal array index is different from numFields
-        this.nonIndexFields[index++] = spec;
+        this.dataFields[index++] = spec;
         this.schema.put(field.name(), spec);
         ++numFields;
       }
     }
 
     // make sure that schema is consistently parsed and we do not have duplicated columns
-    if (numFields != this.schema.size() || index != this.nonIndexFields.length) {
+    if (numFields != this.schema.size() || index != this.dataFields.length) {
       String msg = "";
       if (numFields != this.schema.size()) {
         msg = "total " + numFields + " != " + this.schema.size() + " in struct type";
       } else {
-        msg = "non-indexed " + index + " != " + this.nonIndexFields.length + " in struct type";
+        msg = "non-indexed " + index + " != " + this.dataFields.length + " in struct type";
       }
       throw new RuntimeException(
         "Inconsistency of schema with type description (" + msg + "):\n" +
         "== Schema comparison ==\n" +
         "Type description: " + this + "\n" +
         "Schema: " + schema + "\n");
+    }
+
+    // initialize ordinal set of fields
+    this.ordinalFields = new TypeSpec[numFields];
+    for (int i = 0; i < this.indexFields.length; i++) {
+      this.ordinalFields[this.indexFields[i].position()] = this.indexFields[i];
+    }
+    for (int i = 0; i < this.dataFields.length; i++) {
+      this.ordinalFields[this.dataFields[i].position()] = this.dataFields[i];
     }
   }
 
@@ -128,17 +138,17 @@ public class TypeDescription {
    * array index as position - fields are sorted by their `position()` in type description.
    * @return array of non-indexed TypeSpec fields
    */
-  public TypeSpec[] nonIndexFields() {
-    return this.nonIndexFields;
+  public TypeSpec[] dataFields() {
+    return this.dataFields;
   }
 
   /**
-   * Get an iterator of all type spec instances in this type description. Entries are returned in
-   * no particular order, instead of position methods on spec to determine location.
-   * @return iterator of TypeSpec instances
+   * Get an array of fields in ordinal positions. Internal array is returned and is assumed as
+   * read-only. Position in array is equavalent of `position()` method for type spec.
+   * @return array of TypeSpec instances
    */
-  public Iterator<TypeSpec> fields() {
-    return this.schema.values().iterator();
+  public TypeSpec[] fields() {
+    return this.ordinalFields;
   }
 
   /**
@@ -154,10 +164,19 @@ public class TypeDescription {
    * @param name field name
    * @return index in type description
    */
-  public int index(String name) {
+  public int position(String name) {
     TypeSpec spec = schema.get(name);
     if (spec == null) throw new NoSuchElementException("No such field " + name);
     return spec.position();
+  }
+
+  /**
+   * Return type spec for ordinal in type description.
+   * @param ordinal position in type description
+   * @return TypeSpec instance
+   */
+  public TypeSpec atPosition(int ordinal) {
+    return this.ordinalFields[ordinal];
   }
 
   @Override
