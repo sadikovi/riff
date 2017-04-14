@@ -68,6 +68,27 @@ public class TypeSpec {
   }
 
   @Override
+  public int hashCode() {
+    int result = this.field.hashCode();
+    result += 31 * result + (this.indexed ? 0 : 1);
+    result += 31 * result + this.pos;
+    result += 31 * result + this.origPos;
+    return result;
+  }
+
+  @Override
+  public boolean equals(Object other) {
+    if (other == null || !(other instanceof TypeSpec)) return false;
+    if (other == this) return true;
+    TypeSpec spec = (TypeSpec) other;
+    return
+      spec.field.equals(this.field) &&
+      spec.isIndexed() == this.isIndexed() &&
+      spec.position() == this.position() &&
+      spec.origSQLPos() == this.origSQLPos();
+  }
+
+  @Override
   public String toString() {
     return "TypeSpec(" + this.field.name() + ": " + this.field.dataType().simpleString() +
       ", indexed=" + this.indexed + ", position=" + this.pos + ", origPos=" + this.origPos + ")";

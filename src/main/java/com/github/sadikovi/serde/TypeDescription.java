@@ -128,7 +128,7 @@ public class TypeDescription {
    * Whether or not field with name and data type is supported
    * @return true if type is supported, false otherwise
    */
-  public boolean isSupportedDataType(DataType dataType) {
+  public static boolean isSupportedDataType(DataType dataType) {
     return
       (dataType instanceof IntegerType) ||
       (dataType instanceof LongType) ||

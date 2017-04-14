@@ -135,6 +135,7 @@ final class IndexedRow extends GenericInternalRow {
   @Override
   public boolean equals(Object other) {
     if (other == null || !(other instanceof IndexedRow)) return false;
+    if (other == this) return true;
     IndexedRow row = (IndexedRow) other;
     // we do not compare underlying byte buffers
     return row.numFields() == this.numFields() && row.getNulls() == this.getNulls() &&

@@ -55,7 +55,21 @@ public class Converters {
   // Supported row value converters
   //////////////////////////////////////////////////////////////
 
-  public static class IndexedRowIntConverter extends RowValueConverter {
+  static abstract class IndexedRowValueConverter implements RowValueConverter {
+    @Override
+    public boolean equals(Object other) {
+      if (other == null || !(other instanceof IndexedRowValueConverter)) return false;
+      if (other == this) return true;
+      return this.getClass().equals(other.getClass());
+    }
+
+    @Override
+    public String toString() {
+      return this.getClass().getSimpleName();
+    }
+  }
+
+  public static class IndexedRowIntConverter extends IndexedRowValueConverter {
     @Override
     public void writeDirect(
         InternalRow row,
@@ -72,7 +86,7 @@ public class Converters {
     }
   }
 
-  public static class IndexedRowLongConverter extends RowValueConverter {
+  public static class IndexedRowLongConverter extends IndexedRowValueConverter {
     @Override
     public void writeDirect(
         InternalRow row,
@@ -89,7 +103,7 @@ public class Converters {
     }
   }
 
-  public static class IndexedRowUTF8Converter extends RowValueConverter {
+  public static class IndexedRowUTF8Converter extends IndexedRowValueConverter {
     @Override
     public void writeDirect(
         InternalRow row,
