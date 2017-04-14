@@ -20,41 +20,26 @@
  * SOFTWARE.
  */
 
-package com.github.sadikovi.serde;
+package com.github.sadikovi.testutil
 
-import java.io.IOException;
+import java.io.File
 
-import org.apache.spark.sql.catalyst.InternalRow;
+import org.apache.hadoop.fs.{Path => HadoopPath}
 
-/**
- * Row value converter provies specialized method to write non-null value into output stream.
- */
-abstract class RowValueConverter {
-  /**
-   * Write value with either fixed or variable length into output buffer. Value is guaranteed to be
-   * non-null and buffer is valid. Offset is length of fixed part, used for writing values with
-   * variable part.
-   */
-  public abstract void writeDirect(
-      InternalRow row,
-      int ordinal,
-      OutputBuffer fixedBuffer,
-      int fixedOffset,
-      OutputBuffer variableBuffer) throws IOException;
+import org.scalatest._
 
-  /**
-   * Fixed offset in bytes for data type, this either includes value for primitive types, or fixed
-   * sized metadata (either int or long) for non-primitive types, e.g. UTF8String.
-   */
-  public abstract int byteOffset();
+package object implicits {
+  implicit class PathStringBuilder(path: String) {
+    def /(suffix: String): String = path + File.separator + suffix
 
-  @Override
-  public boolean equals(Object other) {
-    return other != null && other.getClass().equals(this.getClass());
+    def `:`(append: String): String = path + File.pathSeparator + append
   }
 
-  @Override
-  public String toString() {
-    return this.getClass().getSimpleName();
+  implicit class PathBuilder(path: HadoopPath) {
+    def /(suffix: String): HadoopPath = path.suffix(s"${HadoopPath.SEPARATOR}$suffix")
   }
 }
+
+/** abstract general testing class */
+abstract class UnitTestSuite extends FunSuite with Matchers with OptionValues with Inside
+  with Inspectors with TestBase with BeforeAndAfterAll with BeforeAndAfter
