@@ -1,0 +1,25 @@
+language: scala
+sudo: false
+cache:
+  directories:
+    - $HOME/.ivy2
+    - $HOME/.sbt/launchers
+matrix:
+  include:
+    - jdk: openjdk7
+      scala: 2.10.5
+      env: TEST_SPARK_VERSION="2.0.2"
+    - jdk: openjdk7
+      scala: 2.10.5
+      env: TEST_SPARK_VERSION="2.1.0"
+    - jdk: openjdk7
+      scala: 2.11.7
+      env: TEST_SPARK_VERSION="2.0.2"
+    - jdk: openjdk7
+      scala: 2.11.7
+      env: TEST_SPARK_VERSION="2.1.0"
+script:
+  - sbt ++$TRAVIS_SCALA_VERSION scalastyle
+  - sbt ++$TRAVIS_SCALA_VERSION "test:scalastyle"
+  - sbt -Dspark.testVersion=$TEST_SPARK_VERSION ++$TRAVIS_SCALA_VERSION test
+  - sbt ++$TRAVIS_SCALA_VERSION package
