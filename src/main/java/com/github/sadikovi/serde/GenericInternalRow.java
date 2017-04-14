@@ -44,47 +44,38 @@ abstract class GenericInternalRow extends InternalRow {
     throw new UnsupportedOperationException();
   }
 
-  @Override
   public void setNullAt(int ordinal) {
     throw new UnsupportedOperationException();
   }
 
-  @Override
   public final void update(int ordinal, Object value) {
     throw new UnsupportedOperationException();
   }
 
-  @Override
   public void setBoolean(int ordinal, boolean value) {
     throw new UnsupportedOperationException();
   }
 
-  @Override
   public void setByte(int ordinal, byte value) {
     throw new UnsupportedOperationException();
   }
 
-  @Override
   public void setShort(int ordinal, short value) {
     throw new UnsupportedOperationException();
   }
 
-  @Override
   public void setInt(int ordinal, int value) {
     throw new UnsupportedOperationException();
   }
 
-  @Override
   public void setLong(int ordinal, long value) {
     throw new UnsupportedOperationException();
   }
 
-  @Override
   public void setFloat(int ordinal, float value) {
     throw new UnsupportedOperationException();
   }
 
-  @Override
   public void setDouble(int ordinal, double value) {
     throw new UnsupportedOperationException();
   }
