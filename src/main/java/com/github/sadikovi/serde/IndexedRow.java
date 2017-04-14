@@ -4,6 +4,11 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 import org.apache.spark.sql.catalyst.InternalRow;
+import org.apache.spark.sql.types.DataType;
+import org.apache.spark.sql.types.IntegerType;
+import org.apache.spark.sql.types.LongType;
+import org.apache.spark.sql.types.NullType;
+import org.apache.spark.sql.types.StringType;
 import org.apache.spark.unsafe.types.UTF8String;
 
 /**
@@ -55,6 +60,20 @@ final class IndexedRow extends GenericInternalRow {
   }
 
   /**
+   * Get nulls bit set, for internal use only.
+   */
+  protected long getNulls() {
+    return this.nulls;
+  }
+
+  /**
+   * Get indexed bit set, for internal use only.
+   */
+  protected long getIndexed() {
+    return this.indexed;
+  }
+
+  /**
    * Whether or not this row has index region set.
    * @return true if region is set, false otherwise
    */
@@ -92,13 +111,26 @@ final class IndexedRow extends GenericInternalRow {
   }
 
   @Override
+  public boolean equals(Object other) {
+    if (other == null || !(other instanceof IndexedRow)) return false;
+    IndexedRow row = (IndexedRow) other;
+    // we do not compare underlying byte buffers
+    return row.numFields() == this.numFields() && row.getNulls() == this.getNulls() &&
+      row.getIndexed() == this.getIndexed();
+  }
+
+  @Override
+  public int hashCode() {
+    int result = 31 * numFields();
+    result += (int) (this.nulls ^ (this.nulls >>> 32));
+    result += (int) (this.indexed ^ (this.indexed >>> 32));
+    return result;
+  }
+
+  @Override
   public boolean anyNull() {
     return this.nulls != 0;
   }
-
-  //////////////////////////////////////////////////////////////
-  // Specialized getters
-  //////////////////////////////////////////////////////////////
 
   @Override
   public boolean isNullAt(int ordinal) {
@@ -153,6 +185,21 @@ final class IndexedRow extends GenericInternalRow {
       return getUTF8String(ordinal, this.indexBuffer);
     } else {
       return getUTF8String(ordinal, this.dataBuffer);
+    }
+  }
+
+  @Override
+  public Object get(int ordinal, DataType dataType) {
+    if (isNullAt(ordinal) || dataType instanceof NullType) {
+      return null;
+    } else if (dataType instanceof IntegerType) {
+      return getInt(ordinal);
+    } else if (dataType instanceof LongType) {
+      return getLong(ordinal);
+    } else if (dataType instanceof StringType) {
+      return getUTF8String(ordinal);
+    } else {
+      throw new UnsupportedOperationException("Unsupported data type " + dataType.simpleString());
     }
   }
 
