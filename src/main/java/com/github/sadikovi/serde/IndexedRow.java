@@ -237,10 +237,11 @@ final class IndexedRow extends GenericInternalRow {
     sb.append("nulls=" + anyNull() + ", ");
     sb.append("fields=" + numFields() + ", ");
     if (hasIndexRegion()) {
-      sb.append("index_region=" + Arrays.toString(this.indexBuffer.array()) + ", ");
+      sb.append("index_region=" + Arrays.toString(this.indexBuffer.array()));
     } else {
-      sb.append("index_region=null, ");
+      sb.append("index_region=null");
     }
+    sb.append(", ");
     if (hasDataRegion()) {
       sb.append("data_region=" + Arrays.toString(this.dataBuffer.array()));
     } else {
