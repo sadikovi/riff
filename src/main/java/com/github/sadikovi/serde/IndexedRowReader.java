@@ -30,6 +30,7 @@ import org.apache.spark.sql.catalyst.InternalRow;
 
 /**
  * Reader for [[IndexedRow]] instances, created per stream and reused across rows.
+ * Type description is used directly to map schema to each row.
  */
 public class IndexedRowReader {
   private final TypeDescription desc;

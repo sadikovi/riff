@@ -29,6 +29,8 @@ import org.apache.spark.sql.catalyst.InternalRow;
 
 /**
  * Writer for [[IndexedRow]] instances, created per stream and reused across rows.
+ * InternalRow to write is assumed to have schema backed by TypeDescription instance, meaning that
+ * original sql positions correspond to indices in internal row.
  */
 public class IndexedRowWriter {
   // type description for writer
