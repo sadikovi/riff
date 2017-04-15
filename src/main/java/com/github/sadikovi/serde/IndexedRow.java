@@ -117,7 +117,7 @@ final class IndexedRow extends GenericInternalRow {
   }
 
   @Override
-  public InternalRow copy() {
+  public IndexedRow copy() {
     int[] copyOffsets = new int[this.offsets.length];
     System.arraycopy(this.offsets, 0, copyOffsets, 0, this.offsets.length);
     IndexedRow row = new IndexedRow(this.indexed, this.nulls, copyOffsets);
@@ -231,15 +231,16 @@ final class IndexedRow extends GenericInternalRow {
     StringBuilder sb = new StringBuilder();
     sb.append("[");
     sb.append("nulls=" + anyNull() + ", ");
+    sb.append("fields=" + numFields() + ", ");
     if (hasIndexRegion()) {
       sb.append("index_region=" + Arrays.toString(this.indexBuffer.array()) + ", ");
     } else {
       sb.append("index_region=null, ");
     }
     if (hasDataRegion()) {
-      sb.append("data_region=" + Arrays.toString(this.dataBuffer.array()) + ", ");
+      sb.append("data_region=" + Arrays.toString(this.dataBuffer.array()));
     } else {
-      sb.append("data_region=null, ");
+      sb.append("data_region=null");
     }
     sb.append("]");
     return sb.toString();
