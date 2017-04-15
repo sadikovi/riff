@@ -93,13 +93,13 @@ public class IndexedRowWriter {
     // write index region
     checkOverflow(this.indexFixedBuffer.bytesWritten(), this.indexVariableBuffer.bytesWritten());
     writeInt(this.indexFixedBuffer.bytesWritten() + this.indexVariableBuffer.bytesWritten(), out);
-    out.write(this.indexFixedBuffer.array());
-    out.write(this.indexVariableBuffer.array());
+    this.indexFixedBuffer.writeExternal(out);
+    this.indexVariableBuffer.writeExternal(out);
     // write data region
     checkOverflow(this.dataFixedBuffer.bytesWritten(), this.dataVariableBuffer.bytesWritten());
     writeInt(this.dataFixedBuffer.bytesWritten() + this.dataVariableBuffer.bytesWritten(), out);
-    out.write(this.dataFixedBuffer.array());
-    out.write(this.dataVariableBuffer.array());
+    this.dataFixedBuffer.writeExternal(out);
+    this.dataVariableBuffer.writeExternal(out);
   }
 
   /** Check if two numbers result in int overflow */

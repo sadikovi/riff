@@ -23,35 +23,30 @@
 package com.github.sadikovi.serde;
 
 import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 
 /**
- * Resizable output buffer built on top of `java.io.ByteArrayOutputStream`.
- * Provides some common methods to write primitives into stream.
+ * OutputBuffer is a resizable byte buffer based on `ByteArrayOutputStream` with additional methods
+ * to write primitive values. Writes are optimized around writing byte arrays, which is different
+ * from data output stream. Default output buffer is chosen to suit indexed row writes.
  */
 public class OutputBuffer extends ByteArrayOutputStream {
-  // wrapper stream to provide common functionality of writing bytes
-  private DataOutputStream stream;
+  // default size in bytes
+  private static final int DEFAULT_SIZE = 64;
+
+  // buffer for primitive values
+  private final byte[] buffer;
 
   public OutputBuffer(int size) {
     super(size);
-    this.stream = new DataOutputStream(this);
+    this.buffer = new byte[8];
   }
 
   /** Constructor with default size, see `ByteArrayOutputStream` for more information */
   public OutputBuffer() {
-    super();
-    this.stream = new DataOutputStream(this);
-  }
-
-  /**
-   * Reset byte array stream and refresh wrapper output stream.
-   */
-  @Override
-  public void reset() {
-    super.reset();
-    this.stream = new DataOutputStream(this);
+    super(DEFAULT_SIZE);
+    this.buffer = new byte[8];
   }
 
   /**
@@ -59,15 +54,23 @@ public class OutputBuffer extends ByteArrayOutputStream {
    * @return number of bytes
    */
   public int bytesWritten() {
-    return this.stream.size();
+    return size();
   }
 
   /**
-   * Return content of output buffer as byte array.
-   * @return byte array - content of buffer
+   * Return copy of output buffer's content as byte array.
+   * @return copy of byte array
    */
   public byte[] array() {
-    return super.toByteArray();
+    return toByteArray();
+  }
+
+  /**
+   * Write current buffer into external output stream.
+   * @param out sink output stream
+   */
+  public void writeExternal(OutputStream out) throws IOException {
+    writeTo(out);
   }
 
   /**
@@ -75,7 +78,7 @@ public class OutputBuffer extends ByteArrayOutputStream {
    * @param v boolean value to write
    */
   public void writeBoolean(boolean v) throws IOException {
-    this.stream.writeBoolean(v);
+    write(v ? 1 : 0);
   }
 
   /**
@@ -83,50 +86,7 @@ public class OutputBuffer extends ByteArrayOutputStream {
    * @param v byte value to write
    */
   public void writeByte(int v) throws IOException {
-    this.stream.writeByte(v);
-  }
-
-  /**
-   * Converts the double argument to a long using the doubleToLongBits method in class Double, and
-   * then writes that long value to the underlying output stream as an 8-byte quantity, high byte
-   * first.
-   * @param v double value to write
-   */
-  public void writeDouble(double v) throws IOException {
-    this.stream.writeDouble(v);
-  }
-
-  /**
-   * Converts the float argument to an int using the floatToIntBits method in class Float, and then
-   * writes that int value to the underlying output stream as a 4-byte quantity, high byte first.
-   * @param v float value to write
-   */
-  public void writeFloat(float v) throws IOException {
-    this.stream.writeFloat(v);
-  }
-
-  /**
-   * Writes an int to the underlying output stream as four bytes, high byte first.
-   * @param v integer value to write
-   */
-  public void writeInt(int v) throws IOException {
-    this.stream.writeInt(v);
-  }
-
-  /**
-   * Writes a long to the underlying output stream as eight bytes, high byte first.
-   * @param v long value to write
-   */
-  public void writeLong(long v) throws IOException {
-    this.stream.writeLong(v);
-  }
-
-  /**
-   * Writes a short to the underlying output stream as two bytes, high byte first.
-   * @param v short value to write
-   */
-  public void writeShort(int v) throws IOException {
-    this.stream.writeShort(v);
+    write(v);
   }
 
   /**
@@ -136,7 +96,7 @@ public class OutputBuffer extends ByteArrayOutputStream {
    * @param len length to write
    */
   public void writeBytes(byte[] b, int off, int len) throws IOException {
-    this.stream.write(b, off, len);
+    write(b, off, len);
   }
 
   /**
@@ -144,6 +104,63 @@ public class OutputBuffer extends ByteArrayOutputStream {
    * @param b byte array to write
    */
   public void writeBytes(byte[] b) throws IOException {
-    this.stream.write(b);
+    write(b);
+  }
+
+  /**
+   * Converts the double argument to a long using the doubleToLongBits method in class Double, and
+   * then writes that long value to the underlying output stream as an 8-byte quantity, high byte
+   * first.
+   * @param v double value to write
+   */
+  public void writeDouble(double v) throws IOException {
+    writeLong(Double.doubleToLongBits(v));
+  }
+
+  /**
+   * Converts the float argument to an int using the floatToIntBits method in class Float, and then
+   * writes that int value to the underlying output stream as a 4-byte quantity, high byte first.
+   * @param v float value to write
+   */
+  public void writeFloat(float v) throws IOException {
+    writeInt(Float.floatToIntBits(v));
+  }
+
+  /**
+   * Writes an int to the underlying output stream as four bytes, high byte first.
+   * @param v integer value to write
+   */
+  public void writeInt(int v) throws IOException {
+    buffer[0] = (byte) (0xff & (v >> 24));
+    buffer[1] = (byte) (0xff & (v >> 16));
+    buffer[2] = (byte) (0xff & (v >>  8));
+    buffer[3] = (byte) (0xff & v);
+    write(buffer, 0, 4);
+  }
+
+  /**
+   * Writes a long to the underlying output stream as eight bytes, high byte first.
+   * @param v long value to write
+   */
+  public void writeLong(long v) throws IOException {
+    buffer[0] = (byte) (0xff & (v >> 56));
+    buffer[1] = (byte) (0xff & (v >> 48));
+    buffer[2] = (byte) (0xff & (v >> 40));
+    buffer[3] = (byte) (0xff & (v >> 32));
+    buffer[4] = (byte) (0xff & (v >> 24));
+    buffer[5] = (byte) (0xff & (v >> 16));
+    buffer[6] = (byte) (0xff & (v >>  8));
+    buffer[7] = (byte) (0xff & v);
+    write(buffer, 0, 8);
+  }
+
+  /**
+   * Writes a short to the underlying output stream as two bytes, high byte first.
+   * @param v short value to write
+   */
+  public void writeShort(int v) throws IOException {
+    buffer[0] = (byte) (0xff & (v >> 8));
+    buffer[1] = (byte) (0xff & v);
+    write(buffer, 0, 2);
   }
 }

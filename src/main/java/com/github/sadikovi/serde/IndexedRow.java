@@ -121,13 +121,17 @@ final class IndexedRow extends GenericInternalRow {
     int[] copyOffsets = new int[this.offsets.length];
     System.arraycopy(this.offsets, 0, copyOffsets, 0, this.offsets.length);
     IndexedRow row = new IndexedRow(this.indexed, this.nulls, copyOffsets);
-    // TODO: perform direct copy on byte buffer
     if (hasIndexRegion()) {
-      row.setIndexRegion(this.indexBuffer.array());
+      // copy bytes manually, array() method returns reference to wrapped byte array
+      byte[] arr = new byte[this.indexBuffer.capacity()];
+      System.arraycopy(this.indexBuffer.array(), 0, arr, 0, arr.length);
+      row.setIndexRegion(arr);
     }
-    // TODO: perform direct copy on byte buffer
     if (hasDataRegion()) {
-      row.setDataRegion(this.dataBuffer.array());
+      // copy bytes manually, array() method returns reference to wrapped byte array
+      byte[] arr = new byte[this.dataBuffer.capacity()];
+      System.arraycopy(this.dataBuffer.array(), 0, arr, 0, arr.length);
+      row.setDataRegion(arr);
     }
     return row;
   }

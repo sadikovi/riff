@@ -120,6 +120,25 @@ class IndexedRowSuite extends UnitTestSuite {
     copy.hasDataRegion() should be (row.hasDataRegion())
   }
 
+  test("indexed row - copy does not share region buffers") {
+    // integer value of 123
+    val bytes = Array[Byte](0, 0, 0, 123)
+    // row contains 2 columns, first is indexed int, second is int
+    val row1 = new IndexedRow(1L, 0L, Array(0, 0))
+    row1.setIndexRegion(bytes)
+    row1.setDataRegion(bytes)
+    val row2 = row1.copy()
+
+    // modify content of byte array
+    bytes(3) = 128.toByte
+
+    row1.getInt(0) should be (128)
+    row1.getInt(1) should be (128)
+    // copy should preserve old values before update
+    row2.getInt(0) should be (123)
+    row2.getInt(1) should be (123)
+  }
+
   test("indexed row - toString 1") {
     val row = new IndexedRow(123L, 124L, new Array[Int](32))
     row.setIndexRegion(Array[Byte](1, 2, 3, 4))
