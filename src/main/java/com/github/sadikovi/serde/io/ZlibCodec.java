@@ -51,15 +51,13 @@ public class ZlibCodec implements CompressionCodec {
     deflater.finish();
     int offset = out.arrayOffset() + out.position();
     while (!deflater.finished() && length > outSize) {
-      // TODO: fix infinite loop issue when compressed bytes do not fit into out and overflow
-      // this is mainly hypothetical situation
       int size = deflater.deflate(out.array(), offset, out.remaining());
       out.position(size + out.position());
       outSize += size;
       offset += size;
       // if we run out of space in the out buffer, use the overflow
       if (out.remaining() == 0) {
-        if (overflow == null) {
+        if (overflow == null || overflow.remaining() == 0) {
           return false;
         }
         out = overflow;

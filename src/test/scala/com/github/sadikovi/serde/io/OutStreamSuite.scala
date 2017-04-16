@@ -48,6 +48,27 @@ class OutStreamSuite extends UnitTestSuite {
     ))
   }
 
+  test("outstream - write uncompressed, no bytes written") {
+    val receiver = new ByteArrayOutputStream()
+    val bufferSize = 16
+    val out = new OutStream(bufferSize, null, receiver)
+    out.flush()
+    out.close()
+    // byte array should be empty
+    receiver.toByteArray() should be (Array[Byte]())
+  }
+
+  test("outstream - write compressed, no bytes written") {
+    val receiver = new ByteArrayOutputStream()
+    val bufferSize = 16
+    val out = new OutStream(bufferSize, new ZlibCodec(), receiver)
+    out.flush()
+    out.close()
+    // byte array should contain only header, in this case should have 0 compression flag and 0
+    // bytes written
+    receiver.toByteArray() should be (Array[Byte](0, 0, 0, 0))
+  }
+
   test("outstream - write compressed zlib, use compression") {
     val receiver = new ByteArrayOutputStream()
     val bufferSize = 16

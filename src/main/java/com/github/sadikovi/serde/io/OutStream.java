@@ -133,13 +133,13 @@ public class OutStream extends OutputStream {
       // spill current buffer and insert remaining bytes
       spill();
       // for input array we need to shift offset, see below:
-      // |_|_|_\_\_|_|_|
+      // |_|_|_|_|_|_|_|
       //  ^-offset, length = 7
       // we wrote 2 bytes from array:
-      // |X|X|_\_\_|_|_|
+      // |X|X|_|_|_|_|_|
       //  ^-offset, length = 5 (after decrement)
       // shift offset and write next portion of bytes (or all of the remaining)
-      // |X|X|_\_\_|_|_|
+      // |X|X|_|_|_|_|_|
       //      ^-offset, length = 5
       // iterate over remaining bytes shifting offset, decrementing length, and spilling buffer
       // until all bytes will have been written into stream

@@ -20,38 +20,36 @@
  * SOFTWARE.
  */
 
-package com.github.sadikovi.serde.io;
+package com.github.sadikovi.serde.io
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
+import java.nio.ByteBuffer
 
-/**
- * Compression codec interface.
- */
-public interface CompressionCodec {
-  /**
-   * Compress the in buffer to the out buffer.
-   * @param in the bytes to compress
-   * @param out the uncompressed bytes
-   * @param overflow put any additional bytes here
-   * @return true if the output is smaller than input
-   * @throws IOException
-   */
-  boolean compress(ByteBuffer in, ByteBuffer out, ByteBuffer overflow) throws IOException;
+import com.github.sadikovi.testutil.UnitTestSuite
 
-  /**
-   * Decompress the in buffer to the out buffer.
-   * Input buffer is flipped and set to start position for reading.
-   * Output buffer is already flipped to start position and ready for writing.
-   * @param in the bytes to decompress
-   * @param out the decompressed bytes
-   * @throws IOException
-   */
-  void decompress(ByteBuffer in, ByteBuffer out) throws IOException;
+class ZlibCodecSuite extends UnitTestSuite {
+  test("fill up compressed and overflow buffers and exit loop correctly") {
+    val inbuf = ByteBuffer.wrap(Array[Byte](1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12))
+    val outbuf = ByteBuffer.allocate(4)
+    val overflow = ByteBuffer.allocate(4)
+    val codec = new ZlibCodec()
+    codec.compress(inbuf, outbuf, overflow) should be (false)
+    outbuf.remaining() should be (0)
+    overflow.remaining() should be (0)
+  }
 
-  /** Reset the codec, preparing it for reuse */
-  void reset();
+  test("compress and decompress byte array") {
+    val inbuf = ByteBuffer.allocate(32)
+    inbuf.putInt(4)
+    inbuf.putLong(8L)
+    inbuf.putLong(12L)
+    inbuf.flip()
+    val outbuf = ByteBuffer.allocate(32)
+    val codec = new ZlibCodec()
+    codec.compress(inbuf, outbuf, null) should be (true)
+    outbuf.flip()
 
-  /** Close the codec, releasing the resources */
-  void close();
+    val resbuf = ByteBuffer.allocate(32)
+    codec.decompress(outbuf, resbuf)
+    resbuf.array() should be (inbuf.array())
+  }
 }
