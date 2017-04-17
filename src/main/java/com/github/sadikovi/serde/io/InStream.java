@@ -49,6 +49,8 @@ public class InStream extends InputStream {
     this.uncompressed = ByteBuffer.allocate(bufferSize);
     this.currentOffset = 0L;
     this.source = source;
+    // fill up buffer with some data from source
+    source.copy(uncompressed);
   }
 
   @Override
@@ -118,31 +120,6 @@ public class InStream extends InputStream {
   }
 
   /**
-   * Refill uncompressed buffer with more data from source.
-   * Precondition is buffer should be fully read, no remaining bytes. If currentOffset calculated
-   * and larger than source length, no bytes are read and available method will have returned < 0.
-   * @throws IOException
-   */
-  private void refill() throws IOException {
-    if (uncompressed.remaining() > 0) return;
-    // buffer is full, clear it and copy data from source
-    uncompressed.clear();
-    // update current offset to include buffer size, this is shifting position to the next portion
-    // of data to copy, as currentOffset points to the beginning of byte buffer - it is not updated
-    // constantly
-    currentOffset += uncompressed.remaining();
-    if (source.length() > currentOffset) {
-      // bytes are within source data, reposition and copy
-      source.seek(currentOffset);
-      source.copy(uncompressed);
-    } else {
-      // current offset is larger than source length, set uncompressed buffer as full - this
-      // indicates EOF
-      uncompressed.limit(0);
-    }
-  }
-
-  /**
    * Read method copies bytes from underlying buffer into provided array. If necessary, it will
    * buffer source for more data. If last batch is being read, fewer bytes might be returned, but,
    * otherwise, it will ensure reading all bytes that were requested.
@@ -162,8 +139,9 @@ public class InStream extends InputStream {
     // keep track of maximum number of bytes we have copied into array
     int bytesSoFar = bytesRead;
     while (length > 0) {
-      // buffer more data from source, if possible
-      refill();
+      // refill buffer
+      uncompressed.clear();
+      source.copy(uncompressed);
 
       offset += bytesRead;
       bytesRead = Math.min(uncompressed.remaining(), length);
