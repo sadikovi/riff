@@ -114,4 +114,10 @@ public class StripeInputBuffer {
     this.data = null;
     this.offset = 0;
   }
+
+  @Override
+  public String toString() {
+    return "StripeData[id=" + id + ", offset=" + offset +
+      ", closed=" + (data == null) + "]";
+  }
 }
