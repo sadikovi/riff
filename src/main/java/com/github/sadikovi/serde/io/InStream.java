@@ -37,8 +37,6 @@ public class InStream extends InputStream {
   private StripeInputBuffer source;
   // byte buffer to store uncompressed part of data
   private ByteBuffer uncompressed;
-  // current offset (total bytes either read or skipped) relative to the source
-  private long currentOffset;
 
   public InStream(int bufferSize, CompressionCodec codec, StripeInputBuffer source) {
     this.bufferSize = bufferSize;
@@ -47,16 +45,14 @@ public class InStream extends InputStream {
     // codec is null if source stream does not have compressed chunks
     this.codec = codec;
     this.uncompressed = ByteBuffer.allocate(bufferSize);
-    this.currentOffset = 0L;
     this.source = source;
-    // fill up buffer with some data from source
     source.copy(uncompressed);
   }
 
   @Override
   public int available() throws IOException {
     if (uncompressed.remaining() != 0) return uncompressed.remaining();
-    return (int) (source.length() - currentOffset);
+    return source.length() - source.position();
   }
 
   /**
@@ -170,23 +166,19 @@ public class InStream extends InputStream {
       return bytes;
     }
     // at this point, we are short on bytes to skip, we need to indicate to source that we require
-    // seeking to new offset and copy bytes from there. Here we do not care about bytes left in
-    // uncompressed buffer.
-    currentOffset += uncompressed.position() + bytes;
-    uncompressed.clear();
-    if (source.length() > currentOffset) {
-      // all bytes can be skipped, we seek to the new position, copy remaining bytes from source
-      // and return skipped bytes
-      source.seek(currentOffset);
-      source.copy(uncompressed);
-      return bytes;
+    // seeking to new offset, after this refill buffer
+    int nextPosition = source.position() + (int) (bytes - uncompressed.remaining());
+    if (nextPosition > source.length()) {
+      // at this point we reached EOF, just set it, so next copy will result in 0 copied bytes
+      bytes = source.length() - source.position();
+      source.seek(source.length());
     } else {
-      // seek to the end of the stream, we would have to skip only those bytes
-      source.seek(source.length() - 1);
-      // no copy, just set limit to 0, so no remaining bytes are left
-      uncompressed.limit(0);
-      return bytes - (currentOffset - source.length());
+      bytes = nextPosition - source.position();
+      source.seek(nextPosition);
     }
+    uncompressed.clear();
+    source.copy(uncompressed);
+    return bytes;
   }
 
   @Override
@@ -194,7 +186,6 @@ public class InStream extends InputStream {
     // release resources
     this.source.close();
     this.source = null;
-    this.currentOffset = 0;
     this.uncompressed = null;
   }
 

@@ -26,31 +26,68 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 /**
- * Interface for stripe input buffer.
+ * Stripe input buffer.
  * Keeps information about current stripe, including total bytes in stripe, offset, and id.
  * Specification implies that stripe is loaded into memory entirely and read in parts by consumers,
  * such as `InStream`s.
  */
-public interface StripeInputBuffer {
+public class StripeInputBuffer {
+  // stripe unique id (across stripes within file)
+  private final short id;
+  // total data in stripe
+  private byte[] data;
+  // current offset in data
+  private int offset;
+
+  public StripeInputBuffer(short id, byte[] data) {
+    if (data == null || data.length == 0) {
+      throw new IllegalArgumentException("Empty data for stripe");
+    }
+    this.id = id;
+    this.data = data;
+    this.offset = 0;
+  }
   /**
    * Total number of bytes in this stripe.
+   * Stripe cannot have more than 2GB of data.
    * @return number of bytes
    */
-  long length();
+  public int length() {
+    return this.data.length;
+  }
+
+  /**
+   * Position of cursor within stripe: remaining bytes = length() - position().
+   * @return offset within stripe
+   */
+  public int position() {
+    return offset;
+  }
 
   /**
    * Stripe sequential id within a file.
    * @return id as short value
    */
-  short id();
+  public short id() {
+    return this.id;
+  }
 
   /**
    * Position cursor in input buffer to the desired position.
    * If position is negative or is larger than actual size of input buffer, exception is thrown.
    * @param position desired position in input buffer
-   * @throws IOException when position is < 0 or >= length
+   * @throws IOException when position is < 0 or >= length, or less than current position
    */
-  void seek(long position) throws IOException;
+  public void seek(int position) throws IOException {
+    if (position < 0 || position > data.length) {
+      throw new IOException("Invalid position " + position + " for " + this);
+    }
+
+    if (position < offset) {
+      throw new IOException("Cannot set position " + position + " < current offset " + offset);
+    }
+    offset = position;
+  }
 
   /**
    * Copy data into provided byte buffer, it should have position and limit set accordingly to
@@ -59,11 +96,22 @@ public interface StripeInputBuffer {
    * reflect this change (limit will be resized, so remaining bytes are only those copied).
    * @param out buffer to copy into
    */
-  void copy(ByteBuffer out);
+  public void copy(ByteBuffer out) {
+    int remaining = Math.min(out.remaining(), data.length - offset);
+    out.put(data, offset, remaining);
+    // advance position
+    offset += remaining;
+    // flip buffer to make it ready for reads; if we copied fewer bytes than remaining in buffer,
+    // after flip limit will be set correctly, and position will be reset to 0
+    out.flip();
+  }
 
   /**
    * Close and/or relese all resources maintained by this stripe input buffer.
    * @throws IOException
    */
-  void close() throws IOException;
+  public void close() throws IOException {
+    this.data = null;
+    this.offset = 0;
+  }
 }
