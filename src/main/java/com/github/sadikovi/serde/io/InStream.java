@@ -38,15 +38,63 @@ public class InStream extends InputStream {
   // byte buffer to store uncompressed part of data
   private ByteBuffer uncompressed;
 
-  public InStream(int bufferSize, CompressionCodec codec, StripeInputBuffer source) {
+  public InStream(
+      int bufferSize,
+      CompressionCodec codec,
+      StripeInputBuffer source) throws IOException {
     this.bufferSize = bufferSize;
     // initialize buffer to read all primitive types (8 bytes max for long and double)
     this.buf = new byte[8];
     // codec is null if source stream does not have compressed chunks
     this.codec = codec;
-    this.uncompressed = ByteBuffer.allocate(bufferSize);
     this.source = source;
-    source.copy(uncompressed);
+    this.uncompressed = ByteBuffer.allocate(bufferSize);
+    readChunk();
+  }
+
+  /**
+   * Depending on compression codec, read directly into uncompressed buffer or use compressed buffer
+   * to either decompress bytes or reset to uncompressed depending on chunk header, since we do not
+   * know if chunk is compressed or not; also ensure header consistency.
+   *
+   * This method assumes that uncompressed buffer is empty and needs buffering.
+   */
+  private void readChunk() throws IOException {
+    uncompressed.clear();
+    if (codec == null) {
+      source.copy(uncompressed);
+    } else {
+      assert OutStream.HEADER_SIZE == 4: "Inconsistent header";
+      // for header size of 4 bytes; use small buffer array that we prepared for primitives
+      ByteBuffer header = ByteBuffer.wrap(buf, 0, 4);
+      source.copy(header);
+      if (header.remaining() < OutStream.HEADER_SIZE) {
+        throw new IOException("EOF, expected at least " + OutStream.HEADER_SIZE + " bytes");
+      }
+      // read header
+      int info = header.getInt();
+      boolean isCompressed = (info & (1 << 31)) > 0;
+      int chunkLength = info & ~(1 << 31);
+      // copy raw bytes (either compressed or uncompressed) into compressed buffer, we should be able
+      // to just swap it in uncompressed case
+      ByteBuffer compressed = ByteBuffer.allocate(chunkLength);
+      // fewer bytes can be read from stream
+      source.copy(compressed);
+      if (isCompressed) {
+        // reset uncompressed buffer and decompress bytes, if uncompressed buffer has smaller than
+        // bufferSize - reset it to bufferSize, otherwise just clear position and limit
+        // TODO: resize uncompressed buffer in case chunkLength results in more than bufferSize bytes
+        // right now it will throw exception, if this situation happens
+        if (uncompressed.limit() < bufferSize) {
+          uncompressed = ByteBuffer.allocate(bufferSize);
+        }
+        codec.decompress(compressed, uncompressed);
+        // at this point uncompressed buffer is set for reading, no need to flip
+      } else {
+        // just swap byte buffers
+        uncompressed = compressed;
+      }
+    }
   }
 
   @Override
@@ -136,8 +184,7 @@ public class InStream extends InputStream {
     int bytesSoFar = bytesRead;
     while (length > 0) {
       // refill buffer
-      uncompressed.clear();
-      source.copy(uncompressed);
+      readChunk();
 
       offset += bytesRead;
       bytesRead = Math.min(uncompressed.remaining(), length);
@@ -167,18 +214,34 @@ public class InStream extends InputStream {
     }
     // at this point, we are short on bytes to skip, we need to indicate to source that we require
     // seeking to new offset, after this refill buffer
-    int nextPosition = source.position() + (int) (bytes - uncompressed.remaining());
-    if (nextPosition > source.length()) {
-      // at this point we reached EOF, just set it, so next copy will result in 0 copied bytes
-      bytes = source.length() - source.position();
-      source.seek(source.length());
+    if (codec == null) {
+      // for uncompressed input stream, we just reposition pointer in source
+      int nextPosition = source.position() + (int) (bytes - uncompressed.remaining());
+      if (nextPosition > source.length()) {
+        // at this point we reached EOF, just set it, so next copy will result in 0 copied bytes
+        bytes = source.length() - source.position();
+        source.seek(source.length());
+      } else {
+        bytes = nextPosition - source.position();
+        source.seek(nextPosition);
+      }
+      readChunk();
+      return bytes;
     } else {
-      bytes = nextPosition - source.position();
-      source.seek(nextPosition);
+      // for compressed input stream, we will have to read bytes in order to determine skip position
+      int diff = (int) (bytes - uncompressed.remaining());
+      while (source.length() > source.position()) {
+        readChunk();
+        if (uncompressed.remaining() > diff) {
+          uncompressed.position(uncompressed.position() + diff);
+          // we can skip all requested bytes, return the same number
+          return bytes;
+        }
+        diff -= uncompressed.remaining();
+      }
+      // at this point source enountered EOF, return read bytes so far
+      return bytes - diff;
     }
-    uncompressed.clear();
-    source.copy(uncompressed);
-    return bytes;
   }
 
   @Override

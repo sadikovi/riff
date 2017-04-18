@@ -22,6 +22,7 @@
 
 package com.github.sadikovi.serde.io
 
+import java.io.IOException
 import java.nio.ByteBuffer
 
 import com.github.sadikovi.testutil.UnitTestSuite
@@ -51,5 +52,26 @@ class ZlibCodecSuite extends UnitTestSuite {
     val resbuf = ByteBuffer.allocate(32)
     codec.decompress(outbuf, resbuf)
     resbuf.array() should be (inbuf.array())
+  }
+
+  test("compress and decompress byte array using smaller output buffer") {
+    // this test checks that we can still decompress when output buffer has smaller size that
+    // actual size of decompressed bytes
+    val inbuf = ByteBuffer.allocate(32)
+    inbuf.putInt(4)
+    inbuf.putLong(8L)
+    inbuf.putLong(12L)
+    inbuf.flip()
+    val outbuf = ByteBuffer.allocate(32)
+    val codec = new ZlibCodec()
+    codec.compress(inbuf, outbuf, null) should be (true)
+    outbuf.flip()
+
+    val resbuf = ByteBuffer.allocate(8)
+    val err = intercept[IOException] {
+      codec.decompress(outbuf, resbuf)
+    }
+    err.getMessage should be ("Output buffer is too short, could not insert more bytes from " +
+      "compressed byte buffer")
   }
 }

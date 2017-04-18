@@ -69,6 +69,7 @@ public class ZlibCodec implements CompressionCodec {
 
   @Override
   public void decompress(ByteBuffer in, ByteBuffer out) throws IOException {
+    boolean hasRemaining = true;
     inflater.reset();
     inflater.setInput(in.array(), in.arrayOffset() + in.position(), in.remaining());
     while (!(inflater.finished() || inflater.needsDictionary() || inflater.needsInput())) {
@@ -76,6 +77,14 @@ public class ZlibCodec implements CompressionCodec {
         int count = inflater.inflate(out.array(), out.arrayOffset() + out.position(),
           out.remaining());
         out.position(count + out.position());
+        // if we have marked buffer as having 0 bytes to insert on previous iteration, we should
+        // raise an error, which means output buffer is too short and we are trying to insert into
+        // already full buffer
+        if (!hasRemaining) {
+          throw new IOException("Output buffer is too short, could not insert more bytes from " +
+            "compressed byte buffer");
+        }
+        hasRemaining = count == 0;
       } catch (DataFormatException dfe) {
         throw new IOException("Bad compression data", dfe);
       }
