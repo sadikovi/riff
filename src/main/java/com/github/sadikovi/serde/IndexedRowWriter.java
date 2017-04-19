@@ -27,6 +27,8 @@ import java.io.OutputStream;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 
+import com.github.sadikovi.serde.io.OutputBuffer;
+
 /**
  * Writer for [[IndexedRow]] instances, created per stream and reused across rows.
  * InternalRow to write is assumed to have schema backed by TypeDescription instance, meaning that

@@ -26,6 +26,8 @@ import java.io.IOException;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 
+import com.github.sadikovi.serde.io.OutputBuffer;
+
 /**
  * Row value converter provies specialized method to write non-null value into output stream.
  */

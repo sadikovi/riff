@@ -25,8 +25,6 @@ package com.github.sadikovi.serde.io;
 import java.io.IOException;
 import java.io.OutputStream;
 
-import com.github.sadikovi.serde.OutputBuffer;
-
 /**
  * StripeOutputBuffer keeps data in memory for entire stripe until buffer is flushed to disk.
  * Has very simple interface similar to OutputStream.

@@ -30,6 +30,8 @@ import org.apache.spark.sql.types.IntegerType;
 import org.apache.spark.sql.types.LongType;
 import org.apache.spark.sql.types.StringType;
 
+import com.github.sadikovi.serde.io.OutputBuffer;
+
 /**
  * Placeholder for specific implementations of row value converters.
  */
