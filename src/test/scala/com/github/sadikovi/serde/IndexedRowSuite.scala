@@ -28,6 +28,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
+import com.github.sadikovi.serde.io._
 import com.github.sadikovi.testutil.UnitTestSuite
 
 class IndexedRowSuite extends UnitTestSuite {
@@ -167,9 +168,11 @@ class IndexedRowSuite extends UnitTestSuite {
     val td = new TypeDescription(schema, Array("col3", "col2"))
     val writer = new IndexedRowWriter(td)
     val reader = new IndexedRowReader(td)
-    val out = new ByteArrayOutputStream()
+    val stripe = new StripeOutputBuffer(1.toByte)
+    val out = new OutStream(64, null, stripe)
     writer.writeRow(row, out)
-    val in = new ByteArrayInputStream(out.toByteArray())
+    out.flush()
+    val in = new InStream(64, null, new StripeInputBuffer(1.toByte, stripe.array()))
     val ind = reader.readRow(in).asInstanceOf[IndexedRow]
 
     ind.hasIndexRegion() should be (true)
@@ -208,9 +211,11 @@ class IndexedRowSuite extends UnitTestSuite {
     val td = new TypeDescription(schema, Array("col3", "col2", "col1"))
     val writer = new IndexedRowWriter(td)
     val reader = new IndexedRowReader(td)
-    val out = new ByteArrayOutputStream()
+    val stripe = new StripeOutputBuffer(1.toByte)
+    val out = new OutStream(64, null, stripe)
     writer.writeRow(row, out)
-    val in = new ByteArrayInputStream(out.toByteArray())
+    out.flush()
+    val in = new InStream(64, null, new StripeInputBuffer(1.toByte, stripe.array()))
     val ind = reader.readRow(in).asInstanceOf[IndexedRow]
 
     ind.hasIndexRegion() should be (true)
@@ -239,9 +244,11 @@ class IndexedRowSuite extends UnitTestSuite {
     val td = new TypeDescription(schema)
     val writer = new IndexedRowWriter(td)
     val reader = new IndexedRowReader(td)
-    val out = new ByteArrayOutputStream()
+    val stripe = new StripeOutputBuffer(1.toByte)
+    val out = new OutStream(64, null, stripe)
     writer.writeRow(row, out)
-    val in = new ByteArrayInputStream(out.toByteArray())
+    out.flush()
+    val in = new InStream(64, null, new StripeInputBuffer(1.toByte, stripe.array()))
     val ind = reader.readRow(in).asInstanceOf[IndexedRow]
 
     ind.hasIndexRegion() should be (false)
@@ -270,9 +277,11 @@ class IndexedRowSuite extends UnitTestSuite {
     val td = new TypeDescription(schema)
     val writer = new IndexedRowWriter(td)
     val reader = new IndexedRowReader(td)
-    val out = new ByteArrayOutputStream()
+    val stripe = new StripeOutputBuffer(1.toByte)
+    val out = new OutStream(64, null, stripe)
     writer.writeRow(row, out)
-    val in = new ByteArrayInputStream(out.toByteArray())
+    out.flush()
+    val in = new InStream(64, null, new StripeInputBuffer(1.toByte, stripe.array()))
     val ind = reader.readRow(in).asInstanceOf[IndexedRow]
 
     ind.hasIndexRegion() should be (false)
@@ -298,13 +307,15 @@ class IndexedRowSuite extends UnitTestSuite {
     val td = new TypeDescription(schema, Array("col2"))
     val writer = new IndexedRowWriter(td)
     val reader = new IndexedRowReader(td)
-    val out = new ByteArrayOutputStream()
+    val stripe = new StripeOutputBuffer(1.toByte)
+    val out = new OutStream(64, null, stripe)
 
     for (row <- batch) {
       writer.writeRow(row, out)
     }
+    out.flush()
 
-    val in = new ByteArrayInputStream(out.toByteArray())
+    val in = new InStream(64, null, new StripeInputBuffer(1.toByte, stripe.array()))
     var ind = Seq[IndexedRow]()
     while (in.available() != 0) {
       ind = ind :+ reader.readRow(in).asInstanceOf[IndexedRow]

@@ -28,11 +28,10 @@ import com.github.sadikovi.testutil.UnitTestSuite
 
 /**
  * StreamSuite is an integration test suite for InStream - OutStream
- *
  */
 class StreamSuite extends UnitTestSuite {
   test("save compressed outstream and load instream") {
-    val buf = new ByteArrayOutputStream()
+    val buf = new StripeOutputBuffer(1.toByte)
     val out = new OutStream(8, new ZlibCodec(), buf)
     out.writeLong(121L)
     out.writeLong(122L)
@@ -43,7 +42,7 @@ class StreamSuite extends UnitTestSuite {
     out.write(Array[Byte](1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
     out.flush()
 
-    val in = new InStream(8, new ZlibCodec(), new StripeInputBuffer(1.toByte, buf.toByteArray))
+    val in = new InStream(8, new ZlibCodec(), new StripeInputBuffer(1.toByte, buf.array()))
     in.readLong() should be (121L)
     in.readLong() should be (122L)
     in.readLong() should be (123L)
@@ -59,7 +58,7 @@ class StreamSuite extends UnitTestSuite {
   }
 
   test("save uncompressed outstream and load instream") {
-    val buf = new ByteArrayOutputStream()
+    val buf = new StripeOutputBuffer(1.toByte)
     val out = new OutStream(8, null, buf)
     out.writeLong(121L)
     out.writeLong(122L)
@@ -70,7 +69,7 @@ class StreamSuite extends UnitTestSuite {
     out.write(Array[Byte](1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
     out.flush()
 
-    val in = new InStream(8, null, new StripeInputBuffer(1.toByte, buf.toByteArray))
+    val in = new InStream(8, null, new StripeInputBuffer(1.toByte, buf.array()))
     in.readLong() should be (121L)
     in.readLong() should be (122L)
     in.readLong() should be (123L)

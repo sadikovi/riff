@@ -29,7 +29,7 @@ import com.github.sadikovi.testutil.UnitTestSuite
 
 class OutStreamSuite extends UnitTestSuite {
   test("outstream - write uncompressed") {
-    val receiver = new ByteArrayOutputStream()
+    val receiver = new StripeOutputBuffer(1.toByte)
     val bufferSize = 16
     val out = new OutStream(bufferSize, null, receiver)
     out.write(12)
@@ -40,7 +40,7 @@ class OutStreamSuite extends UnitTestSuite {
     out.close()
 
     // no header is written
-    receiver.toByteArray() should be (Array[Byte](
+    receiver.array() should be (Array[Byte](
       12,
       0, 0, 0, 125,
       0, 0, 0, 0, 0, 0, 0, 125,
@@ -49,28 +49,28 @@ class OutStreamSuite extends UnitTestSuite {
   }
 
   test("outstream - write uncompressed, no bytes written") {
-    val receiver = new ByteArrayOutputStream()
+    val receiver = new StripeOutputBuffer(1.toByte)
     val bufferSize = 16
     val out = new OutStream(bufferSize, null, receiver)
     out.flush()
     out.close()
     // byte array should be empty
-    receiver.toByteArray() should be (Array[Byte]())
+    receiver.array() should be (Array[Byte]())
   }
 
   test("outstream - write compressed, no bytes written") {
-    val receiver = new ByteArrayOutputStream()
+    val receiver = new StripeOutputBuffer(1.toByte)
     val bufferSize = 16
     val out = new OutStream(bufferSize, new ZlibCodec(), receiver)
     out.flush()
     out.close()
     // byte array should contain only header, in this case should have 0 compression flag and 0
     // bytes written
-    receiver.toByteArray() should be (Array[Byte](0, 0, 0, 0))
+    receiver.array() should be (Array[Byte](0, 0, 0, 0))
   }
 
   test("outstream - write compressed zlib, use compression") {
-    val receiver = new ByteArrayOutputStream()
+    val receiver = new StripeOutputBuffer(1.toByte)
     val bufferSize = 16
     val codec = new ZlibCodec()
     val out = new OutStream(bufferSize, codec, receiver)
@@ -81,23 +81,23 @@ class OutStreamSuite extends UnitTestSuite {
     out.flush()
     out.close()
 
-    receiver.toByteArray() should be (Array[Byte](
+    receiver.array() should be (Array[Byte](
       /* header */
       -128, 0, 0, 13,
       -29, 97, 96, 96, -88, 101, -128, -128, 90, 38, 102, 22, 0
     ))
 
     // zlib codec should decompress this into input sequence of bytes
-    val arr = receiver.toByteArray()
+    val arr = receiver.array()
     // skip header for direct decompression
     val inbuf = ByteBuffer.wrap(arr, OutStream.HEADER_SIZE, arr.length - OutStream.HEADER_SIZE)
     val outbuf = ByteBuffer.allocate(32)
     codec.decompress(inbuf, outbuf)
 
-    receiver.reset()
-    receiver.write(outbuf.array(), outbuf.arrayOffset() + outbuf.position(), outbuf.remaining())
+    val output = new ByteArrayOutputStream()
+    output.write(outbuf.array(), outbuf.arrayOffset() + outbuf.position(), outbuf.remaining())
     // result should be the same as writing uncompressed bytes
-    receiver.toByteArray() should be (Array[Byte](
+    output.toByteArray() should be (Array[Byte](
       12,
       0, 0, 0, 125,
       0, 0, 0, 0, 0, 0, 0, 125,
@@ -106,7 +106,7 @@ class OutStreamSuite extends UnitTestSuite {
   }
 
   test("outstream - write compressed zlib, fall back to uncompressed") {
-    val receiver = new ByteArrayOutputStream()
+    val receiver = new StripeOutputBuffer(1.toByte)
     val bufferSize = 16
     val codec = new ZlibCodec()
     val out = new OutStream(bufferSize, codec, receiver)
@@ -119,7 +119,7 @@ class OutStreamSuite extends UnitTestSuite {
     out.flush()
     out.close()
 
-    receiver.toByteArray() should be (Array[Byte](
+    receiver.array() should be (Array[Byte](
       /* header: 0 for uncompressed and 8 bytes written */
       0, 0, 0, 8,
       1, 2, 3, 4, 5, 2, 3, 4
@@ -128,7 +128,7 @@ class OutStreamSuite extends UnitTestSuite {
 
   test("outstream - write compressed zlib, write 2 chunks") {
     // write 2 chunks: compressed and uncompressed
-    val receiver = new ByteArrayOutputStream()
+    val receiver = new StripeOutputBuffer(1.toByte)
     val bufferSize = 16
     val codec = new ZlibCodec()
     val out = new OutStream(bufferSize, codec, receiver)
@@ -139,7 +139,7 @@ class OutStreamSuite extends UnitTestSuite {
     out.flush()
     out.close()
 
-    receiver.toByteArray() should be (Array[Byte](
+    receiver.array() should be (Array[Byte](
       /* header: 1 for compressed + 13 bytes of data */
       -128, 0, 0, 13,
       -29, 97, 96, 96, -88, 101, -128, -128, 90, 70, 38, 102, 0,
@@ -150,23 +150,23 @@ class OutStreamSuite extends UnitTestSuite {
   }
 
   test("outstream - write header, max value + compressed") {
-    val receiver = new ByteArrayOutputStream()
+    val receiver = new StripeOutputBuffer(1.toByte)
     val buf = ByteBuffer.allocate(8)
     OutStream.writeHeader(buf, 0, Int.MaxValue, true)
     // do not flip buffer, outstram calls absolute `putInt`
     receiver.write(buf.array(), buf.arrayOffset() + buf.position(), buf.remaining())
-    receiver.toByteArray should be (Array[Byte](
+    receiver.array should be (Array[Byte](
       -1, -1, -1, -1, 0, 0, 0, 0
     ))
   }
 
   test("outstream - write header, max value - compressed") {
-    val receiver = new ByteArrayOutputStream()
+    val receiver = new StripeOutputBuffer(1.toByte)
     val buf = ByteBuffer.allocate(8)
     OutStream.writeHeader(buf, 0, Int.MaxValue, false)
     // do not flip buffer, outstram calls absolute `putInt`
     receiver.write(buf.array(), buf.arrayOffset() + buf.position(), buf.remaining())
-    receiver.toByteArray should be (Array[Byte](
+    receiver.array should be (Array[Byte](
       127, -1, -1, -1, 0, 0, 0, 0
     ))
   }

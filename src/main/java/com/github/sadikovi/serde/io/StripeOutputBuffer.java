@@ -84,4 +84,12 @@ public class StripeOutputBuffer {
     // output buffer close is no-op operation
     data.close();
   }
+
+  /**
+   * Return array of bytes in underlying output buffer.
+   * Should be used for testing.
+   */
+  public byte[] array() {
+    return data.array();
+  }
 }

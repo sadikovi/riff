@@ -23,11 +23,11 @@
 package com.github.sadikovi.serde;
 
 import java.io.IOException;
-import java.io.OutputStream;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 
 import com.github.sadikovi.serde.io.OutputBuffer;
+import com.github.sadikovi.serde.io.OutStream;
 
 /**
  * Writer for [[IndexedRow]] instances, created per stream and reused across rows.
@@ -77,7 +77,7 @@ public class IndexedRowWriter {
    * @param row row to write
    * @param out output stream to write to
    */
-  public void writeRow(InternalRow row, OutputStream out) throws IOException {
+  public void writeRow(InternalRow row, OutStream out) throws IOException {
     prepareWrite();
     // collect null information
     long bitset = getNullSet(row);
@@ -92,16 +92,16 @@ public class IndexedRowWriter {
       out.write(IndexedRow.MAGIC1);
     } else {
       out.write(IndexedRow.MAGIC2);
-      writeLong(bitset, out);
+      out.writeLong(bitset);
     }
     // write index region
     checkOverflow(this.indexFixedBuffer.bytesWritten(), this.indexVariableBuffer.bytesWritten());
-    writeInt(this.indexFixedBuffer.bytesWritten() + this.indexVariableBuffer.bytesWritten(), out);
+    out.writeInt(this.indexFixedBuffer.bytesWritten() + this.indexVariableBuffer.bytesWritten());
     this.indexFixedBuffer.writeExternal(out);
     this.indexVariableBuffer.writeExternal(out);
     // write data region
     checkOverflow(this.dataFixedBuffer.bytesWritten(), this.dataVariableBuffer.bytesWritten());
-    writeInt(this.dataFixedBuffer.bytesWritten() + this.dataVariableBuffer.bytesWritten(), out);
+    out.writeInt(this.dataFixedBuffer.bytesWritten() + this.dataVariableBuffer.bytesWritten());
     this.dataFixedBuffer.writeExternal(out);
     this.dataVariableBuffer.writeExternal(out);
   }
@@ -139,26 +139,6 @@ public class IndexedRowWriter {
       ++i;
     }
     return bitset;
-  }
-
-  /** Write long value into stream, added since output stream does not have this method */
-  private void writeLong(long value, OutputStream out) throws IOException {
-    out.write((byte) (0xff & (value >> 56)));
-    out.write((byte) (0xff & (value >> 48)));
-    out.write((byte) (0xff & (value >> 40)));
-    out.write((byte) (0xff & (value >> 32)));
-    out.write((byte) (0xff & (value >> 24)));
-    out.write((byte) (0xff & (value >> 16)));
-    out.write((byte) (0xff & (value >>  8)));
-    out.write((byte) (0xff & value));
-  }
-
-  /** Write int value into stream, added since output stream does not have this method */
-  private void writeInt(int value, OutputStream out) throws IOException {
-    out.write((byte) (0xff & (value >> 24)));
-    out.write((byte) (0xff & (value >> 16)));
-    out.write((byte) (0xff & (value >>  8)));
-    out.write((byte) (0xff & value));
   }
 
   /**

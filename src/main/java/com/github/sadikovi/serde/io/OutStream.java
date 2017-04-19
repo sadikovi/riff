@@ -54,12 +54,9 @@ public class OutStream extends OutputStream {
   // compressed buffer is full, generally it should fit all bytes left
   private final ByteBuffer overflow;
   // receiver output stream
-  private final OutputStream receiver;
+  private final StripeOutputBuffer receiver;
 
-  public OutStream(int bufferSize, CompressionCodec codec, OutputStream receiver) {
-    if (receiver == null || receiver instanceof OutStream) {
-      throw new IllegalArgumentException("Invalid receiver stream " + receiver);
-    }
+  public OutStream(int bufferSize, CompressionCodec codec, StripeOutputBuffer receiver) {
     this.bufferSize = bufferSize;
     // initialize buffer to accomodate all primitive values (8 bytes max for long or double)
     this.buf = new byte[8];
