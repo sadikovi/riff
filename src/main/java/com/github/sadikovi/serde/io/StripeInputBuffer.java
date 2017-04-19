@@ -47,6 +47,7 @@ public class StripeInputBuffer {
     this.data = data;
     this.offset = 0;
   }
+
   /**
    * Total number of bytes in this stripe.
    * Stripe cannot have more than 2GB of data.

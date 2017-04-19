@@ -25,6 +25,7 @@ package com.github.sadikovi.serde.io;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 public class InStream extends InputStream {
   // buffer size to use for this stream
@@ -73,7 +74,7 @@ public class InStream extends InputStream {
       }
       // read header
       int info = header.getInt();
-      boolean isCompressed = (info & (1 << 31)) > 0;
+      boolean isCompressed = (info & (1 << 31)) != 0;
       int chunkLength = info & ~(1 << 31);
       // copy raw bytes (either compressed or uncompressed) into compressed buffer, we should be able
       // to just swap it in uncompressed case
@@ -110,7 +111,8 @@ public class InStream extends InputStream {
    * @throws IOException
    */
   public long readLong() throws IOException {
-    read(this.buf, 0, 8);
+    int bytes = read(this.buf, 0, 8);
+    if (bytes != 8) throw new IOException("EOF, " + bytes + " bytes != 8");
     return convertToLong(this.buf);
   }
 
@@ -120,8 +122,9 @@ public class InStream extends InputStream {
    * @return integer value
    * @throws IOException
    */
-  public int readInt(InputStream in) throws IOException {
-    read(this.buf, 0, 4);
+  public int readInt() throws IOException {
+    int bytes = read(this.buf, 0, 4);
+    if (bytes != 4) throw new IOException("EOF, " + bytes + " bytes != 4");
     return convertToInt(this.buf);
   }
 
@@ -133,7 +136,8 @@ public class InStream extends InputStream {
    */
   @Override
   public int read() throws IOException {
-    read(this.buf, 0, 1);
+    int bytes = read(this.buf, 0, 1);
+    if (bytes != 1) throw new IOException("EOF, " + bytes + " bytes != 1");
     return this.buf[0] & 0xff;
   }
 
@@ -179,9 +183,10 @@ public class InStream extends InputStream {
       throw new IndexOutOfBoundsException("Negative length: " + length);
     }
     int bytesRead = Math.min(uncompressed.remaining(), length);
-    uncompressed.put(bytes, offset, bytesRead);
+    uncompressed.get(bytes, offset, bytesRead);
     // keep track of maximum number of bytes we have copied into array
-    int bytesSoFar = bytesRead;
+    int bytesSoFar = length;
+    length -= bytesRead;
     while (length > 0) {
       // refill buffer
       readChunk();
@@ -189,8 +194,8 @@ public class InStream extends InputStream {
       offset += bytesRead;
       bytesRead = Math.min(uncompressed.remaining(), length);
       // no more bytes can be read, EOF is reached
-      if (bytesRead == 0) return bytesSoFar;
-      uncompressed.put(bytes, offset, bytesRead);
+      if (bytesRead == 0) return bytesSoFar - length;
+      uncompressed.get(bytes, offset, bytesRead);
       length -= bytesRead;
     }
     return bytesSoFar;
@@ -206,6 +211,10 @@ public class InStream extends InputStream {
    */
   @Override
   public long skip(long bytes) throws IOException {
+    if (bytes < 0) {
+      throw new IndexOutOfBoundsException("Negative length: " + bytes);
+    }
+
     // if we have some bytes left in buffer, just shift position, but only if we have some remaining
     // bytes left after this operation
     if (uncompressed.remaining() > bytes) {
