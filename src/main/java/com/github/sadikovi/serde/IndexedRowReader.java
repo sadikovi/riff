@@ -24,9 +24,10 @@ package com.github.sadikovi.serde;
 
 import java.io.IOException;
 import java.io.EOFException;
-import java.io.InputStream;
 
 import org.apache.spark.sql.catalyst.InternalRow;
+
+import com.github.sadikovi.serde.io.InStream;
 
 /**
  * Reader for [[IndexedRow]] instances, created per stream and reused across rows.
@@ -67,26 +68,26 @@ public class IndexedRowReader {
    * @param in input stream to read from
    * @return indexed row as InternalRow
    */
-  public InternalRow readRow(InputStream in) throws IOException {
-    int magic = readByte(in);
+  public InternalRow readRow(InStream in) throws IOException {
+    int magic = in.read();
     if (magic != IndexedRow.MAGIC1 && magic != IndexedRow.MAGIC2) {
       throw new AssertionError("Wrong magic number " + magic);
     }
-    long nulls = (magic == IndexedRow.MAGIC1) ? 0L : readLong(in);
+    long nulls = (magic == IndexedRow.MAGIC1) ? 0L : in.readLong();
     // prepare row, compute row offsets
     IndexedRow row = new IndexedRow(this.indexed, nulls, rowOffsets(nulls));
     // read index region, note that if no bytes were written, we do not set index region at all
-    int indexBytes = readInt(in);
+    int indexBytes = in.readInt();
     if (indexBytes > 0) {
       byte[] indexRegion = new byte[indexBytes];
-      readFully(in, indexRegion, 0, indexBytes);
+      in.read(indexRegion, 0, indexBytes);
       row.setIndexRegion(indexRegion);
     }
     // read data region, similarly we do not initialize data region, if no bytes were written
-    int dataBytes = readInt(in);
+    int dataBytes = in.readInt();
     if (dataBytes > 0) {
       byte[] dataRegion = new byte[dataBytes];
-      readFully(in, dataRegion, 0, dataBytes);
+      in.read(dataRegion, 0, dataBytes);
       row.setDataRegion(dataRegion);
     }
     return row;
@@ -126,63 +127,5 @@ public class IndexedRowReader {
         offsets[fields[i].position()] = -1;
       }
     }
-  }
-
-  /** Read long value from input stream */
-  private long readLong(InputStream in) throws IOException {
-    readFully(in, this.buf, 0, 8);
-    return convertToLong(this.buf);
-  }
-
-  /** Read int value from input stream */
-  private int readInt(InputStream in) throws IOException {
-    readFully(in, this.buf, 0, 4);
-    return convertToInt(this.buf);
-  }
-
-  /** Read byte value from input stream */
-  private int readByte(InputStream in) throws IOException {
-    int bytes = in.read();
-    if (bytes < 0) throw new EOFException();
-    return bytes;
-  }
-
-  /**
-   * Copy bytes from input stream into buffer for offset and length.
-   * Method keeps buffering input stream until all bytes are read, of EOF is reached.
-   */
-  private void readFully(InputStream in, byte[] buffer, int offset, int len) throws IOException {
-    if (len < 0) {
-      throw new IndexOutOfBoundsException("Negative length: " + len);
-    }
-    while (len > 0) {
-      // in.read will block until some data is available.
-      int bytesRead = in.read(buffer, offset, len);
-      if (bytesRead < 0) throw new EOFException();
-      len -= bytesRead;
-      offset += bytesRead;
-    }
-  }
-
-  /** Convert buffer to long value, used after readFully method */
-  private static long convertToLong(byte[] buffer) {
-    return
-      ((long) (buffer[0] & 0xff) << 56) |
-      ((long) (buffer[1] & 0xff) << 48) |
-      ((long) (buffer[2] & 0xff) << 40) |
-      ((long) (buffer[3] & 0xff) << 32) |
-      ((long) (buffer[4] & 0xff) << 24) |
-      ((long) (buffer[5] & 0xff) << 16) |
-      ((long) (buffer[6] & 0xff) <<  8) |
-      ((long) (buffer[7] & 0xff));
-  }
-
-  /** Convert buffer to int value, used after readFully method */
-  private static int convertToInt(byte[] buffer) {
-    return
-      ((buffer[0] & 0xff) << 24) |
-      ((buffer[1] & 0xff) << 16) |
-      ((buffer[2] & 0xff) << 8) |
-      (buffer[3] & 0xff);
   }
 }

@@ -20,33 +20,38 @@
  * SOFTWARE.
  */
 
-package com.github.sadikovi.serde;
+package com.github.sadikovi.serde.io;
 
 import java.io.IOException;
-
-import org.apache.spark.sql.catalyst.InternalRow;
-
-import com.github.sadikovi.serde.io.OutputBuffer;
+import java.nio.ByteBuffer;
 
 /**
- * Row value converter provies specialized method to write non-null value into output stream.
+ * Compression codec interface.
  */
-public interface RowValueConverter {
+public interface CompressionCodec {
   /**
-   * Write value with either fixed or variable length into output buffer. Value is guaranteed to be
-   * non-null and buffer is valid. Offset is length of fixed part, used for writing values with
-   * variable part.
+   * Compress the in buffer to the out buffer.
+   * @param in the bytes to compress
+   * @param out the uncompressed bytes
+   * @param overflow put any additional bytes here
+   * @return true if the output is smaller than input
+   * @throws IOException
    */
-  public abstract void writeDirect(
-      InternalRow row,
-      int ordinal,
-      OutputBuffer fixedBuffer,
-      int fixedOffset,
-      OutputBuffer variableBuffer) throws IOException;
+  boolean compress(ByteBuffer in, ByteBuffer out, ByteBuffer overflow) throws IOException;
 
   /**
-   * Fixed offset in bytes for data type, this either includes value for primitive types, or fixed
-   * sized metadata (either int or long) for non-primitive types, e.g. UTF8String.
+   * Decompress the in buffer to the out buffer.
+   * Input buffer is flipped and set to start position for reading.
+   * Output buffer is already flipped to start position and ready for writing.
+   * @param in the bytes to decompress
+   * @param out the decompressed bytes
+   * @throws IOException
    */
-  public abstract int byteOffset();
+  void decompress(ByteBuffer in, ByteBuffer out) throws IOException;
+
+  /** Reset the codec, preparing it for reuse */
+  void reset();
+
+  /** Close the codec, releasing the resources */
+  void close();
 }

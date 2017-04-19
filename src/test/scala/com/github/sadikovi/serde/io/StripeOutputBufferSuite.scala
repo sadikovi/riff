@@ -20,33 +20,29 @@
  * SOFTWARE.
  */
 
-package com.github.sadikovi.serde;
+package com.github.sadikovi.serde.io
 
-import java.io.IOException;
+import java.io.{ByteArrayOutputStream, IOException}
 
-import org.apache.spark.sql.catalyst.InternalRow;
+import com.github.sadikovi.testutil.UnitTestSuite
 
-import com.github.sadikovi.serde.io.OutputBuffer;
+class StripeOutputBufferSuite extends UnitTestSuite {
+  test("init stripe output buffer") {
+    val buf = new StripeOutputBuffer(123.toByte);
+    buf.id() should be (123)
+    buf.length() should be (0)
+  }
 
-/**
- * Row value converter provies specialized method to write non-null value into output stream.
- */
-public interface RowValueConverter {
-  /**
-   * Write value with either fixed or variable length into output buffer. Value is guaranteed to be
-   * non-null and buffer is valid. Offset is length of fixed part, used for writing values with
-   * variable part.
-   */
-  public abstract void writeDirect(
-      InternalRow row,
-      int ordinal,
-      OutputBuffer fixedBuffer,
-      int fixedOffset,
-      OutputBuffer variableBuffer) throws IOException;
+  test("write data into buffer and check offset") {
+    val buf = new StripeOutputBuffer(123.toByte);
+    buf.id() should be (123)
+    buf.length() should be (0)
 
-  /**
-   * Fixed offset in bytes for data type, this either includes value for primitive types, or fixed
-   * sized metadata (either int or long) for non-primitive types, e.g. UTF8String.
-   */
-  public abstract int byteOffset();
+    buf.write(Array[Byte](1, 2, 3, 4, 5, 6, 7, 8), 2, 5)
+    buf.length() should be (5)
+
+    val out = new ByteArrayOutputStream()
+    buf.flush(out)
+    out.toByteArray should be (Array[Byte](3, 4, 5, 6, 7))
+  }
 }

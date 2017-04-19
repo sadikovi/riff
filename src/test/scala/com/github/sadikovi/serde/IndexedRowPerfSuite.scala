@@ -31,22 +31,23 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
+import com.github.sadikovi.serde.io._
 import com.github.sadikovi.testutil.UnitTestSuite
 import com.github.sadikovi.testutil.implicits._
 
 // Update test results after each major change
 /*
 == Performance test suite ==
-Time: 2017-04-15 20:39:47.317
-Commit: "a06e70525ec2dbc2e64ec053d3c9c4fdba2a7e45"
+Time: 2017-04-19 20:48:33.206
+Commit: "74d533373c73fbfcc9b2c8d1e2d72f95a156c6f1"
 
 == Write batch of rows ==
-Writing of 100000 records took 313.746 ms
+Writing of 100000 records took 320.259 ms
 Created file of 20500000 bytes
 
 
 == Write/read batch of rows ==
-Processing of 100000 records took 457.493 ms
+Processing of 100000 records took 280.194 ms
 Data file has 20500000 bytes
 
 == End of performance test suite ==
@@ -81,7 +82,7 @@ class IndexedRowPerfSuite extends UnitTestSuite {
     println("== End of performance test suite ==")
   }
 
-  test("write batch of rows") {
+  test("write uncompressed batch of rows") {
     withTempDir { dir =>
       val numRecords = 100000
       val rows = (0 until numRecords).map { i => newRow(i) }
@@ -89,12 +90,16 @@ class IndexedRowPerfSuite extends UnitTestSuite {
 
       // == begin write records into stream
       val td = new TypeDescription(schema, Array("col2", "col5"))
+      val stripe = new StripeOutputBuffer(1.toByte)
+      val outStream = new OutStream(128, null, stripe)
       val writer = new IndexedRowWriter(td)
       val out = create(dir / "file")
       try {
         for (row <- rows) {
-          writer.writeRow(row, out)
+          writer.writeRow(row, outStream)
         }
+        outStream.flush()
+        stripe.flush(out)
       } finally {
         out.close()
       }
@@ -110,7 +115,7 @@ class IndexedRowPerfSuite extends UnitTestSuite {
     }
   }
 
-  test("write/read batch of rows") {
+  test("write/read uncompressed stripe of rows") {
     withTempDir { dir =>
       val numRecords = 100000
       val rows = (0 until numRecords).map { i => newRow(i) }
@@ -118,12 +123,16 @@ class IndexedRowPerfSuite extends UnitTestSuite {
 
       // == begin write records into stream
       val td = new TypeDescription(schema, Array("col2", "col5"))
+      val outStripe = new StripeOutputBuffer(1.toByte)
+      val outStream = new OutStream(128, null, outStripe)
       val writer = new IndexedRowWriter(td)
       val out = create(dir / "file")
       try {
         for (row <- rows) {
-          writer.writeRow(row, out)
+          writer.writeRow(row, outStream)
         }
+        outStream.flush()
+        outStripe.flush(out)
       } finally {
         out.close()
       }
@@ -131,8 +140,10 @@ class IndexedRowPerfSuite extends UnitTestSuite {
       val reader = new IndexedRowReader(td)
       val in = open(dir / "file")
       try {
-        while (in.available() != 0) {
-          reader.readRow(in)
+        val inStripe = new StripeInputBuffer(1.toByte, outStripe.array())
+        val inStream = new InStream(128, null, inStripe)
+        while (inStream.available() != 0) {
+          reader.readRow(inStream)
         }
       } finally {
         in.close()
