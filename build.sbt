@@ -1,4 +1,4 @@
-name := "row-serde"
+name := "riff"
 
 organization := "com.github.sadikovi"
 
@@ -6,7 +6,7 @@ scalaVersion := "2.11.7"
 
 crossScalaVersions := Seq("2.10.5", "2.11.7")
 
-spName := "sadikovi/row-serde"
+spName := "sadikovi/riff"
 
 val defaultSparkVersion = "2.1.0"
 

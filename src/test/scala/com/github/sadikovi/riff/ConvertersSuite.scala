@@ -20,14 +20,14 @@
  * SOFTWARE.
  */
 
-package com.github.sadikovi.serde
+package com.github.sadikovi.riff
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
-import com.github.sadikovi.serde.Converters._
-import com.github.sadikovi.serde.io.OutputBuffer
+import com.github.sadikovi.riff.Converters._
+import com.github.sadikovi.riff.io.OutputBuffer
 import com.github.sadikovi.testutil.UnitTestSuite
 
 class ConvertersSuite extends UnitTestSuite {

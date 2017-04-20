@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-package com.github.sadikovi.serde
+package com.github.sadikovi.riff
 
 import java.util.UUID
 import java.sql.Timestamp
@@ -31,7 +31,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
-import com.github.sadikovi.serde.io._
+import com.github.sadikovi.riff.io._
 import com.github.sadikovi.testutil.UnitTestSuite
 import com.github.sadikovi.testutil.implicits._
 

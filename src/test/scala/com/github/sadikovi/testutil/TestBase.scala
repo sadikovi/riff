@@ -141,7 +141,7 @@ trait TestBase {
   /** Create temporary directory on local file system */
   private def createTempDir(
       root: String = System.getProperty("java.io.tmpdir"),
-      namePrefix: String = "serde"): HadoopPath = {
+      namePrefix: String = "riff"): HadoopPath = {
     val dir = new HadoopPath(root / namePrefix / UUID.randomUUID().toString)
     fs.mkdirs(dir)
     dir

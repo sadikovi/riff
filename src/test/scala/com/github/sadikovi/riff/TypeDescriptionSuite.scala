@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-package com.github.sadikovi.serde
+package com.github.sadikovi.riff
 
 import java.util.NoSuchElementException
 

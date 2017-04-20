@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-package com.github.sadikovi.serde;
+package com.github.sadikovi.riff;
 
 import java.io.IOException;
 
@@ -30,7 +30,7 @@ import org.apache.spark.sql.types.IntegerType;
 import org.apache.spark.sql.types.LongType;
 import org.apache.spark.sql.types.StringType;
 
-import com.github.sadikovi.serde.io.OutputBuffer;
+import com.github.sadikovi.riff.io.OutputBuffer;
 
 /**
  * Placeholder for specific implementations of row value converters.

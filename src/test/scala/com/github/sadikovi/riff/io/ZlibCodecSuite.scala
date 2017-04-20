@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-package com.github.sadikovi.serde.io
+package com.github.sadikovi.riff.io
 
 import java.io.IOException
 import java.nio.ByteBuffer

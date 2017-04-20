@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-package com.github.sadikovi.serde
+package com.github.sadikovi.riff
 
 import org.apache.spark.sql.types.{IntegerType, StringType, StructField}
 

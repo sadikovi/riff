@@ -1,4 +1,4 @@
-# row-serde
-Spark SQL row naive serde
+# riff
+Spark SQL row naive serde and file format
 
-[![Build Status](https://travis-ci.org/sadikovi/row-serde.svg?branch=master)](https://travis-ci.org/sadikovi/row-serde)
+[![Build Status](https://travis-ci.org/sadikovi/riff.svg?branch=master)](https://travis-ci.org/sadikovi/riff)

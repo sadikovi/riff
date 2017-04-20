@@ -20,14 +20,14 @@
  * SOFTWARE.
  */
 
-package com.github.sadikovi.serde;
+package com.github.sadikovi.riff;
 
 import java.io.IOException;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 
-import com.github.sadikovi.serde.io.OutputBuffer;
-import com.github.sadikovi.serde.io.OutStream;
+import com.github.sadikovi.riff.io.OutputBuffer;
+import com.github.sadikovi.riff.io.OutStream;
 
 /**
  * Writer for [[IndexedRow]] instances, created per stream and reused across rows.

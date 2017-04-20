@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-package com.github.sadikovi.serde.io
+package com.github.sadikovi.riff.io
 
 import com.github.sadikovi.testutil.UnitTestSuite
 
