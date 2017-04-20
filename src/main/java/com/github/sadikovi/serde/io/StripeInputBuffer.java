@@ -118,7 +118,7 @@ public class StripeInputBuffer {
 
   @Override
   public String toString() {
-    return "StripeData[id=" + id + ", offset=" + offset +
+    return "StripeInput[id=" + id + ", offset=" + offset +
       ", closed=" + (data == null) + "]";
   }
 }

@@ -92,4 +92,9 @@ public class StripeOutputBuffer {
   public byte[] array() {
     return data.array();
   }
+
+  @Override
+  public String toString() {
+    return "StripeOutput[id=" + id + ", length=" + length() + "]";
+  }
 }

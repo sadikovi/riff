@@ -49,9 +49,9 @@ class StripeInputBufferSuite extends UnitTestSuite {
 
   test("toString method after close") {
     val buf = new StripeInputBuffer(1.toByte, Array[Byte](1, 2, 3, 4, 5, 6, 7, 8))
-    buf.toString should be ("StripeData[id=1, offset=0, closed=false]")
+    buf.toString should be ("StripeInput[id=1, offset=0, closed=false]")
     buf.close()
-    buf.toString should be ("StripeData[id=1, offset=0, closed=true]")
+    buf.toString should be ("StripeInput[id=1, offset=0, closed=true]")
   }
 
   test("seek with invalid position") {
