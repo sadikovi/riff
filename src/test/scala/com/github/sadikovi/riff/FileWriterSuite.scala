@@ -22,6 +22,8 @@
 
 package com.github.sadikovi.riff
 
+import java.io.IOException
+
 import scala.collection.JavaConversions._
 
 import org.apache.hadoop.conf.Configuration
@@ -154,6 +156,22 @@ class FileWriterSuite extends UnitTestSuite {
     }
   }
 
+  test("fail to attempt to writing again") {
+    withTempDir { dir =>
+      val conf = new Configuration(false)
+      val path = dir / "file"
+      val codec = new ZlibCodec()
+      val td = new TypeDescription(StructType(StructField("col", StringType) :: Nil))
+      val writer = new FileWriter(fs, conf, path, td, codec)
+
+      writer.writeFile(Iterator(InternalRow(UTF8String.fromString("test"))))
+      val err = intercept[IOException] {
+        writer.writeFile(Iterator(InternalRow(UTF8String.fromString("test"))))
+      }
+      assert(err.getMessage.contains("No reuse of file writer"))
+    }
+  }
+
   test("write batch of rows in one stripe") {
     withTempDir { dir =>
       val conf = new Configuration(false)
@@ -166,8 +184,9 @@ class FileWriterSuite extends UnitTestSuite {
       writer.writeFile(iter)
       val header = fs.getFileStatus(writer.headerPath)
       val data = fs.getFileStatus(writer.dataPath)
-      assert(header.getLen > 0)
-      assert(data.getLen > 0)
+      // should be greater than header size
+      assert(header.getLen > 16)
+      assert(data.getLen > 16)
     }
   }
 
@@ -184,8 +203,9 @@ class FileWriterSuite extends UnitTestSuite {
       writer.writeFile(iter)
       val header = fs.getFileStatus(writer.headerPath)
       val data = fs.getFileStatus(writer.dataPath)
-      assert(header.getLen > 0)
-      assert(data.getLen > 0)
+      // should be greater than header size
+      assert(header.getLen > 16)
+      assert(data.getLen > 16)
     }
   }
 }

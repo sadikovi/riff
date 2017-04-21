@@ -151,6 +151,12 @@ public class OutStream extends OutputStream {
   public void flush() throws IOException {
     // spill whatever bytes are left in buffer
     spill();
+    // when stream is compressed there are some bytes left in compressed buffer
+    if (compressed != null && compressed.position() != 0) {
+      compressed.flip();
+      receiver.write(compressed.array(), compressed.arrayOffset() + compressed.position(),
+        compressed.remaining());
+    }
     uncompressed.clear();
     if (codec != null) {
       compressed.clear();

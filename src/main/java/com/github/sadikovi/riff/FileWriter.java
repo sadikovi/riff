@@ -228,36 +228,44 @@ class FileWriter {
 
     try {
       // == data file header ==
+      LOG.info("Writing data file header");
       // first, we write data file and collect all stripe information in order to store it in header
       writeHeader(out);
 
       // == data file content ==
+      LOG.info("Writing data file content");
       IndexedRowWriter writer = new IndexedRowWriter(td);
       // stripe to write, this will be reset for every batch
       StripeOutputBuffer stripe = new StripeOutputBuffer(stripeId++);
       OutStream stripeStream = new OutStream(bufferSize, codec, stripe);
       int batch = numRowsInStripe;
+      LOG.info("Writing stripe {}", stripe.id());
       while (iter.hasNext()) {
         writer.writeRow(iter.next(), stripeStream);
         batch--;
         if (batch == 0) {
-          // before we flush main data, we write stripe information into output, such as
+          // flush data into stripe buffer
+          stripeStream.flush();
+          // write stripe information into output, such as
           // stripe id and length, and capture position
           stripeInfo = new StripeInformation(stripe, out.getPos());
-          stripeSeq.add(stripeInfo);
-          // flush data into output stream, close resources and reset counter
-          stripeStream.flush();
           stripe.flush(out);
+          LOG.info("Finished writing stripe {}, records written={}", stripeInfo,
+            (numRowsInStripe - batch));
+          stripeSeq.add(stripeInfo);
           stripe = new StripeOutputBuffer(stripeId++);
           stripeStream = new OutStream(bufferSize, codec, stripe);
           batch = numRowsInStripe;
+          LOG.info("Writing stripe {}", stripe.id());
         }
       }
       // flush the last stripe into output stream
-      stripeInfo = new StripeInformation(stripe, out.getPos());
-      stripeSeq.add(stripeInfo);
       stripeStream.flush();
+      stripeInfo = new StripeInformation(stripe, out.getPos());
       stripe.flush(out);
+      LOG.info("Finished writing stripe {}, records written={}", stripeInfo,
+        (numRowsInStripe - batch));
+      stripeSeq.add(stripeInfo);
       stripeStream.close();
       stripe = null;
       stripeStream = null;
@@ -271,9 +279,11 @@ class FileWriter {
     out = fs.create(headerPath, false);
     try {
       // == file header ==
+      LOG.info("Writing file header");
       writeHeader(out);
 
       // == file content ==
+      LOG.info("Writing file content");
       OutputBuffer buffer = new OutputBuffer();
       // write type description and stripe information
       td.writeExternal(buffer);
