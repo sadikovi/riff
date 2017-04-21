@@ -22,6 +22,8 @@
 
 package com.github.sadikovi.riff;
 
+import java.io.DataInputStream;
+import java.io.InputStream;
 import java.io.IOException;
 
 import com.github.sadikovi.riff.io.OutputBuffer;
@@ -32,16 +34,23 @@ import com.github.sadikovi.riff.io.StripeOutputBuffer;
  * Contains information for reader.
  */
 public class StripeInformation {
-  private static final String MAGIC = "STRIPE";
+  public static final String MAGIC = "STRIPE";
 
   private final short id;
   private final long offset;
   private final int length;
 
   public StripeInformation(StripeOutputBuffer stripe, long pos) {
-    this.id = stripe.id();
-    this.offset = pos;
-    this.length = stripe.length();
+    this(stripe.id(), pos, stripe.length());
+  }
+
+  public StripeInformation(short id, long offset, int length) {
+    if (id < 0) throw new IllegalArgumentException("Negative id: " + id);
+    if (offset < 0) throw new IllegalArgumentException("Negative offset: " + offset);
+    if (length < 0) throw new IllegalArgumentException("Negative length: " + length);
+    this.id = id;
+    this.offset = offset;
+    this.length = length;
   }
 
   /**
@@ -83,6 +92,29 @@ public class StripeInformation {
     buffer.writeShort(id());
     buffer.writeLong(offset());
     buffer.writeInt(length());
+  }
+
+  /**
+   * Read stripe information from provided input stream.
+   * Stream is not closed after operation is done.
+   * @param in input stream
+   * @throws IOException
+   */
+  public static StripeInformation readExternal(InputStream in) throws IOException {
+    DataInputStream din = new DataInputStream(in);
+    byte[] magic = new byte[MAGIC.length()];
+    din.read(magic);
+    // validate magic
+    for (int i = 0; i < magic.length; i++) {
+      if (magic[i] != MAGIC.charAt(i)) {
+        throw new IOException("Wrong magic number for stripe information");
+      }
+    }
+    // TODO: use byte buffer instead to load all stripe information
+    short id = din.readShort();
+    long offset = din.readLong();
+    int length = din.readInt();
+    return new StripeInformation(id, offset, length);
   }
 
   @Override

@@ -22,7 +22,9 @@
 
 package com.github.sadikovi.riff;
 
+import java.io.InputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.HashMap;
@@ -219,6 +221,37 @@ public class TypeDescription implements Serializable {
     } finally {
       out.close();
     }
+  }
+
+  /**
+   * Read type description from input stream.
+   * @param stream input stream with object data
+   * @throws IOException when io error happens, or class not found
+   */
+  public static TypeDescription readExternal(InputStream stream) throws IOException {
+    ObjectInputStream in = new ObjectInputStream(stream);
+    try {
+      return (TypeDescription) in.readObject();
+    } catch (ClassNotFoundException err) {
+      throw new IOException("Failed to deserialize type description", err);
+    } finally {
+      in.close();
+    }
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (obj == null || !(obj instanceof TypeDescription)) return false;
+    TypeDescription td = (TypeDescription) obj;
+    if (td == this) return true;
+    if (td.size() != size()) return false;
+    // positions in all fields array should be identical
+    for (int i = 0; i < fields().length; i++) {
+      if (!fields()[i].equals(td.fields()[i])) {
+        return false;
+      }
+    }
+    return true;
   }
 
   @Override
