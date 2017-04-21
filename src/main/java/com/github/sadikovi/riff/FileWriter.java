@@ -23,12 +23,14 @@
 package com.github.sadikovi.riff;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Random;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.Path;
 
 import org.apache.spark.sql.catalyst.InternalRow;
@@ -36,12 +38,17 @@ import org.apache.spark.sql.catalyst.InternalRow;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.github.sadikovi.riff.io.CompressionCodec;
 import com.github.sadikovi.riff.io.OutputBuffer;
+import com.github.sadikovi.riff.io.OutStream;
+import com.github.sadikovi.riff.io.StripeOutputBuffer;
 
 class FileWriter {
   private static final Logger LOG = LoggerFactory.getLogger(FileWriter.class);
   // suffix for data files
   private static final String DATA_FILE_SUFFIX = ".data";
+  private static final int BUFFER_SIZE_MIN = 4 * 1024;
+  private static final int BUFFER_SIZE_MAX = 512 * 1024;
 
   // file system to use for writing a file
   private FileSystem fs;
@@ -57,6 +64,10 @@ class FileWriter {
   private boolean hasWrittenData;
   // number of rows in stripe
   private int numRowsInStripe;
+  // buffer size for outstream
+  private int bufferSize;
+  // compression codec, can be null
+  private CompressionCodec codec;
 
   /**
    * Create file writer for path.
@@ -67,10 +78,16 @@ class FileWriter {
    * @param conf configuration
    * @param path path to the header file, also used to create data path
    * @param td type description for rows
+   * @param codec compression codec
    * @throws IOException
    * @throws FileAlreadyExistsException
    */
-  FileWriter(FileSystem fs, Configuration conf, Path path, TypeDescription td) throws IOException {
+  FileWriter(
+      FileSystem fs,
+      Configuration conf,
+      Path path,
+      TypeDescription td,
+      CompressionCodec codec) throws IOException {
     this.fs = fs;
     this.headerPath = fs.makeQualified(path);
     this.dataPath = makeDataPath(headerPath);
@@ -81,20 +98,22 @@ class FileWriter {
     if (this.fs.exists(dataPath)) {
       throw new FileAlreadyExistsException(
         "Data path already exists: " + dataPath + ". Data path is created from provided path " +
-        path + " and also should not exist when " + "creating writer");
+        path + " and also should not exist when creating writer");
     }
     // this assumes that subsequent rows are provided for this schema
     this.td = td;
     // generate unique id for this file, collisions are possible, this mainly to prevent accidental
     // renaming of files
     this.fileId = nextFileKey();
-
     this.numRowsInStripe =
       conf.getInt(Riff.Options.RIFF_STRIPE_ROWS, Riff.Options.RIFF_STRIPE_ROWS_DEFAULT);
     if (numRowsInStripe < 1) {
       throw new IllegalArgumentException(
         "Expected positive number of rows in stripe, found " + numRowsInStripe);
     }
+    this.bufferSize = power2BufferSize(
+      conf.getInt(Riff.Options.RIFF_BUFFER_SIZE, Riff.Options.RIFF_BUFFER_SIZE_DEFAULT));
+    this.codec = codec;
   }
 
   /**
@@ -102,7 +121,7 @@ class FileWriter {
    * @param path header path
    * @return data path
    */
-  static Path makeDataPath(Path path) {
+  private static Path makeDataPath(Path path) {
     return path.suffix(DATA_FILE_SUFFIX);
   }
 
@@ -111,11 +130,23 @@ class FileWriter {
    * This key is shared between header and data files.
    * @return array with random byte values
    */
-  static byte[] nextFileKey() {
+  private static byte[] nextFileKey() {
     Random rand = new Random();
     byte[] key = new byte[12];
     rand.nextBytes(key);
     return key;
+  }
+
+  /**
+   * Select next power of 2 as buffer size.
+   * @param bytes initial bytes value
+   * @return validated bytes value
+   */
+  private static int power2BufferSize(int bytes) {
+    if (bytes > BUFFER_SIZE_MAX) return BUFFER_SIZE_MAX;
+    if (bytes < BUFFER_SIZE_MIN) return BUFFER_SIZE_MIN;
+    bytes = Integer.highestOneBit(bytes) << 1;
+    return (bytes < BUFFER_SIZE_MAX) ? bytes : BUFFER_SIZE_MAX;
   }
 
   /**
@@ -135,6 +166,21 @@ class FileWriter {
   }
 
   /**
+   * Write global header that is shared between header file and data file.
+   * @param out output stream to write into
+   * @throws IOException
+   */
+  private void writeHeader(FSDataOutputStream out) throws IOException {
+    // header consists of 16 bytes - 4 bytes magic and 12 bytes unique key
+    OutputBuffer dataHeader = new OutputBuffer();
+    dataHeader.writeBytes(Riff.MAGIC.getBytes());
+    dataHeader.writeBytes(fileId);
+    assert dataHeader.bytesWritten() == 16: "Invalid number of bytes written - expected 16, got " +
+      dataHeader.bytesWritten();
+    dataHeader.writeExternal(out);
+  }
+
+  /**
    * Create header and data files and write rows.
    * This method invokes collection of any statistics or filters relevant to the file and writes
    * stripes of data into file.
@@ -148,14 +194,74 @@ class FileWriter {
     }
     hasWrittenData = true;
 
-    // first, we write data file and collect all stripe information in order to store it in header
-    // data header consists of 16 bytes - 4 bytes magic and 12 bytes unique key
-    OutputBuffer dataHeader = new OutputBuffer();
-    dataHeader.writeBytes(Riff.MAGIC.getBytes());
-    dataHeader.writeBytes(fileId);
-    assert dataHeader.bytesWritten() == 16: "Invalid number of bytes written - expected 16, got " +
-      dataHeader.bytesWritten();
-    // TODO: implement writing rows
+    // create stream for data file
+    FSDataOutputStream out = fs.create(dataPath, false);
+    // stripe index
+    short stripeId = 0;
+    // all stripes in a file
+    StripeInformation stripeInfo = null;
+    ArrayList<StripeInformation> stripeSeq = new ArrayList<StripeInformation>();
+
+    try {
+      // == data file header ==
+      // first, we write data file and collect all stripe information in order to store it in header
+      writeHeader(out);
+
+      // == data file content ==
+      IndexedRowWriter writer = new IndexedRowWriter(td);
+      // stripe to write, this will be reset for every batch
+      StripeOutputBuffer stripe = new StripeOutputBuffer(stripeId++);
+      OutStream stripeStream = new OutStream(bufferSize, codec, stripe);
+      int batch = numRowsInStripe;
+      while (iter.hasNext()) {
+        writer.writeRow(iter.next(), stripeStream);
+        batch--;
+        if (batch == 0) {
+          // before we flush main data, we write stripe information into output, such as
+          // stripe id and length, and capture position
+          stripeInfo = new StripeInformation(stripe, out.getPos());
+          stripeSeq.add(stripeInfo);
+          // flush data into output stream, close resources and reset counter
+          stripeStream.flush();
+          stripe.flush(out);
+          stripe = new StripeOutputBuffer(stripeId++);
+          stripeStream = new OutStream(bufferSize, codec, stripe);
+          batch = numRowsInStripe;
+        }
+      }
+      // flush the last stripe into output stream
+      stripeInfo = new StripeInformation(stripe, out.getPos());
+      stripeSeq.add(stripeInfo);
+      stripeStream.flush();
+      stripe.flush(out);
+      stripeStream.close();
+      stripe = null;
+      stripeStream = null;
+    } finally {
+      if (out != null) {
+        out.close();
+      }
+    }
+
+    // write header file
+    out = fs.create(headerPath, false);
+    try {
+      // == file header ==
+      writeHeader(out);
+
+      // == file content ==
+      OutputBuffer buffer = new OutputBuffer();
+      // write type description and stripe information
+      td.writeExternal(buffer);
+      for (StripeInformation info : stripeSeq) {
+        info.writeExternal(buffer);
+      }
+      buffer.writeExternal(out);
+    } finally {
+      if (out != null) {
+        out.close();
+      }
+    }
   }
 
   @Override

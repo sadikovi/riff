@@ -22,6 +22,9 @@
 
 package com.github.sadikovi.riff;
 
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.NoSuchElementException;
@@ -33,11 +36,13 @@ import org.apache.spark.sql.types.StringType;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 
+import com.github.sadikovi.riff.io.OutputBuffer;
+
 /**
  * Internal schema specification based on Spark SQL schema, that acts as proxy to write and read
  * SQL rows. Note that type description columns index might be different from Spark SQL schema.
  */
-public class TypeDescription {
+public class TypeDescription implements Serializable {
   private HashMap<String, TypeSpec> schema;
   // quick access to type spec by type description ordinal index
   private TypeSpec[] ordinalFields;
@@ -199,6 +204,21 @@ public class TypeDescription {
    */
   public TypeSpec atPosition(int ordinal) {
     return this.ordinalFields[ordinal];
+  }
+
+  /**
+   * Write type description into external buffer.
+   * @param buffer output buffer.
+   * @throws IOException
+   */
+  public void writeExternal(OutputBuffer buffer) throws IOException {
+    // we use serializer to write object directly, no custom layout is necessary
+    ObjectOutputStream out = new ObjectOutputStream(buffer);
+    try {
+      out.writeObject(this);
+    } finally {
+      out.close();
+    }
   }
 
   @Override
