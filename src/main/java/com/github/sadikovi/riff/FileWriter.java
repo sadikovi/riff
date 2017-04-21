@@ -47,8 +47,6 @@ class FileWriter {
   private static final Logger LOG = LoggerFactory.getLogger(FileWriter.class);
   // suffix for data files
   private static final String DATA_FILE_SUFFIX = ".data";
-  private static final int BUFFER_SIZE_MIN = 4 * 1024;
-  private static final int BUFFER_SIZE_MAX = 512 * 1024;
 
   // file system to use for writing a file
   private FileSystem fs;
@@ -106,13 +104,13 @@ class FileWriter {
     // renaming of files
     this.fileId = nextFileKey();
     this.numRowsInStripe =
-      conf.getInt(Riff.Options.RIFF_STRIPE_ROWS, Riff.Options.RIFF_STRIPE_ROWS_DEFAULT);
+      conf.getInt(Riff.Options.STRIPE_ROWS, Riff.Options.STRIPE_ROWS_DEFAULT);
     if (numRowsInStripe < 1) {
       throw new IllegalArgumentException(
         "Expected positive number of rows in stripe, found " + numRowsInStripe);
     }
     this.bufferSize = power2BufferSize(
-      conf.getInt(Riff.Options.RIFF_BUFFER_SIZE, Riff.Options.RIFF_BUFFER_SIZE_DEFAULT));
+      conf.getInt(Riff.Options.BUFFER_SIZE, Riff.Options.BUFFER_SIZE_DEFAULT));
     this.codec = codec;
   }
 
@@ -143,10 +141,12 @@ class FileWriter {
    * @return validated bytes value
    */
   private static int power2BufferSize(int bytes) {
-    if (bytes > BUFFER_SIZE_MAX) return BUFFER_SIZE_MAX;
-    if (bytes < BUFFER_SIZE_MIN) return BUFFER_SIZE_MIN;
+    if (bytes > Riff.Options.BUFFER_SIZE_MAX) return Riff.Options.BUFFER_SIZE_MAX;
+    if (bytes < Riff.Options.BUFFER_SIZE_MIN) return Riff.Options.BUFFER_SIZE_MIN;
+    // bytes is already power of 2
+    if ((bytes & (bytes - 1)) == 0) return bytes;
     bytes = Integer.highestOneBit(bytes) << 1;
-    return (bytes < BUFFER_SIZE_MAX) ? bytes : BUFFER_SIZE_MAX;
+    return (bytes < Riff.Options.BUFFER_SIZE_MAX) ? bytes : Riff.Options.BUFFER_SIZE_MAX;
   }
 
   /**
@@ -163,6 +163,30 @@ class FileWriter {
    */
   public Path dataPath() {
     return dataPath;
+  }
+
+  /**
+   * Whether or not this writer has been used to write a file.
+   * @return true if writer has been used, false otherwise
+   */
+  public boolean hasWrittenData() {
+    return hasWrittenData;
+  }
+
+  /**
+   * Number of rows in stripe for this writer.
+   * @return positive number of rows
+   */
+  public int numRowsInStripe() {
+    return numRowsInStripe;
+  }
+
+  /**
+   * Return selected buffer size this is used for outstream instances.
+   * @return buffer size as power of 2
+   */
+  public int bufferSize() {
+    return bufferSize;
   }
 
   /**
@@ -266,6 +290,12 @@ class FileWriter {
 
   @Override
   public String toString() {
-    return "FileWriter[header=" + headerPath + ", data=" + dataPath + ", type_desc=" + td + "]";
+    return "FileWriter[" +
+      "header=" + headerPath +
+      ", data=" + dataPath +
+      ", type_desc=" + td +
+      ", rows_per_stripe=" + numRowsInStripe +
+      ", is_compressed=" + (codec != null) +
+      ", buffer_size=" + bufferSize + "]";
   }
 }

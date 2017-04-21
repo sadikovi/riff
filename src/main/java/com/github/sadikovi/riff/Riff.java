@@ -30,12 +30,14 @@ public class Riff {
    */
   public static class Options {
     // Number of rows in single stripe, this is used for writing only
-    public static final String RIFF_STRIPE_ROWS = "riff.stripe.rows";
-    public static final int RIFF_STRIPE_ROWS_DEFAULT = 10000;
+    public static final String STRIPE_ROWS = "riff.stripe.rows";
+    public static final int STRIPE_ROWS_DEFAULT = 10000;
 
     // buffer size in bytes
-    public static final String RIFF_BUFFER_SIZE = "riff.buffer.size";
-    public static final int RIFF_BUFFER_SIZE_DEFAULT = 256 * 1024;
+    public static final String BUFFER_SIZE = "riff.buffer.size";
+    public static final int BUFFER_SIZE_DEFAULT = 256 * 1024;
+    public static final int BUFFER_SIZE_MIN = 4 * 1024;
+    public static final int BUFFER_SIZE_MAX = 512 * 1024;
   }
 
   private Riff() { }
