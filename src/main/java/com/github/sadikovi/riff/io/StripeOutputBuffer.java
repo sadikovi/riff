@@ -36,6 +36,8 @@ public class StripeOutputBuffer {
   private final OutputBuffer data;
 
   public StripeOutputBuffer(short id) {
+    // id should always be non-negative
+    if (id < 0) throw new IllegalArgumentException("Negative stripe id: " + id);
     this.id = id;
     this.data = new OutputBuffer();
   }

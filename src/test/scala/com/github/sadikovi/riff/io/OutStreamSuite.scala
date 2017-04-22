@@ -149,6 +149,62 @@ class OutStreamSuite extends UnitTestSuite {
     ))
   }
 
+  test("outstream - writer uncompressed, buffer size is larger than data") {
+    val receiver = new StripeOutputBuffer(1.toByte)
+    val out = new OutStream(1024, null, receiver)
+    out.writeLong(1L)
+    out.writeLong(2L)
+    out.writeLong(3L)
+    out.writeLong(4L)
+    out.flush()
+    out.close()
+
+    receiver.array() should be (Array[Byte](
+      /* no header written */
+      0, 0, 0, 0, 0, 0, 0, 1,
+      0, 0, 0, 0, 0, 0, 0, 2,
+      0, 0, 0, 0, 0, 0, 0, 3,
+      0, 0, 0, 0, 0, 0, 0, 4
+    ))
+  }
+
+  test("outstream - writer compressed with fallback, buffer size is larger than data") {
+    val receiver = new StripeOutputBuffer(1.toByte)
+    val out = new OutStream(1024, new ZlibCodec(), receiver)
+    out.write(Array[Byte](1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12))
+    out.flush()
+    out.close()
+
+    receiver.array() should be (Array[Byte](
+      /* header: 0 for compressed and 12 bytes written */
+      0, 0, 0, 12,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
+    ))
+  }
+
+  test("outstream - writer compressed zlib, buffer size is larger than data") {
+    val receiver = new StripeOutputBuffer(1.toByte)
+    val out = new OutStream(1024, new ZlibCodec(), receiver)
+    out.writeLong(1L)
+    out.writeLong(2L)
+    out.writeLong(3L)
+    out.writeLong(4L)
+    out.writeLong(5L)
+    out.writeLong(6L)
+    out.writeLong(7L)
+    out.writeLong(8L)
+    out.flush()
+    out.close()
+
+    receiver.array() should be (Array[Byte](
+      /* header: 1 for compressed and 26 bytes written */
+      -128, 0, 0, 26,
+      99, 96, 0, 3, 70, 8, -59, -64,
+      4, -91, -103, -95, 52, 11, -108, 102,
+      -123, -46, 108, 80, -102, 29, 74, 115, 0, 0
+    ))
+  }
+
   test("outstream - write header, max value + compressed") {
     val receiver = new StripeOutputBuffer(1.toByte)
     val buf = ByteBuffer.allocate(8)

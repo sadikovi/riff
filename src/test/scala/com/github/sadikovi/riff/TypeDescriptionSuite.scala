@@ -22,10 +22,12 @@
 
 package com.github.sadikovi.riff
 
+import java.io.ByteArrayInputStream
 import java.util.NoSuchElementException
 
 import org.apache.spark.sql.types._
 
+import com.github.sadikovi.riff.io.OutputBuffer
 import com.github.sadikovi.testutil.UnitTestSuite
 
 class TypeDescriptionSuite extends UnitTestSuite {
@@ -250,6 +252,32 @@ class TypeDescriptionSuite extends UnitTestSuite {
     td.atPosition(4) should be (new TypeSpec(StructField("col5", StringType), false, 4, 4))
   }
 
+  test("type description - equals 1") {
+    val schema = StructType(
+      StructField("col1", IntegerType) ::
+      StructField("col2", LongType) ::
+      StructField("col3", IntegerType) :: Nil)
+    val td1 = new TypeDescription(schema, Array("col1"))
+    val td2 = new TypeDescription(schema, Array("col1"))
+    val td3 = new TypeDescription(schema, Array("col1", "col2"))
+    val td4 = new TypeDescription(schema)
+
+    td1.equals(td1) should be (true)
+    td2.equals(td1) should be (true)
+    td3.equals(td1) should be (false)
+    td4.equals(td1) should be (false)
+  }
+
+  test("type description - equals 2") {
+    val schema = StructType(
+      StructField("col1", IntegerType) ::
+      StructField("col2", LongType) ::
+      StructField("col3", IntegerType) :: Nil)
+    val td1 = new TypeDescription(schema, Array("col1"))
+    val td2 = new TypeDescription(schema, Array("col1"))
+    td2 should be (td1)
+  }
+
   test("type description - toString") {
     val schema = StructType(
       StructField("col1", IntegerType) ::
@@ -260,5 +288,22 @@ class TypeDescriptionSuite extends UnitTestSuite {
       "col1=TypeSpec(col1: int, indexed=true, position=0, origPos=0), " +
       "col3=TypeSpec(col3: int, indexed=false, position=2, origPos=2), " +
       "col2=TypeSpec(col2: bigint, indexed=false, position=1, origPos=1)})")
+  }
+
+  test("write/read type description") {
+    val schema = StructType(
+      StructField("col1", IntegerType) ::
+      StructField("col2", LongType) ::
+      StructField("col3", IntegerType) ::
+      StructField("col4", StringType) ::
+      StructField("col5", StringType) :: Nil)
+    val td1 = new TypeDescription(schema, Array("col4", "col1"))
+    val out = new OutputBuffer()
+    td1.writeExternal(out)
+
+    val in = new ByteArrayInputStream(out.array())
+    val td2 = TypeDescription.readExternal(in)
+    td2.equals(td1) should be (true)
+    td2.toString should be (td1.toString)
   }
 }

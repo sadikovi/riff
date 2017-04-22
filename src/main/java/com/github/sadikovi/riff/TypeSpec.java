@@ -22,10 +22,12 @@
 
 package com.github.sadikovi.riff;
 
+import java.io.Serializable;
+
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.StructField;
 
-public class TypeSpec {
+public class TypeSpec implements Serializable {
   // SQL field specification
   private StructField field;
   // whether or not this field should be used for indexing
