@@ -29,7 +29,7 @@ import java.io.OutputStream;
 /**
  * OutputBuffer is a resizable byte buffer based on `ByteArrayOutputStream` with additional methods
  * to write primitive values. Writes are optimized around writing byte arrays, which is different
- * from data output stream. Default output buffer is chosen to suit indexed row writes.
+ * from data output stream. Default output buffer size is chosen to suit indexed row writes.
  */
 public class OutputBuffer extends ByteArrayOutputStream {
   // default size in bytes
