@@ -22,9 +22,8 @@
 
 package com.github.sadikovi.riff;
 
-import java.io.DataInputStream;
-import java.io.InputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
 import com.github.sadikovi.riff.io.OutputBuffer;
 import com.github.sadikovi.riff.io.StripeOutputBuffer;
@@ -34,23 +33,30 @@ import com.github.sadikovi.riff.io.StripeOutputBuffer;
  * Contains information for reader.
  */
 public class StripeInformation {
-  public static final String MAGIC = "STRIPE";
+  public static final byte MAGIC = 47;
 
   private final short id;
   private final long offset;
   private final int length;
+  // array of statistics, each index matches type spec index in type description
+  private final Statistics[] stats;
 
   public StripeInformation(StripeOutputBuffer stripe, long pos) {
-    this(stripe.id(), pos, stripe.length());
+    this(stripe.id(), pos, stripe.length(), null);
   }
 
-  public StripeInformation(short id, long offset, int length) {
+  public StripeInformation(StripeOutputBuffer stripe, long pos, Statistics[] stats) {
+    this(stripe.id(), pos, stripe.length(), stats);
+  }
+
+  public StripeInformation(short id, long offset, int length, Statistics[] stats) {
     if (id < 0) throw new IllegalArgumentException("Negative id: " + id);
     if (offset < 0) throw new IllegalArgumentException("Negative offset: " + offset);
     if (length < 0) throw new IllegalArgumentException("Negative length: " + length);
     this.id = id;
     this.offset = offset;
     this.length = length;
+    this.stats = stats;
   }
 
   /**
@@ -78,47 +84,82 @@ public class StripeInformation {
   }
 
   /**
+   * Whether or not this stripe has column statistics.
+   * @return true if stripe has statistics, false otherwise
+   */
+  public boolean hasStatistics() {
+    return this.stats != null;
+  }
+
+  /**
+   * Get statistics for this stripe, can return null - see `hasStatistics()` method.
+   * Returned instance should be considered read-only.
+   * @return stripe statistics
+   */
+  public Statistics[] getStatistics() {
+    return this.stats;
+  }
+
+  /**
    * Write stripe information into external stream.
    * @param buffer output buffer
    * @throws IOException
    */
   public void writeExternal(OutputBuffer buffer) throws IOException {
-    // we write:
-    // - magic for stripe (6 bytes)
-    // - stripe id (2 bytes)
-    // - offset (8 bytes)
-    // - length (4 bytes)
-    buffer.writeBytes(MAGIC.getBytes());
+    byte flags = 0;
+    // flag per bit, e.g. stripe has statistics, etc.
+    flags |= hasStatistics() ? 1 : 0;
+    // stripe identifiers and flags
+    buffer.writeByte(MAGIC);
+    buffer.writeByte(flags);
     buffer.writeShort(id());
+    // stripe stream information
     buffer.writeLong(offset());
     buffer.writeInt(length());
+    // stripe statistics information
+    if (hasStatistics()) {
+      buffer.writeInt(stats.length);
+      // statistics instance should never be null
+      for (Statistics obj : stats) {
+        if (obj == null) {
+          throw new NullPointerException("Encountered null statistics for stripe " + this);
+        }
+        obj.writeExternal(buffer);
+      }
+    }
   }
 
   /**
-   * Read stripe information from provided input stream.
-   * Stream is not closed after operation is done.
-   * @param in input stream
+   * Read stripe information from provided byte buffer.
+   * @param buf byte buffer
    * @throws IOException
    */
-  public static StripeInformation readExternal(InputStream in) throws IOException {
-    DataInputStream din = new DataInputStream(in);
-    byte[] magic = new byte[MAGIC.length()];
-    din.read(magic);
-    // validate magic
-    for (int i = 0; i < magic.length; i++) {
-      if (magic[i] != MAGIC.charAt(i)) {
-        throw new IOException("Wrong magic number for stripe information");
+  public static StripeInformation readExternal(ByteBuffer buf) throws IOException {
+    // check magic
+    int magic = buf.get();
+    if (magic != MAGIC) {
+      throw new IOException("Wrong magic: " + magic + " != " + MAGIC);
+    }
+    // stripe flags
+    byte flags = buf.get();
+    boolean hasStatistics = (flags & 1) != 0;
+    short id = buf.getShort();
+    long offset = buf.getLong();
+    int length = buf.getInt();
+    Statistics[] stats = null;
+    if (hasStatistics) {
+      int len = buf.getInt();
+      stats = new Statistics[len];
+      for (int i = 0; i < len; i++) {
+        stats[i] = Statistics.readExternal(buf);
       }
     }
-    // TODO: use byte buffer instead to load all stripe information
-    short id = din.readShort();
-    long offset = din.readLong();
-    int length = din.readInt();
-    return new StripeInformation(id, offset, length);
+    return new StripeInformation(id, offset, length, stats);
   }
 
   @Override
   public String toString() {
-    return "Stripe[id=" + id + ", offset=" + offset + ", length=" + length + "]";
+    return "Stripe[id=" + id + ", offset=" + offset + ", length=" + length +
+      ", has_stats=" + hasStatistics() + "]";
   }
 }

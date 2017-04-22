@@ -23,6 +23,9 @@
 package com.github.sadikovi.riff
 
 import java.io.{ByteArrayInputStream, IOException}
+import java.nio.ByteBuffer
+
+import org.apache.spark.sql.types.{IntegerType, LongType, StringType}
 
 import com.github.sadikovi.riff.io.OutputBuffer
 import com.github.sadikovi.riff.io.StripeOutputBuffer
@@ -36,49 +39,87 @@ class StripeInformationSuite extends UnitTestSuite {
     info.id() should be (123)
     info.offset() should be (12345L)
     info.length() should be (8)
+    info.hasStatistics() should be (false)
+    info.getStatistics() should be (null)
   }
 
   test("toString method") {
-    val info1 = new StripeInformation(123.toByte, 12345L, Int.MaxValue)
-    info1.toString should be (s"Stripe[id=123, offset=12345, length=${Int.MaxValue}]")
+    val info1 = new StripeInformation(123.toByte, 12345L, Int.MaxValue, null)
+    info1.toString should be (
+      s"Stripe[id=123, offset=12345, length=${Int.MaxValue}, has_stats=false]")
+    val info2 = new StripeInformation(123.toByte, 12345L, Int.MaxValue, Array[Statistics]())
+    info2.toString should be (
+      s"Stripe[id=123, offset=12345, length=${Int.MaxValue}, has_stats=true]")
   }
 
   test("assert negative values in stripe information") {
     var err = intercept[IllegalArgumentException] {
-      new StripeInformation(-1.toByte, 1L, 1)
+      new StripeInformation(-1.toByte, 1L, 1, null)
     }
     err.getMessage should be ("Negative id: -1")
 
     err = intercept[IllegalArgumentException] {
-      new StripeInformation(1.toByte, -1L, 1)
+      new StripeInformation(1.toByte, -1L, 1, null)
     }
     err.getMessage should be ("Negative offset: -1")
 
     err = intercept[IllegalArgumentException] {
-      new StripeInformation(1.toByte, 1L, -1)
+      new StripeInformation(1.toByte, 1L, -1, null)
     }
     err.getMessage should be ("Negative length: -1")
   }
 
   test("fail magic assertion") {
-    val in = new ByteArrayInputStream(Array[Byte](1, 2, 3, 4, 5, 6, 7, 8))
+    val in = ByteBuffer.wrap(Array[Byte](1, 2, 3, 4, 5, 6, 7, 8))
     val err = intercept[IOException] {
       StripeInformation.readExternal(in)
     }
-    err.getMessage should be ("Wrong magic number for stripe information")
+    err.getMessage should be (s"Wrong magic: 1 != ${StripeInformation.MAGIC}")
   }
 
   test("write/read external") {
     val out = new OutputBuffer()
-    val info1 = new StripeInformation(123.toByte, 12345L, Int.MaxValue)
+    val info1 = new StripeInformation(123.toByte, 12345L, Int.MaxValue, null)
     info1.writeExternal(out)
 
-    val in = new ByteArrayInputStream(out.array())
+    val in = ByteBuffer.wrap(out.array())
     val info2 = StripeInformation.readExternal(in)
 
     info2.id() should be (info1.id())
     info2.offset() should be (info1.offset())
     info2.length() should be (info1.length())
+    info2.hasStatistics() should be (info1.hasStatistics())
+    info2.getStatistics() should be (info1.getStatistics())
+    info2.toString() should be (info1.toString())
+  }
+
+  test("assert null statistics") {
+    val out = new OutputBuffer()
+    val stats = Array[Statistics](null)
+    val info1 = new StripeInformation(123.toByte, 12345L, Int.MaxValue, stats)
+    val err = intercept[NullPointerException] {
+      info1.writeExternal(out)
+    }
+    err.getMessage should be (s"Encountered null statistics for stripe $info1")
+  }
+
+  test("write/read external with statistics") {
+    val out = new OutputBuffer()
+    val stats = Array(
+      Statistics.sqlTypeToStatistics(IntegerType),
+      Statistics.sqlTypeToStatistics(LongType),
+      Statistics.sqlTypeToStatistics(StringType))
+    val info1 = new StripeInformation(123.toByte, 12345L, Int.MaxValue, stats)
+    info1.writeExternal(out)
+
+    val in = ByteBuffer.wrap(out.array())
+    val info2 = StripeInformation.readExternal(in)
+
+    info2.id() should be (info1.id())
+    info2.offset() should be (info1.offset())
+    info2.length() should be (info1.length())
+    info2.hasStatistics() should be (info1.hasStatistics())
+    info2.getStatistics() should be (info1.getStatistics())
     info2.toString() should be (info1.toString())
   }
 }
