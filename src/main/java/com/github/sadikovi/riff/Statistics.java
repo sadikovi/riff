@@ -72,13 +72,11 @@ public abstract class Statistics {
   protected abstract void readState(ByteBuffer buf) throws IOException;
 
   /**
-   * Combine this statistics with provided and return an updated copy.
+   * Merge `that` statistics instance into this instance. `that` instance should not be modified.
    * It is guaranteed that provided statistics instance will be of the same type as this one.
-   * Do not update either instances.
-   * @param obj instance to combine with
-   * @return new combined statistics
+   * @param obj instance to merge
    */
-  protected abstract Statistics combine(Statistics obj);
+  protected abstract void merge(Statistics obj);
 
   /**
    * Get min value for this statistics. Used for testing purposes only.
@@ -206,10 +204,8 @@ public abstract class Statistics {
     protected void readState(ByteBuffer buf) throws IOException { /* no-op */ }
 
     @Override
-    protected Statistics combine(Statistics obj) {
-      NoopStatistics stats = new NoopStatistics();
-      stats.hasNulls = obj.hasNulls() || this.hasNulls();
-      return stats;
+    protected void merge(Statistics obj) {
+      this.hasNulls = this.hasNulls || obj.hasNulls;
     }
 
     @Override
@@ -269,13 +265,11 @@ public abstract class Statistics {
     }
 
     @Override
-    protected Statistics combine(Statistics obj) {
+    protected void merge(Statistics obj) {
       IntStatistics that = (IntStatistics) obj;
-      IntStatistics res = new IntStatistics();
-      res.min = Math.min(that.min, this.min);
-      res.max = Math.max(that.max, this.max);
-      res.hasNulls = that.hasNulls() || this.hasNulls();
-      return res;
+      this.min = Math.min(that.min, this.min);
+      this.max = Math.max(that.max, this.max);
+      this.hasNulls = this.hasNulls || that.hasNulls;
     }
 
     @Override
@@ -335,13 +329,12 @@ public abstract class Statistics {
     }
 
     @Override
-    protected Statistics combine(Statistics obj) {
+    protected void merge(Statistics obj) {
       LongStatistics that = (LongStatistics) obj;
       LongStatistics res = new LongStatistics();
-      res.min = Math.min(that.min, this.min);
-      res.max = Math.max(that.max, this.max);
-      res.hasNulls = that.hasNulls() || this.hasNulls();
-      return res;
+      this.min = Math.min(that.min, this.min);
+      this.max = Math.max(that.max, this.max);
+      this.hasNulls = this.hasNulls || that.hasNulls;
     }
 
     @Override
@@ -425,24 +418,22 @@ public abstract class Statistics {
     }
 
     @Override
-    protected Statistics combine(Statistics obj) {
+    protected void merge(Statistics obj) {
       UTF8StringStatistics that = (UTF8StringStatistics) obj;
-      UTF8StringStatistics res = new UTF8StringStatistics();
       // update min
       if (this.min == null || that.min == null) {
-        res.min = this.min == null ? that.min : this.min;
+        this.min = this.min == null ? that.min : this.min;
       } else {
-        res.min = this.min.compareTo(that.min) > 0 ? that.min : this.min;
+        this.min = this.min.compareTo(that.min) > 0 ? that.min : this.min;
       }
       // update max
       if (this.max == null || that.max == null) {
-        res.max = this.max == null ? that.max : this.max;
+        this.max = this.max == null ? that.max : this.max;
       } else {
-        res.max = this.max.compareTo(that.max) < 0 ? that.max : this.max;
+        this.max = this.max.compareTo(that.max) < 0 ? that.max : this.max;
       }
       // update nulls
-      res.hasNulls = that.hasNulls || this.hasNulls;
-      return res;
+      this.hasNulls = this.hasNulls || that.hasNulls;
     }
 
     @Override

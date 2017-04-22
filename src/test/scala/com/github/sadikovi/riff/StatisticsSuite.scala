@@ -40,7 +40,7 @@ class StatisticsSuite extends UnitTestSuite {
         override def updateState(row: InternalRow, ordinal: Int): Unit = ???
         override def writeState(buf: OutputBuffer): Unit = ???
         override def readState(buf: ByteBuffer): Unit = ???
-        override def combine(obj: Statistics): Statistics = ???
+        override def merge(obj: Statistics): Unit = ???
       }
     }
     err.getMessage should be ("Negative id: -1");
@@ -74,7 +74,7 @@ class StatisticsSuite extends UnitTestSuite {
       override def updateState(row: InternalRow, ordinal: Int): Unit = ???
       override def writeState(buf: OutputBuffer): Unit = ???
       override def readState(buf: ByteBuffer): Unit = ???
-      override def combine(obj: Statistics): Statistics = ???
+      override def merge(obj: Statistics): Unit = ???
     }
     stats.hasNulls should be (false)
 
@@ -209,12 +209,11 @@ class StatisticsSuite extends UnitTestSuite {
     s2.update(InternalRow(300), 0)
     s2.update(InternalRow(null), 0)
 
-    val s3 = s1.combine(s2)
-    assert(s3 != s1)
-    assert(s3 != s2)
-    s3.getMin should be (-100)
-    s3.getMax should be (400)
-    s3.hasNulls should be (true)
+    s1.merge(s2)
+    assert(s1 != s2)
+    s1.getMin should be (-100)
+    s1.getMax should be (400)
+    s1.hasNulls should be (true)
   }
 
   test("merge long stats") {
@@ -226,12 +225,11 @@ class StatisticsSuite extends UnitTestSuite {
     s2.update(InternalRow(500L), 0)
     s2.update(InternalRow(null), 0)
 
-    val s3 = s1.combine(s2)
-    assert(s3 != s1)
-    assert(s3 != s2)
-    s3.getMin should be (-100L)
-    s3.getMax should be (700L)
-    s3.hasNulls should be (true)
+    s1.merge(s2)
+    assert(s1 != s2)
+    s1.getMin should be (-100L)
+    s1.getMax should be (700L)
+    s1.hasNulls should be (true)
   }
 
   test("merge utf8 stats 1") {
@@ -243,12 +241,11 @@ class StatisticsSuite extends UnitTestSuite {
     s2.update(InternalRow(UTF8String.fromString("ddd")), 0)
     s2.update(InternalRow(null), 0)
 
-    val s3 = s1.combine(s2)
-    assert(s3 != s1)
-    assert(s3 != s2)
-    s3.getMin should be (UTF8String.fromString("aaa"))
-    s3.getMax should be (UTF8String.fromString("ddd"))
-    s3.hasNulls should be (true)
+    s1.merge(s2)
+    assert(s1 != s2)
+    s1.getMin should be (UTF8String.fromString("aaa"))
+    s1.getMax should be (UTF8String.fromString("ddd"))
+    s1.hasNulls should be (true)
   }
 
   test("merge utf8 stats 2") {
@@ -257,9 +254,9 @@ class StatisticsSuite extends UnitTestSuite {
     s2.update(InternalRow(UTF8String.fromString("bbb")), 0)
     s2.update(InternalRow(UTF8String.fromString("ddd")), 0)
 
-    val s3 = s1.combine(s2)
-    s3.getMin should be (UTF8String.fromString("bbb"))
-    s3.getMax should be (UTF8String.fromString("ddd"))
-    s3.hasNulls should be (false)
+    s1.merge(s2)
+    s1.getMin should be (UTF8String.fromString("bbb"))
+    s1.getMax should be (UTF8String.fromString("ddd"))
+    s1.hasNulls should be (false)
   }
 }

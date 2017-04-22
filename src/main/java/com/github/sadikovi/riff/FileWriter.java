@@ -199,8 +199,10 @@ class FileWriter {
     OutputBuffer dataHeader = new OutputBuffer();
     dataHeader.writeBytes(Riff.MAGIC.getBytes());
     dataHeader.writeBytes(fileId);
-    assert dataHeader.bytesWritten() == 16: "Invalid number of bytes written - expected 16, got " +
-      dataHeader.bytesWritten();
+    if (dataHeader.bytesWritten() != 16) {
+      throw new IOException("Invalid number of bytes written - expected 16, got " +
+        dataHeader.bytesWritten());
+    }
     dataHeader.writeExternal(out);
   }
 
@@ -218,6 +220,7 @@ class FileWriter {
     }
     hasWrittenData = true;
 
+    LOG.info("Writing file with type description {}", td);
     // create stream for data file
     FSDataOutputStream out = fs.create(dataPath, false);
     // stripe index
@@ -239,16 +242,19 @@ class FileWriter {
       StripeOutputBuffer stripe = new StripeOutputBuffer(stripeId++);
       OutStream stripeStream = new OutStream(bufferSize, codec, stripe);
       int batch = numRowsInStripe;
+      Statistics[] stats = createStatistics(td);
       LOG.info("Writing stripe {}", stripe.id());
       while (iter.hasNext()) {
-        writer.writeRow(iter.next(), stripeStream);
+        InternalRow row = iter.next();
+        updateStatistics(stats, td, row);
+        writer.writeRow(row, stripeStream);
         batch--;
         if (batch == 0) {
           // flush data into stripe buffer
           stripeStream.flush();
           // write stripe information into output, such as
           // stripe id and length, and capture position
-          stripeInfo = new StripeInformation(stripe, out.getPos());
+          stripeInfo = new StripeInformation(stripe, out.getPos(), stats);
           stripe.flush(out);
           LOG.info("Finished writing stripe {}, records written={}", stripeInfo,
             (numRowsInStripe - batch));
@@ -256,12 +262,13 @@ class FileWriter {
           stripe = new StripeOutputBuffer(stripeId++);
           stripeStream = new OutStream(bufferSize, codec, stripe);
           batch = numRowsInStripe;
+          stats = createStatistics(td);
           LOG.info("Writing stripe {}", stripe.id());
         }
       }
       // flush the last stripe into output stream
       stripeStream.flush();
-      stripeInfo = new StripeInformation(stripe, out.getPos());
+      stripeInfo = new StripeInformation(stripe, out.getPos(), stats);
       stripe.flush(out);
       LOG.info("Finished writing stripe {}, records written={}", stripeInfo,
         (numRowsInStripe - batch));
@@ -269,6 +276,7 @@ class FileWriter {
       stripeStream.close();
       stripe = null;
       stripeStream = null;
+      stats = null;
     } finally {
       if (out != null) {
         out.close();
@@ -283,18 +291,60 @@ class FileWriter {
       writeHeader(out);
 
       // == file content ==
+      // combine all statistics for a file
+      LOG.info("Merging stipe statistics");
+      Statistics[] stats = createStatistics(td);
+      for (StripeInformation info : stripeSeq) {
+        if (info.hasStatistics()) {
+          for (int i = 0; i < stats.length; i++) {
+            stats[i].merge(info.getStatistics()[i]);
+          }
+        }
+      }
       LOG.info("Writing file content");
       OutputBuffer buffer = new OutputBuffer();
       // write type description and stripe information
       td.writeExternal(buffer);
+      // write file statistics
+      buffer.writeInt(stats.length);
+      for (int i = 0; i < stats.length; i++) {
+        stats[i].writeExternal(buffer);
+      }
+      // write stripe information
       for (StripeInformation info : stripeSeq) {
         info.writeExternal(buffer);
       }
+      // flush buffer into output stream
       buffer.writeExternal(out);
     } finally {
       if (out != null) {
         out.close();
       }
+    }
+  }
+
+  /**
+   * Create new array of statistics for a stripe.
+   * @return statistics
+   */
+  private static Statistics[] createStatistics(TypeDescription td) {
+    Statistics[] stats = new Statistics[td.fields().length];
+    for (int i = 0; i < td.fields().length; i++) {
+      stats[i] = Statistics.sqlTypeToStatistics(td.fields()[i].dataType());
+    }
+    return stats;
+  }
+
+  /**
+   * Update each instance of statistics with value of internal row.
+   * @param stats list of statistics
+   * @param td type description for a row
+   * @param row row to use for updates, should match type description
+   */
+  private static void updateStatistics(Statistics[] stats, TypeDescription td, InternalRow row) {
+    for (int i = 0; i < stats.length; i++) {
+      // ordinal is original sql position in struct type for internal row, not index of type spec
+      stats[i].update(row, td.atPosition(i).origSQLPos());
     }
   }
 
