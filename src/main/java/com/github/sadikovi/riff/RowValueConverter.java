@@ -37,7 +37,7 @@ public interface RowValueConverter {
    * non-null and buffer is valid. Offset is length of fixed part, used for writing values with
    * variable part.
    */
-  public abstract void writeDirect(
+  public void writeDirect(
       InternalRow row,
       int ordinal,
       OutputBuffer fixedBuffer,
@@ -48,5 +48,5 @@ public interface RowValueConverter {
    * Fixed offset in bytes for data type, this either includes value for primitive types, or fixed
    * sized metadata (either int or long) for non-primitive types, e.g. UTF8String.
    */
-  public abstract int byteOffset();
+  public int byteOffset();
 }
