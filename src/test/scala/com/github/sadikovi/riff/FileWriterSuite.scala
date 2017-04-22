@@ -48,7 +48,6 @@ class FileWriterSuite extends UnitTestSuite {
 
       writer.headerPath should be (fs.makeQualified(dir / "file"))
       writer.dataPath should be (fs.makeQualified(dir / "file.data"))
-      writer.hasWrittenData should be (false)
       writer.numRowsInStripe should be (Riff.Options.STRIPE_ROWS_DEFAULT)
       writer.bufferSize should be (Riff.Options.BUFFER_SIZE_DEFAULT)
       writer.toString should be (
@@ -71,7 +70,6 @@ class FileWriterSuite extends UnitTestSuite {
 
       writer.headerPath should be (fs.makeQualified(dir / "file"))
       writer.dataPath should be (fs.makeQualified(dir / "file.data"))
-      writer.hasWrittenData should be (false)
       writer.numRowsInStripe should be (Riff.Options.STRIPE_ROWS_DEFAULT)
       writer.bufferSize should be (Riff.Options.BUFFER_SIZE_DEFAULT)
       writer.toString should be (
@@ -156,19 +154,36 @@ class FileWriterSuite extends UnitTestSuite {
     }
   }
 
-  test("fail to attempt to writing again") {
+  test("fail to make subsequent write using the same writer") {
     withTempDir { dir =>
       val conf = new Configuration(false)
       val path = dir / "file"
       val codec = new ZlibCodec()
       val td = new TypeDescription(StructType(StructField("col", StringType) :: Nil))
       val writer = new FileWriter(fs, conf, path, td, codec)
-
-      writer.writeFile(Iterator(InternalRow(UTF8String.fromString("test"))))
+      writer.prepareWrite()
+      writer.write(InternalRow(UTF8String.fromString("test")))
+      writer.finishWrite()
       val err = intercept[IOException] {
-        writer.writeFile(Iterator(InternalRow(UTF8String.fromString("test"))))
+        writer.prepareWrite()
       }
-      assert(err.getMessage.contains("No reuse of file writer"))
+      assert(err.getMessage.contains("Writer reuse"))
+    }
+  }
+
+  test("fail to call write(row) on closed writer") {
+    withTempDir { dir =>
+      val conf = new Configuration(false)
+      val path = dir / "file"
+      val codec = new ZlibCodec()
+      val td = new TypeDescription(StructType(StructField("col", StringType) :: Nil))
+      val writer = new FileWriter(fs, conf, path, td, codec)
+      writer.prepareWrite()
+      writer.write(InternalRow(UTF8String.fromString("test")))
+      writer.finishWrite()
+      intercept[NullPointerException] {
+        writer.write(InternalRow(UTF8String.fromString("test")))
+      }
     }
   }
 
@@ -179,9 +194,11 @@ class FileWriterSuite extends UnitTestSuite {
       val codec = new ZlibCodec()
       val td = new TypeDescription(StructType(StructField("col", StringType) :: Nil))
       val writer = new FileWriter(fs, conf, path, td, codec)
-
-      val iter = (0 until 512).map { x => InternalRow(UTF8String.fromString(s"$x")) }.toIterator
-      writer.writeFile(iter)
+      writer.prepareWrite()
+      for (i <- 0 until 512) {
+        writer.write(InternalRow(UTF8String.fromString(s"$i")))
+      }
+      writer.finishWrite()
       val header = fs.getFileStatus(writer.headerPath)
       val data = fs.getFileStatus(writer.dataPath)
       // should be greater than header size
@@ -198,9 +215,28 @@ class FileWriterSuite extends UnitTestSuite {
       val codec = new ZlibCodec()
       val td = new TypeDescription(StructType(StructField("col", StringType) :: Nil))
       val writer = new FileWriter(fs, conf, path, td, codec)
+      writer.prepareWrite()
+      for (i <- 0 until 512) {
+        writer.write(InternalRow(UTF8String.fromString(s"$i")))
+      }
+      writer.finishWrite()
+      val header = fs.getFileStatus(writer.headerPath)
+      val data = fs.getFileStatus(writer.dataPath)
+      // should be greater than header size
+      assert(header.getLen > 16)
+      assert(data.getLen > 16)
+    }
+  }
 
-      val iter = (0 until 512).map { x => InternalRow(UTF8String.fromString(s"$x")) }.toIterator
-      writer.writeFile(iter)
+  test("write empty file with 0 stripes") {
+    withTempDir { dir =>
+      val conf = new Configuration(false)
+      val path = dir / "file"
+      val codec = new ZlibCodec()
+      val td = new TypeDescription(StructType(StructField("col", StringType) :: Nil))
+      val writer = new FileWriter(fs, conf, path, td, codec)
+      writer.prepareWrite()
+      writer.finishWrite()
       val header = fs.getFileStatus(writer.headerPath)
       val data = fs.getFileStatus(writer.dataPath)
       // should be greater than header size
