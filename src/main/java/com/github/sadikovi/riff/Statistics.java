@@ -39,8 +39,8 @@ import com.github.sadikovi.riff.io.OutputBuffer;
  * Keeps information about min and max values and nulls.
  */
 public abstract class Statistics {
-  private final byte id;
-  private boolean hasNulls;
+  protected final byte id;
+  protected boolean hasNulls;
 
   Statistics(byte id) {
     if (id < 0) throw new IllegalArgumentException("Negative id: " + id);
@@ -72,7 +72,17 @@ public abstract class Statistics {
   protected abstract void readState(ByteBuffer buf) throws IOException;
 
   /**
+   * Combine this statistics with provided and return an updated copy.
+   * It is guaranteed that provided statistics instance will be of the same type as this one.
+   * Do not update either instances.
+   * @param obj instance to combine with
+   * @return new combined statistics
+   */
+  protected abstract Statistics combine(Statistics obj);
+
+  /**
    * Get min value for this statistics. Used for testing purposes only.
+   * Recommended that implementations overwrite this method.
    * @return min value
    */
   public Object getMin() {
@@ -81,6 +91,7 @@ public abstract class Statistics {
 
   /**
    * Get max value for this statistics. Used for testing purposes only.
+   * Recommended that implementations overwrite this method.
    * @return max value
    */
   public Object getMax() {
@@ -195,6 +206,13 @@ public abstract class Statistics {
     protected void readState(ByteBuffer buf) throws IOException { /* no-op */ }
 
     @Override
+    protected Statistics combine(Statistics obj) {
+      NoopStatistics stats = new NoopStatistics();
+      stats.hasNulls = obj.hasNulls() || this.hasNulls();
+      return stats;
+    }
+
+    @Override
     public boolean equals(Object obj) {
       if (obj == null || !(obj instanceof NoopStatistics)) return false;
       NoopStatistics that = (NoopStatistics) obj;
@@ -214,8 +232,8 @@ public abstract class Statistics {
   static class IntStatistics extends Statistics {
     public static final byte ID = 2;
 
-    protected int min = Integer.MIN_VALUE;
-    protected int max = Integer.MAX_VALUE;
+    protected int min = Integer.MAX_VALUE;
+    protected int max = Integer.MIN_VALUE;
 
     IntStatistics() {
       super(ID);
@@ -234,8 +252,8 @@ public abstract class Statistics {
     @Override
     protected void updateState(InternalRow row, int ordinal) {
       int value = row.getInt(ordinal);
-      min = (min == Integer.MIN_VALUE) ? value : Math.min(min, value);
-      max = (max == Integer.MAX_VALUE) ? value : Math.max(max, value);
+      min = Math.min(min, value);
+      max = Math.max(max, value);
     }
 
     @Override
@@ -248,6 +266,16 @@ public abstract class Statistics {
     protected void readState(ByteBuffer buf) throws IOException {
       min = buf.getInt();
       max = buf.getInt();
+    }
+
+    @Override
+    protected Statistics combine(Statistics obj) {
+      IntStatistics that = (IntStatistics) obj;
+      IntStatistics res = new IntStatistics();
+      res.min = Math.min(that.min, this.min);
+      res.max = Math.max(that.max, this.max);
+      res.hasNulls = that.hasNulls() || this.hasNulls();
+      return res;
     }
 
     @Override
@@ -270,8 +298,8 @@ public abstract class Statistics {
   static class LongStatistics extends Statistics {
     public static final byte ID = 4;
 
-    protected long min = Long.MIN_VALUE;
-    protected long max = Long.MAX_VALUE;
+    protected long min = Long.MAX_VALUE;
+    protected long max = Long.MIN_VALUE;
 
     LongStatistics() {
       super(ID);
@@ -290,8 +318,8 @@ public abstract class Statistics {
     @Override
     protected void updateState(InternalRow row, int ordinal) {
       long value = row.getLong(ordinal);
-      min = (min == Long.MIN_VALUE) ? value : Math.min(min, value);
-      max = (max == Long.MAX_VALUE) ? value : Math.max(max, value);
+      min = Math.min(min, value);
+      max = Math.max(max, value);
     }
 
     @Override
@@ -304,6 +332,16 @@ public abstract class Statistics {
     protected void readState(ByteBuffer buf) throws IOException {
       min = buf.getLong();
       max = buf.getLong();
+    }
+
+    @Override
+    protected Statistics combine(Statistics obj) {
+      LongStatistics that = (LongStatistics) obj;
+      LongStatistics res = new LongStatistics();
+      res.min = Math.min(that.min, this.min);
+      res.max = Math.max(that.max, this.max);
+      res.hasNulls = that.hasNulls() || this.hasNulls();
+      return res;
     }
 
     @Override
@@ -384,6 +422,27 @@ public abstract class Statistics {
         buf.get(bytes);
         max = UTF8String.fromBytes(bytes);
       }
+    }
+
+    @Override
+    protected Statistics combine(Statistics obj) {
+      UTF8StringStatistics that = (UTF8StringStatistics) obj;
+      UTF8StringStatistics res = new UTF8StringStatistics();
+      // update min
+      if (this.min == null || that.min == null) {
+        res.min = this.min == null ? that.min : this.min;
+      } else {
+        res.min = this.min.compareTo(that.min) > 0 ? that.min : this.min;
+      }
+      // update max
+      if (this.max == null || that.max == null) {
+        res.max = this.max == null ? that.max : this.max;
+      } else {
+        res.max = this.max.compareTo(that.max) < 0 ? that.max : this.max;
+      }
+      // update nulls
+      res.hasNulls = that.hasNulls || this.hasNulls;
+      return res;
     }
 
     @Override

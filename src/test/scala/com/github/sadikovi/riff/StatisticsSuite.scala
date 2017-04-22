@@ -37,9 +37,10 @@ class StatisticsSuite extends UnitTestSuite {
   test("id should be positive") {
     val err = intercept[IllegalArgumentException] {
       new Statistics(-1) {
-        override def updateState(row: InternalRow, ordinal: Int) = ???
+        override def updateState(row: InternalRow, ordinal: Int): Unit = ???
         override def writeState(buf: OutputBuffer): Unit = ???
         override def readState(buf: ByteBuffer): Unit = ???
+        override def combine(obj: Statistics): Statistics = ???
       }
     }
     err.getMessage should be ("Negative id: -1");
@@ -70,9 +71,10 @@ class StatisticsSuite extends UnitTestSuite {
 
   test("update null value") {
     val stats = new Statistics(127) {
-      override def updateState(row: InternalRow, ordinal: Int) = ???
+      override def updateState(row: InternalRow, ordinal: Int): Unit = ???
       override def writeState(buf: OutputBuffer): Unit = ???
       override def readState(buf: ByteBuffer): Unit = ???
+      override def combine(obj: Statistics): Statistics = ???
     }
     stats.hasNulls should be (false)
 
@@ -85,8 +87,8 @@ class StatisticsSuite extends UnitTestSuite {
 
   test("update state for int stats") {
     val intStats = Statistics.sqlTypeToStatistics(IntegerType)
-    intStats.getMin should be (Int.MinValue)
-    intStats.getMax should be (Int.MaxValue)
+    intStats.getMin should be (Int.MaxValue)
+    intStats.getMax should be (Int.MinValue)
 
     intStats.update(InternalRow(255), 0)
     intStats.getMin should be (255)
@@ -99,8 +101,8 @@ class StatisticsSuite extends UnitTestSuite {
 
   test("update state for long stats") {
     val longStats = Statistics.sqlTypeToStatistics(LongType)
-    longStats.getMin should be (Long.MinValue)
-    longStats.getMax should be (Long.MaxValue)
+    longStats.getMin should be (Long.MaxValue)
+    longStats.getMax should be (Long.MinValue)
 
     longStats.update(InternalRow(12345L), 0)
     longStats.getMin should be (12345L)
@@ -196,5 +198,68 @@ class StatisticsSuite extends UnitTestSuite {
 
     val in = ByteBuffer.wrap(buf.array())
     Statistics.readExternal(in) should be (utfStats)
+  }
+
+  test("merge int stats") {
+    val s1 = new IntStatistics()
+    s1.update(InternalRow(100), 0)
+    s1.update(InternalRow(400), 0)
+    val s2 = new IntStatistics()
+    s2.update(InternalRow(-100), 0)
+    s2.update(InternalRow(300), 0)
+    s2.update(InternalRow(null), 0)
+
+    val s3 = s1.combine(s2)
+    assert(s3 != s1)
+    assert(s3 != s2)
+    s3.getMin should be (-100)
+    s3.getMax should be (400)
+    s3.hasNulls should be (true)
+  }
+
+  test("merge long stats") {
+    val s1 = new LongStatistics()
+    s1.update(InternalRow(100L), 0)
+    s1.update(InternalRow(700L), 0)
+    val s2 = new LongStatistics()
+    s2.update(InternalRow(-100L), 0)
+    s2.update(InternalRow(500L), 0)
+    s2.update(InternalRow(null), 0)
+
+    val s3 = s1.combine(s2)
+    assert(s3 != s1)
+    assert(s3 != s2)
+    s3.getMin should be (-100L)
+    s3.getMax should be (700L)
+    s3.hasNulls should be (true)
+  }
+
+  test("merge utf8 stats 1") {
+    val s1 = new UTF8StringStatistics()
+    s1.update(InternalRow(UTF8String.fromString("aaa")), 0)
+    s1.update(InternalRow(UTF8String.fromString("ccc")), 0)
+    val s2 = new UTF8StringStatistics()
+    s2.update(InternalRow(UTF8String.fromString("bbb")), 0)
+    s2.update(InternalRow(UTF8String.fromString("ddd")), 0)
+    s2.update(InternalRow(null), 0)
+
+    val s3 = s1.combine(s2)
+    assert(s3 != s1)
+    assert(s3 != s2)
+    s3.getMin should be (UTF8String.fromString("aaa"))
+    s3.getMax should be (UTF8String.fromString("ddd"))
+    s3.hasNulls should be (true)
+  }
+
+  test("merge utf8 stats 2") {
+    val s1 = new UTF8StringStatistics()
+    val s2 = new UTF8StringStatistics()
+    s2.update(InternalRow(UTF8String.fromString("bbb")), 0)
+    s2.update(InternalRow(UTF8String.fromString("ddd")), 0)
+
+    val s3 = s1.combine(s2)
+    s3.getMin should be (UTF8String.fromString("bbb"))
+    s3.getMax should be (UTF8String.fromString("ddd"))
+    s3.hasNulls should be (false)
   }
 }
