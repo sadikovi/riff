@@ -20,25 +20,51 @@
  * SOFTWARE.
  */
 
-package com.github.sadikovi.riff.tree;
+package com.github.sadikovi.riff.tree.impl;
 
-import com.github.sadikovi.riff.tree.impl.EqualTo;
-import com.github.sadikovi.riff.tree.impl.IsNull;
-import com.github.sadikovi.riff.tree.impl.And;
-import com.github.sadikovi.riff.tree.impl.Or;
-import com.github.sadikovi.riff.tree.impl.Not;
-import com.github.sadikovi.riff.tree.impl.Trivial;
+import org.apache.spark.sql.catalyst.InternalRow;
 
-public interface Modifier {
-  TreeNode update(EqualTo node);
+import com.github.sadikovi.riff.Statistics;
+import com.github.sadikovi.riff.tree.BinaryLogicalNode;
+import com.github.sadikovi.riff.tree.Modifier;
+import com.github.sadikovi.riff.tree.TreeNode;
 
-  TreeNode update(IsNull node);
+public class And extends BinaryLogicalNode {
+  private final TreeNode left;
+  private final TreeNode right;
 
-  TreeNode update(And node);
+  public And(TreeNode left, TreeNode right) {
+    this.left = left;
+    this.right = right;
+  }
 
-  TreeNode update(Or node);
+  @Override
+  public TreeNode left() {
+    return left;
+  }
 
-  TreeNode update(Not node);
+  @Override
+  public TreeNode right() {
+    return right;
+  }
 
-  TreeNode update(Trivial node);
+  @Override
+  public boolean evaluate(InternalRow row) {
+    return left.evaluate(row) && right.evaluate(row);
+  }
+
+  @Override
+  public boolean evaluate(Statistics[] stats) {
+    return left.evaluate(stats) && right.evaluate(stats);
+  }
+
+  @Override
+  public TreeNode transform(Modifier modifier) {
+    return modifier.update(this);
+  }
+
+  @Override
+  public String toString() {
+    return "(" + left + " && " + right + ")";
+  }
 }

@@ -20,25 +20,44 @@
  * SOFTWARE.
  */
 
-package com.github.sadikovi.riff.tree;
+package com.github.sadikovi.riff.tree.impl;
 
-import com.github.sadikovi.riff.tree.impl.EqualTo;
-import com.github.sadikovi.riff.tree.impl.IsNull;
-import com.github.sadikovi.riff.tree.impl.And;
-import com.github.sadikovi.riff.tree.impl.Or;
-import com.github.sadikovi.riff.tree.impl.Not;
-import com.github.sadikovi.riff.tree.impl.Trivial;
+import org.apache.spark.sql.catalyst.InternalRow;
 
-public interface Modifier {
-  TreeNode update(EqualTo node);
+import com.github.sadikovi.riff.Statistics;
+import com.github.sadikovi.riff.tree.Modifier;
+import com.github.sadikovi.riff.tree.TreeNode;
+import com.github.sadikovi.riff.tree.UnaryLogicalNode;
 
-  TreeNode update(IsNull node);
+public class Not extends UnaryLogicalNode {
+  private final TreeNode child;
 
-  TreeNode update(And node);
+  public Not(TreeNode child) {
+    this.child = child;
+  }
 
-  TreeNode update(Or node);
+  @Override
+  public TreeNode child() {
+    return child;
+  }
 
-  TreeNode update(Not node);
+  @Override
+  public boolean evaluate(InternalRow row) {
+    return !child.evaluate(row);
+  }
 
-  TreeNode update(Trivial node);
+  @Override
+  public boolean evaluate(Statistics[] stats) {
+    return !child.evaluate(stats);
+  }
+
+  @Override
+  public TreeNode transform(Modifier modifier) {
+    return modifier.update(this);
+  }
+
+  @Override
+  public String toString() {
+    return "!(" + child + ")";
+  }
 }

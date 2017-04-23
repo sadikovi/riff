@@ -81,41 +81,24 @@ public abstract class LeafNode implements TreeNode {
   }
 
   @Override
-  public boolean equals(Object obj) {
-    if (obj == null || obj.getClass() != this.getClass()) return false;
-    LeafNode that = (LeafNode) obj;
-    return name().equals(that.name()) && ordinal() == that.ordinal() &&
-      value().equals(that.value());
-  }
-
-  @Override
-  public int hashCode() {
-    int result = 31 * ordinal + name.hashCode();
-    result = result * 31 + value().hashCode();
-    return 31 * result + getClass().hashCode();
-  }
-
-  @Override
   public String toString() {
     String tag = resolved() ? (name() + "[" + ordinal() + "]") : ("*" + name());
     return toString(tag);
   }
 
   /**
-   * Get value for this leaf node.
-   * Should not be used when evaluating tree.
-   * @return value for leaf node
-   */
-  public abstract Object value();
-
-  /**
    * Evaluate row for this ordinal.
    * This method is called after checks on predicate correctness and `resolved`.
+   * @param row row to evaluate
+   * @param ordinal position in a row
+   * @return true if evaluation is correct and passes filter, false otherwise
    */
   protected abstract boolean evaluate(InternalRow row, int ordinal);
 
   /**
    * String method to return string representation based on pretty tag name.
+   * @param tag pretty node name
+   * @return string representation
    */
   protected abstract String toString(String tag);
 
@@ -123,6 +106,8 @@ public abstract class LeafNode implements TreeNode {
    * Update node with statistics information about null values.
    * Should not modify statistics values.
    * If information is not used return true, otherwise return status based on update.
+   * @param hasNulls true if statistics has nulls, false otherwise
+   * @return true if predicate passes statistics, false otherwise
    */
   public boolean statUpdate(boolean hasNulls) {
     return true;
@@ -132,6 +117,9 @@ public abstract class LeafNode implements TreeNode {
    * Update node with integer statistics values.
    * Should not modify statistics values.
    * If information is not used return true, otherwise return status based on update.
+   * @param min min int value
+   * @param max max int value
+   * @return true if predicate passes statistics, false otherwise
    */
   public boolean statUpdate(int min, int max) {
     return true;
@@ -141,6 +129,9 @@ public abstract class LeafNode implements TreeNode {
    * Update node with long statistics values.
    * Should not modify statistics values.
    * If information is not used return true, otherwise return status based on update.
+   * @param min min long value
+   * @param max max long value
+   * @return true if predicate passes statistics, false otherwise
    */
   public boolean statUpdate(long min, long max) {
     return true;
@@ -150,6 +141,9 @@ public abstract class LeafNode implements TreeNode {
    * Update node with UTF8String statistics values.
    * Should not modify statistics values.
    * If information is not used return true, otherwise return status based on update.
+   * @param min min UTF8 value or null
+   * @param max max UTF8 value or null
+   * @return true if predicate passes statistics, false otherwise
    */
   public boolean statUpdate(UTF8String min, UTF8String max) {
     return true;
