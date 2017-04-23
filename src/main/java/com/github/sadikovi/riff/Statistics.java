@@ -33,6 +33,7 @@ import org.apache.spark.sql.types.StringType;
 import org.apache.spark.unsafe.types.UTF8String;
 
 import com.github.sadikovi.riff.io.OutputBuffer;
+import com.github.sadikovi.riff.tree.LeafNode;
 
 /**
  * Stripe min/max statistics.
@@ -77,6 +78,15 @@ public abstract class Statistics {
    * @param obj instance to merge
    */
   protected abstract void merge(Statistics obj);
+
+  /**
+   * Evaluate leaf node based on current statistics instance. Should return true if node value is
+   * within statistics and false otherwise. Most of the time it is useful to call method on node
+   * to evaluate it with min/max/null.
+   * @param leaf node to evaluate
+   * @return true if value is within range, false otherwise (similar with null values)
+   */
+  public abstract boolean evaluateState(LeafNode leaf);
 
   /**
    * Get min value for this statistics. Used for testing purposes only.
@@ -209,6 +219,12 @@ public abstract class Statistics {
     }
 
     @Override
+    public boolean evaluateState(LeafNode leaf) {
+      // statistics only contain information about nullability
+      return leaf.statUpdate(hasNulls);
+    }
+
+    @Override
     public boolean equals(Object obj) {
       if (obj == null || !(obj instanceof NoopStatistics)) return false;
       NoopStatistics that = (NoopStatistics) obj;
@@ -270,6 +286,11 @@ public abstract class Statistics {
       this.min = Math.min(that.min, this.min);
       this.max = Math.max(that.max, this.max);
       this.hasNulls = this.hasNulls || that.hasNulls;
+    }
+
+    @Override
+    public boolean evaluateState(LeafNode leaf) {
+      return leaf.statUpdate(hasNulls) && leaf.statUpdate(min, max);
     }
 
     @Override
@@ -335,6 +356,11 @@ public abstract class Statistics {
       this.min = Math.min(that.min, this.min);
       this.max = Math.max(that.max, this.max);
       this.hasNulls = this.hasNulls || that.hasNulls;
+    }
+
+    @Override
+    public boolean evaluateState(LeafNode leaf) {
+      return leaf.statUpdate(hasNulls) && leaf.statUpdate(min, max);
     }
 
     @Override
@@ -434,6 +460,11 @@ public abstract class Statistics {
       }
       // update nulls
       this.hasNulls = this.hasNulls || that.hasNulls;
+    }
+
+    @Override
+    public boolean evaluateState(LeafNode leaf) {
+      return leaf.statUpdate(hasNulls) && leaf.statUpdate(min, max);
     }
 
     @Override
