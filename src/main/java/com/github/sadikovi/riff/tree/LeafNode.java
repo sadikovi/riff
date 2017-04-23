@@ -81,10 +81,32 @@ public abstract class LeafNode implements TreeNode {
   }
 
   @Override
+  public boolean equals(Object obj) {
+    if (obj == null || obj.getClass() != this.getClass()) return false;
+    LeafNode that = (LeafNode) obj;
+    return name().equals(that.name()) && ordinal() == that.ordinal() &&
+      value().equals(that.value());
+  }
+
+  @Override
+  public int hashCode() {
+    int result = 31 * ordinal + name.hashCode();
+    result = result * 31 + value().hashCode();
+    return 31 * result + getClass().hashCode();
+  }
+
+  @Override
   public String toString() {
     String tag = resolved() ? (name() + "[" + ordinal() + "]") : ("*" + name());
     return toString(tag);
   }
+
+  /**
+   * Get value for this leaf node.
+   * Should not be used when evaluating tree.
+   * @return value for leaf node
+   */
+  public abstract Object value();
 
   /**
    * Evaluate row for this ordinal.

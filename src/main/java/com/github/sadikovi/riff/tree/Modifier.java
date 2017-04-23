@@ -23,6 +23,7 @@
 package com.github.sadikovi.riff.tree;
 
 import com.github.sadikovi.riff.tree.Tree.Eq;
+import com.github.sadikovi.riff.tree.Tree.Gt;
 import com.github.sadikovi.riff.tree.Tree.IsNull;
 import com.github.sadikovi.riff.tree.Tree.And;
 import com.github.sadikovi.riff.tree.Tree.Or;
@@ -31,6 +32,8 @@ import com.github.sadikovi.riff.tree.Tree.Trivial;
 
 public interface Modifier {
   TreeNode update(Eq node);
+
+  TreeNode update(Gt node);
 
   TreeNode update(IsNull node);
 

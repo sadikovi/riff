@@ -43,30 +43,9 @@ public class Tree {
       super(name, ordinal);
     }
 
-    /**
-     * Get value for this equality filter.
-     * Should not be used when evaluating tree.
-     * @return value for this filter
-     */
-    public abstract Object value();
-
     @Override
     public TreeNode transform(Modifier modifier) {
       return modifier.update(this);
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-      if (obj == null || obj.getClass() != this.getClass()) return false;
-      Eq that = (Eq) obj;
-      return name().equals(that.name()) && ordinal() == that.ordinal() &&
-        value().equals(that.value());
-    }
-
-    @Override
-    public int hashCode() {
-      int result = 31 * ordinal + name.hashCode();
-      return result * 31 + value().hashCode();
     }
 
     @Override
@@ -149,10 +128,39 @@ public class Tree {
     }
   }
 
+  //////////////////////////////////////////////////////////////
+  // Greater than filter (see concrete implementations for different value types)
+  //////////////////////////////////////////////////////////////
+
+  public static abstract class Gt extends LeafNode {
+    public Gt(String name, int ordinal) {
+      super(name, ordinal);
+    }
+
+    @Override
+    public TreeNode transform(Modifier modifier) {
+      return modifier.update(this);
+    }
+
+    @Override
+    protected String toString(String tag) {
+      return tag + " > " + value();
+    }
+  }
+
+  //////////////////////////////////////////////////////////////
   // Leaf node when value is null for an ordinal
+  //////////////////////////////////////////////////////////////
+
   public static class IsNull extends LeafNode {
     public IsNull(String name, int ordinal) {
       super(name, ordinal);
+    }
+
+    @Override
+    public Object value() {
+      // this node does not have value, and hence overwrites equality and hashcode
+      return null;
     }
 
     @Override
