@@ -201,7 +201,7 @@ public class Tree {
 
     @Override
     public String toString() {
-      return "(" + left + " && " + right + ")";
+      return "(" + left + ") && (" + right + ")";
     }
   }
 
@@ -245,7 +245,7 @@ public class Tree {
 
     @Override
     public String toString() {
-      return "(" + left + " || " + right + ")";
+      return "(" + left + ") || (" + right + ")";
     }
   }
 

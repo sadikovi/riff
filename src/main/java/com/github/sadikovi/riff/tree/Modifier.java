@@ -22,15 +22,15 @@
 
 package com.github.sadikovi.riff.tree;
 
-import com.github.sadikovi.riff.tree.Tree.EqualTo;
-import com.github.sadikovi.riff.tree.Tree.GreaterThan;
-import com.github.sadikovi.riff.tree.Tree.LessThan;
-import com.github.sadikovi.riff.tree.Tree.GreaterThanOrEqual;
-import com.github.sadikovi.riff.tree.Tree.LessThanOrEqual;
-import com.github.sadikovi.riff.tree.Tree.IsNull;
 import com.github.sadikovi.riff.tree.Tree.And;
-import com.github.sadikovi.riff.tree.Tree.Or;
+import com.github.sadikovi.riff.tree.Tree.GreaterThan;
+import com.github.sadikovi.riff.tree.Tree.GreaterThanOrEqual;
+import com.github.sadikovi.riff.tree.Tree.EqualTo;
+import com.github.sadikovi.riff.tree.Tree.IsNull;
+import com.github.sadikovi.riff.tree.Tree.LessThan;
+import com.github.sadikovi.riff.tree.Tree.LessThanOrEqual;
 import com.github.sadikovi.riff.tree.Tree.Not;
+import com.github.sadikovi.riff.tree.Tree.Or;
 import com.github.sadikovi.riff.tree.Tree.Trivial;
 
 public interface Modifier {

@@ -29,7 +29,7 @@ import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
 import com.github.sadikovi.riff.io.OutputBuffer
-import com.github.sadikovi.riff.tree.LeafNode
+import com.github.sadikovi.riff.tree.BoundReference
 import com.github.sadikovi.testutil.UnitTestSuite
 
 class StatisticsSuite extends UnitTestSuite {
@@ -42,7 +42,7 @@ class StatisticsSuite extends UnitTestSuite {
         override def writeState(buf: OutputBuffer): Unit = ???
         override def readState(buf: ByteBuffer): Unit = ???
         override def merge(obj: Statistics): Unit = ???
-        override def evaluateState(leaf: LeafNode): Boolean = ???
+        override def evaluateState(ref: BoundReference): Boolean = ???
       }
     }
     err.getMessage should be ("Negative id: -1");
@@ -77,7 +77,7 @@ class StatisticsSuite extends UnitTestSuite {
       override def writeState(buf: OutputBuffer): Unit = ???
       override def readState(buf: ByteBuffer): Unit = ???
       override def merge(obj: Statistics): Unit = ???
-      override def evaluateState(leaf: LeafNode): Boolean = ???
+      override def evaluateState(ref: BoundReference): Boolean = ???
     }
     stats.hasNulls should be (false)
 

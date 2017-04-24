@@ -73,6 +73,7 @@ public abstract class BoundReference implements TreeNode {
 
   @Override
   public boolean equals(Object obj) {
+    System.out.println("equals(" + obj + ")");
     // equals method is used only for testing to compare trees, it should never be used for
     // evaluating predicate
     if (obj == null || obj.getClass() != this.getClass()) return false;
@@ -84,6 +85,7 @@ public abstract class BoundReference implements TreeNode {
 
   @Override
   public int hashCode() {
+    System.out.println("hashCode()");
     // hashCode method is used only for testing to compare trees, it should never be used for
     // evaluating predicate
     int result = 31 * ordinal + name.hashCode();
