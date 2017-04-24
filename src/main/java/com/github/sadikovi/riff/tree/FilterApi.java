@@ -54,19 +54,124 @@ public class FilterApi {
   // default unresolved ordinal
   private static final int UNRESOLVED_ORDINAL = -1;
 
+  /**
+   * Create equality filter.
+   * @param name field name
+   * @param value filter value
+   * @return EQT(field, value)
+   */
+  public static EqualTo eqt(String name, Object value) {
+    if (value == null) {
+      throw new IllegalArgumentException("Value is null. Use `IsNull` instead");
+    } else if (value instanceof Integer) {
+      return eqt(name, UNRESOLVED_ORDINAL, ((Integer) value).intValue());
+    } else if (value instanceof Long) {
+      return eqt(name, UNRESOLVED_ORDINAL, ((Long) value).longValue());
+    } else if (value instanceof UTF8String) {
+      return eqt(name, UNRESOLVED_ORDINAL, (UTF8String) value);
+    } else if (value instanceof String) {
+      return eqt(name, UNRESOLVED_ORDINAL, UTF8String.fromString((String) value));
+    } else {
+      throw new UnsupportedOperationException("No filter registered for value " + value +
+        " of type " + value.getClass());
+    }
+  }
+
+  /**
+   * Create '>' filter.
+   * @param name field name
+   * @param value filter value
+   * @return GT(field, value)
+   */
+  public static GreaterThan gt(String name, Object value) {
+    if (value == null) {
+      throw new IllegalArgumentException("Value is null. Use `IsNull` instead");
+    } else if (value instanceof Integer) {
+      return gt(name, UNRESOLVED_ORDINAL, ((Integer) value).intValue());
+    } else if (value instanceof Long) {
+      return gt(name, UNRESOLVED_ORDINAL, ((Long) value).longValue());
+    } else if (value instanceof UTF8String) {
+      return gt(name, UNRESOLVED_ORDINAL, (UTF8String) value);
+    } else if (value instanceof String) {
+      return gt(name, UNRESOLVED_ORDINAL, UTF8String.fromString((String) value));
+    } else {
+      throw new UnsupportedOperationException("No filter registered for value " + value +
+        " of type " + value.getClass());
+    }
+  }
+
+  /**
+   * Create '<' filter.
+   * @param name field name
+   * @param value filter value
+   * @return LT(field, value)
+   */
+  public static LessThan lt(String name, Object value) {
+    if (value == null) {
+      throw new IllegalArgumentException("Value is null. Use `IsNull` instead");
+    } else if (value instanceof Integer) {
+      return lt(name, UNRESOLVED_ORDINAL, ((Integer) value).intValue());
+    } else if (value instanceof Long) {
+      return lt(name, UNRESOLVED_ORDINAL, ((Long) value).longValue());
+    } else if (value instanceof UTF8String) {
+      return lt(name, UNRESOLVED_ORDINAL, (UTF8String) value);
+    } else if (value instanceof String) {
+      return lt(name, UNRESOLVED_ORDINAL, UTF8String.fromString((String) value));
+    } else {
+      throw new UnsupportedOperationException("No filter registered for value " + value +
+        " of type " + value.getClass());
+    }
+  }
+
+  /**
+   * Create '>=' filter.
+   * @param name field name
+   * @param value filter value
+   * @return GE(field, value)
+   */
+  public static GreaterThanOrEqual ge(String name, Object value) {
+    if (value == null) {
+      throw new IllegalArgumentException("Value is null. Use `IsNull` instead");
+    } else if (value instanceof Integer) {
+      return ge(name, UNRESOLVED_ORDINAL, ((Integer) value).intValue());
+    } else if (value instanceof Long) {
+      return ge(name, UNRESOLVED_ORDINAL, ((Long) value).longValue());
+    } else if (value instanceof UTF8String) {
+      return ge(name, UNRESOLVED_ORDINAL, (UTF8String) value);
+    } else if (value instanceof String) {
+      return ge(name, UNRESOLVED_ORDINAL, UTF8String.fromString((String) value));
+    } else {
+      throw new UnsupportedOperationException("No filter registered for value " + value +
+        " of type " + value.getClass());
+    }
+  }
+
+  /**
+   * Create '<=' filter.
+   * @param name field name
+   * @param value filter value
+   * @return LE(field, value)
+   */
+  public static LessThanOrEqual le(String name, Object value) {
+    if (value == null) {
+      throw new IllegalArgumentException("Value is null. Use `IsNull` instead");
+    } else if (value instanceof Integer) {
+      return le(name, UNRESOLVED_ORDINAL, ((Integer) value).intValue());
+    } else if (value instanceof Long) {
+      return le(name, UNRESOLVED_ORDINAL, ((Long) value).longValue());
+    } else if (value instanceof UTF8String) {
+      return le(name, UNRESOLVED_ORDINAL, (UTF8String) value);
+    } else if (value instanceof String) {
+      return le(name, UNRESOLVED_ORDINAL, UTF8String.fromString((String) value));
+    } else {
+      throw new UnsupportedOperationException("No filter registered for value " + value +
+        " of type " + value.getClass());
+    }
+  }
+
   //////////////////////////////////////////////////////////////
   // EqualTo
   //////////////////////////////////////////////////////////////
-
-  /**
-   * Create equality filter for integer value.
-   * @param name field name
-   * @param value filter value
-   * @return EQT(field, int)
-   */
-  public static EqualTo eqt(String name, int value) {
-    return eqt(name, UNRESOLVED_ORDINAL, value);
-  }
 
   private static EqualTo eqt(String name, int ordinal, final int value) {
     return new EqualTo(name, ordinal) {
@@ -88,16 +193,6 @@ public class FilterApi {
     };
   }
 
-  /**
-   * Create equality filter for long value.
-   * @param name field name
-   * @param value filter value
-   * @return EQT(field, long)
-   */
-  public static EqualTo eqt(String name, long value) {
-    return eqt(name, UNRESOLVED_ORDINAL, value);
-  }
-
   private static EqualTo eqt(String name, int ordinal, final long value) {
     return new EqualTo(name, ordinal) {
       @Override public Object value() {
@@ -116,28 +211,6 @@ public class FilterApi {
         return min >= value && value <= max;
       }
     };
-  }
-
-  /**
-   * Create equality filter for String value; value is converted into UTF8String.
-   * @param name field name
-   * @param value filter value
-   * @return EQT(field, UTF8String)
-   */
-  public static EqualTo eqt(String name, String value) {
-    if (value == null) throw new IllegalArgumentException("Value is null. Use `IsNull` instead");
-    return eqt(name, UTF8String.fromString(value));
-  }
-
-  /**
-   * Create equality filter for UTF8String value.
-   * @param name field name
-   * @param value filter value
-   * @return EQT(field, UTF8String)
-   */
-  public static EqualTo eqt(String name, UTF8String value) {
-    if (value == null) throw new IllegalArgumentException("Value is null. Use `IsNull` instead");
-    return eqt(name, UNRESOLVED_ORDINAL, value);
   }
 
   private static EqualTo eqt(String name, int ordinal, final UTF8String value) {
@@ -165,16 +238,6 @@ public class FilterApi {
   // GreaterThan
   //////////////////////////////////////////////////////////////
 
-  /**
-   * Create '>' filter for integer value.
-   * @param name field name
-   * @param value filter value
-   * @return GT(field, int)
-   */
-  public static GreaterThan gt(String name, int value) {
-    return gt(name, UNRESOLVED_ORDINAL, value);
-  }
-
   private static GreaterThan gt(String name, int ordinal, final int value) {
     return new GreaterThan(name, ordinal) {
       @Override public Object value() {
@@ -195,16 +258,6 @@ public class FilterApi {
     };
   }
 
-  /**
-   * Create '>' filter for long value.
-   * @param name field name
-   * @param value filter value
-   * @return GT(field, long)
-   */
-  public static GreaterThan gt(String name, long value) {
-    return gt(name, UNRESOLVED_ORDINAL, value);
-  }
-
   private static GreaterThan gt(String name, int ordinal, final long value) {
     return new GreaterThan(name, ordinal) {
       @Override public Object value() {
@@ -223,28 +276,6 @@ public class FilterApi {
         return value < max;
       }
     };
-  }
-
-  /**
-   * Create '>' filter for String value; value is converted into UTF8String.
-   * @param name field name
-   * @param value filter value
-   * @return GT(field, UTF8String)
-   */
-  public static GreaterThan gt(String name, String value) {
-    if (value == null) throw new IllegalArgumentException("Value is null. Use `IsNull` instead");
-    return gt(name, UTF8String.fromString(value));
-  }
-
-  /**
-   * Create '>' filter for UTF8String value.
-   * @param name field name
-   * @param value filter value
-   * @return GT(field, UTF8String)
-   */
-  public static GreaterThan gt(String name, UTF8String value) {
-    if (value == null) throw new IllegalArgumentException("Value is null. Use `IsNull` instead");
-    return gt(name, UNRESOLVED_ORDINAL, value);
   }
 
   private static GreaterThan gt(String name, int ordinal, final UTF8String value) {
@@ -272,16 +303,6 @@ public class FilterApi {
   // LessThan
   //////////////////////////////////////////////////////////////
 
-  /**
-   * Create '<' filter for integer value.
-   * @param name field name
-   * @param value filter value
-   * @return LT(field, int)
-   */
-  public static LessThan lt(String name, int value) {
-    return lt(name, UNRESOLVED_ORDINAL, value);
-  }
-
   private static LessThan lt(String name, int ordinal, final int value) {
     return new LessThan(name, ordinal) {
       @Override public Object value() {
@@ -302,16 +323,6 @@ public class FilterApi {
     };
   }
 
-  /**
-   * Create '<' filter for long value.
-   * @param name field name
-   * @param value filter value
-   * @return LT(field, long)
-   */
-  public static LessThan lt(String name, long value) {
-    return lt(name, UNRESOLVED_ORDINAL, value);
-  }
-
   private static LessThan lt(String name, int ordinal, final long value) {
     return new LessThan(name, ordinal) {
       @Override public Object value() {
@@ -330,28 +341,6 @@ public class FilterApi {
         return value > min;
       }
     };
-  }
-
-  /**
-   * Create '<' filter for String value; value is converted into UTF8String.
-   * @param name field name
-   * @param value filter value
-   * @return LT(field, UTF8String)
-   */
-  public static LessThan lt(String name, String value) {
-    if (value == null) throw new IllegalArgumentException("Value is null. Use `IsNull` instead");
-    return lt(name, UTF8String.fromString(value));
-  }
-
-  /**
-   * Create '<' filter for UTF8String value.
-   * @param name field name
-   * @param value filter value
-   * @return LT(field, UTF8String)
-   */
-  public static LessThan lt(String name, UTF8String value) {
-    if (value == null) throw new IllegalArgumentException("Value is null. Use `IsNull` instead");
-    return lt(name, UNRESOLVED_ORDINAL, value);
   }
 
   private static LessThan lt(String name, int ordinal, final UTF8String value) {
@@ -379,16 +368,6 @@ public class FilterApi {
   // GreaterThanOrEqual
   //////////////////////////////////////////////////////////////
 
-  /**
-   * Create '>=' filter for integer value.
-   * @param name field name
-   * @param value filter value
-   * @return GE(field, int)
-   */
-  public static GreaterThanOrEqual ge(String name, int value) {
-    return ge(name, UNRESOLVED_ORDINAL, value);
-  }
-
   private static GreaterThanOrEqual ge(String name, int ordinal, final int value) {
     return new GreaterThanOrEqual(name, ordinal) {
       @Override public Object value() {
@@ -409,16 +388,6 @@ public class FilterApi {
     };
   }
 
-  /**
-   * Create '>=' filter for long value.
-   * @param name field name
-   * @param value filter value
-   * @return GE(field, long)
-   */
-  public static GreaterThanOrEqual ge(String name, long value) {
-    return ge(name, UNRESOLVED_ORDINAL, value);
-  }
-
   private static GreaterThanOrEqual ge(String name, int ordinal, final long value) {
     return new GreaterThanOrEqual(name, ordinal) {
       @Override public Object value() {
@@ -437,28 +406,6 @@ public class FilterApi {
         return value <= max;
       }
     };
-  }
-
-  /**
-   * Create '>=' filter for String value; value is converted into UTF8String.
-   * @param name field name
-   * @param value filter value
-   * @return GE(field, UTF8String)
-   */
-  public static GreaterThanOrEqual ge(String name, String value) {
-    if (value == null) throw new IllegalArgumentException("Value is null. Use `IsNull` instead");
-    return ge(name, UTF8String.fromString(value));
-  }
-
-  /**
-   * Create '>=' filter for UTF8String value.
-   * @param name field name
-   * @param value filter value
-   * @return GE(field, UTF8String)
-   */
-  public static GreaterThanOrEqual ge(String name, UTF8String value) {
-    if (value == null) throw new IllegalArgumentException("Value is null. Use `IsNull` instead");
-    return ge(name, UNRESOLVED_ORDINAL, value);
   }
 
   private static GreaterThanOrEqual ge(String name, int ordinal, final UTF8String value) {
@@ -486,16 +433,6 @@ public class FilterApi {
   // LessThanOrEqual
   //////////////////////////////////////////////////////////////
 
-  /**
-   * Create '<=' filter for integer value.
-   * @param name field name
-   * @param value filter value
-   * @return LE(field, int)
-   */
-  public static LessThanOrEqual le(String name, int value) {
-    return le(name, UNRESOLVED_ORDINAL, value);
-  }
-
   private static LessThanOrEqual le(String name, int ordinal, final int value) {
     return new LessThanOrEqual(name, ordinal) {
       @Override public Object value() {
@@ -516,16 +453,6 @@ public class FilterApi {
     };
   }
 
-  /**
-   * Create '<=' filter for long value.
-   * @param name field name
-   * @param value filter value
-   * @return LE(field, long)
-   */
-  public static LessThanOrEqual le(String name, long value) {
-    return le(name, UNRESOLVED_ORDINAL, value);
-  }
-
   private static LessThanOrEqual le(String name, int ordinal, final long value) {
     return new LessThanOrEqual(name, ordinal) {
       @Override public Object value() {
@@ -544,28 +471,6 @@ public class FilterApi {
         return value >= min;
       }
     };
-  }
-
-  /**
-   * Create '<=' filter for String value; value is converted into UTF8String.
-   * @param name field name
-   * @param value filter value
-   * @return LE(field, UTF8String)
-   */
-  public static LessThanOrEqual le(String name, String value) {
-    if (value == null) throw new IllegalArgumentException("Value is null. Use `IsNull` instead");
-    return le(name, UTF8String.fromString(value));
-  }
-
-  /**
-   * Create '<=' filter for UTF8String value.
-   * @param name field name
-   * @param value filter value
-   * @return LE(field, UTF8String)
-   */
-  public static LessThanOrEqual le(String name, UTF8String value) {
-    if (value == null) throw new IllegalArgumentException("Value is null. Use `IsNull` instead");
-    return le(name, UNRESOLVED_ORDINAL, value);
   }
 
   private static LessThanOrEqual le(String name, int ordinal, final UTF8String value) {
