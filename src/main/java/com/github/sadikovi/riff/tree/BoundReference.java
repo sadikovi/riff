@@ -65,6 +65,14 @@ public abstract class BoundReference implements TreeNode {
    */
   public abstract Object value();
 
+  /**
+   * Return a copy of this node with updated ordinal.
+   * Method is used when resolving predicate tree.
+   * @param newOrdinal ordinal of associated type spec
+   * @return copy of current node with updated ordinal
+   */
+  public abstract BoundReference withOrdinal(int newOrdinal);
+
   @Override
   public final boolean resolved() {
     // return true if ordinal is a valid array index

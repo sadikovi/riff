@@ -157,6 +157,11 @@ public class Tree {
     }
 
     @Override
+    public IsNull withOrdinal(int newOrdinal) {
+      return new IsNull(name, newOrdinal);
+    }
+
+    @Override
     public String treeOperator() {
       return "is";
     }

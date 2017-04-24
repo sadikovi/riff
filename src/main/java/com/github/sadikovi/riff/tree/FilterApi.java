@@ -52,7 +52,7 @@ public class FilterApi {
   private FilterApi() { }
 
   // default unresolved ordinal
-  private static final int ORD = -1;
+  private static final int UNRESOLVED_ORDINAL = -1;
 
   //////////////////////////////////////////////////////////////
   // EqualTo
@@ -64,20 +64,25 @@ public class FilterApi {
    * @param value filter value
    * @return EQT(field, int)
    */
-  public static TreeNode eqt(String name, final int value) {
-    return new EqualTo(name, ORD) {
-      @Override
-      public Object value() {
+  public static EqualTo eqt(String name, int value) {
+    return eqt(name, UNRESOLVED_ORDINAL, value);
+  }
+
+  private static EqualTo eqt(String name, int ordinal, final int value) {
+    return new EqualTo(name, ordinal) {
+      @Override public Object value() {
         return value;
       }
 
-      @Override
-      public boolean evaluate(InternalRow row) {
+      @Override public boolean evaluate(InternalRow row) {
         return !row.isNullAt(ordinal) && row.getInt(ordinal) == value;
       }
 
-      @Override
-      public boolean statUpdate(int min, int max) {
+      @Override public EqualTo withOrdinal(int newOrdinal) {
+        return eqt(name, newOrdinal, value);
+      }
+
+      @Override public boolean statUpdate(int min, int max) {
         return min >= value && value <= max;
       }
     };
@@ -89,48 +94,26 @@ public class FilterApi {
    * @param value filter value
    * @return EQT(field, long)
    */
-  public static TreeNode eqt(String name, final long value) {
-    return new EqualTo(name, ORD) {
-      @Override
-      public Object value() {
+  public static EqualTo eqt(String name, long value) {
+    return eqt(name, UNRESOLVED_ORDINAL, value);
+  }
+
+  private static EqualTo eqt(String name, int ordinal, final long value) {
+    return new EqualTo(name, ordinal) {
+      @Override public Object value() {
         return value;
       }
 
-      @Override
-      public boolean evaluate(InternalRow row) {
+      @Override public boolean evaluate(InternalRow row) {
         return !row.isNullAt(ordinal) && row.getLong(ordinal) == value;
       }
 
-      @Override
-      public boolean statUpdate(long min, long max) {
+      @Override public EqualTo withOrdinal(int newOrdinal) {
+        return eqt(name, newOrdinal, value);
+      }
+
+      @Override public boolean statUpdate(long min, long max) {
         return min >= value && value <= max;
-      }
-    };
-  }
-
-  /**
-   * Create equality filter for UTF8String value.
-   * @param name field name
-   * @param value filter value
-   * @return EQT(field, UTF8String)
-   */
-  public static TreeNode eqt(String name, final UTF8String value) {
-    if (value == null) throw new IllegalArgumentException("Value is null. Use `IsNull` instead");
-    return new EqualTo(name, ORD) {
-      @Override
-      public Object value() {
-        return value;
-      }
-
-      @Override
-      public boolean evaluate(InternalRow row) {
-        return !row.isNullAt(ordinal) && value.equals(row.getUTF8String(ordinal));
-      }
-
-      @Override
-      public boolean statUpdate(UTF8String min, UTF8String max) {
-        if (min == null && max == null) return false;
-        return min.compareTo(value) >= 0 && value.compareTo(max) <= 0;
       }
     };
   }
@@ -141,9 +124,469 @@ public class FilterApi {
    * @param value filter value
    * @return EQT(field, UTF8String)
    */
-  public static TreeNode eqt(String name, String value) {
+  public static EqualTo eqt(String name, String value) {
     if (value == null) throw new IllegalArgumentException("Value is null. Use `IsNull` instead");
     return eqt(name, UTF8String.fromString(value));
+  }
+
+  /**
+   * Create equality filter for UTF8String value.
+   * @param name field name
+   * @param value filter value
+   * @return EQT(field, UTF8String)
+   */
+  public static EqualTo eqt(String name, UTF8String value) {
+    if (value == null) throw new IllegalArgumentException("Value is null. Use `IsNull` instead");
+    return eqt(name, UNRESOLVED_ORDINAL, value);
+  }
+
+  private static EqualTo eqt(String name, int ordinal, final UTF8String value) {
+    return new EqualTo(name, ordinal) {
+      @Override public Object value() {
+        return value;
+      }
+
+      @Override public boolean evaluate(InternalRow row) {
+        return !row.isNullAt(ordinal) && row.getUTF8String(ordinal).equals(value);
+      }
+
+      @Override public EqualTo withOrdinal(int newOrdinal) {
+        return eqt(name, newOrdinal, value);
+      }
+
+      @Override public boolean statUpdate(UTF8String min, UTF8String max) {
+        if (min == null && max == null) return false;
+        return min.compareTo(value) >= 0 && value.compareTo(max) <= 0;
+      }
+    };
+  }
+
+  //////////////////////////////////////////////////////////////
+  // GreaterThan
+  //////////////////////////////////////////////////////////////
+
+  /**
+   * Create '>' filter for integer value.
+   * @param name field name
+   * @param value filter value
+   * @return GT(field, int)
+   */
+  public static GreaterThan gt(String name, int value) {
+    return gt(name, UNRESOLVED_ORDINAL, value);
+  }
+
+  private static GreaterThan gt(String name, int ordinal, final int value) {
+    return new GreaterThan(name, ordinal) {
+      @Override public Object value() {
+        return value;
+      }
+
+      @Override public boolean evaluate(InternalRow row) {
+        return !row.isNullAt(ordinal) && row.getInt(ordinal) > value;
+      }
+
+      @Override public GreaterThan withOrdinal(int newOrdinal) {
+        return gt(name, newOrdinal, value);
+      }
+
+      @Override public boolean statUpdate(int min, int max) {
+        return value < max;
+      }
+    };
+  }
+
+  /**
+   * Create '>' filter for long value.
+   * @param name field name
+   * @param value filter value
+   * @return GT(field, long)
+   */
+  public static GreaterThan gt(String name, long value) {
+    return gt(name, UNRESOLVED_ORDINAL, value);
+  }
+
+  private static GreaterThan gt(String name, int ordinal, final long value) {
+    return new GreaterThan(name, ordinal) {
+      @Override public Object value() {
+        return value;
+      }
+
+      @Override public boolean evaluate(InternalRow row) {
+        return !row.isNullAt(ordinal) && row.getLong(ordinal) > value;
+      }
+
+      @Override public GreaterThan withOrdinal(int newOrdinal) {
+        return gt(name, newOrdinal, value);
+      }
+
+      @Override public boolean statUpdate(long min, long max) {
+        return value < max;
+      }
+    };
+  }
+
+  /**
+   * Create '>' filter for String value; value is converted into UTF8String.
+   * @param name field name
+   * @param value filter value
+   * @return GT(field, UTF8String)
+   */
+  public static GreaterThan gt(String name, String value) {
+    if (value == null) throw new IllegalArgumentException("Value is null. Use `IsNull` instead");
+    return gt(name, UTF8String.fromString(value));
+  }
+
+  /**
+   * Create '>' filter for UTF8String value.
+   * @param name field name
+   * @param value filter value
+   * @return GT(field, UTF8String)
+   */
+  public static GreaterThan gt(String name, UTF8String value) {
+    if (value == null) throw new IllegalArgumentException("Value is null. Use `IsNull` instead");
+    return gt(name, UNRESOLVED_ORDINAL, value);
+  }
+
+  private static GreaterThan gt(String name, int ordinal, final UTF8String value) {
+    return new GreaterThan(name, ordinal) {
+      @Override public Object value() {
+        return value;
+      }
+
+      @Override public boolean evaluate(InternalRow row) {
+        return !row.isNullAt(ordinal) && row.getUTF8String(ordinal).compareTo(value) > 0;
+      }
+
+      @Override public GreaterThan withOrdinal(int newOrdinal) {
+        return gt(name, newOrdinal, value);
+      }
+
+      @Override public boolean statUpdate(UTF8String min, UTF8String max) {
+        if (min == null && max == null) return false;
+        return value.compareTo(max) < 0;
+      }
+    };
+  }
+
+  //////////////////////////////////////////////////////////////
+  // LessThan
+  //////////////////////////////////////////////////////////////
+
+  /**
+   * Create '<' filter for integer value.
+   * @param name field name
+   * @param value filter value
+   * @return LT(field, int)
+   */
+  public static LessThan lt(String name, int value) {
+    return lt(name, UNRESOLVED_ORDINAL, value);
+  }
+
+  private static LessThan lt(String name, int ordinal, final int value) {
+    return new LessThan(name, ordinal) {
+      @Override public Object value() {
+        return value;
+      }
+
+      @Override public boolean evaluate(InternalRow row) {
+        return !row.isNullAt(ordinal) && row.getInt(ordinal) < value;
+      }
+
+      @Override public LessThan withOrdinal(int newOrdinal) {
+        return lt(name, newOrdinal, value);
+      }
+
+      @Override public boolean statUpdate(int min, int max) {
+        return value > min;
+      }
+    };
+  }
+
+  /**
+   * Create '<' filter for long value.
+   * @param name field name
+   * @param value filter value
+   * @return LT(field, long)
+   */
+  public static LessThan lt(String name, long value) {
+    return lt(name, UNRESOLVED_ORDINAL, value);
+  }
+
+  private static LessThan lt(String name, int ordinal, final long value) {
+    return new LessThan(name, ordinal) {
+      @Override public Object value() {
+        return value;
+      }
+
+      @Override public boolean evaluate(InternalRow row) {
+        return !row.isNullAt(ordinal) && row.getLong(ordinal) < value;
+      }
+
+      @Override public LessThan withOrdinal(int newOrdinal) {
+        return lt(name, newOrdinal, value);
+      }
+
+      @Override public boolean statUpdate(long min, long max) {
+        return value > min;
+      }
+    };
+  }
+
+  /**
+   * Create '<' filter for String value; value is converted into UTF8String.
+   * @param name field name
+   * @param value filter value
+   * @return LT(field, UTF8String)
+   */
+  public static LessThan lt(String name, String value) {
+    if (value == null) throw new IllegalArgumentException("Value is null. Use `IsNull` instead");
+    return lt(name, UTF8String.fromString(value));
+  }
+
+  /**
+   * Create '<' filter for UTF8String value.
+   * @param name field name
+   * @param value filter value
+   * @return LT(field, UTF8String)
+   */
+  public static LessThan lt(String name, UTF8String value) {
+    if (value == null) throw new IllegalArgumentException("Value is null. Use `IsNull` instead");
+    return lt(name, UNRESOLVED_ORDINAL, value);
+  }
+
+  private static LessThan lt(String name, int ordinal, final UTF8String value) {
+    return new LessThan(name, ordinal) {
+      @Override public Object value() {
+        return value;
+      }
+
+      @Override public boolean evaluate(InternalRow row) {
+        return !row.isNullAt(ordinal) && row.getUTF8String(ordinal).compareTo(value) < 0;
+      }
+
+      @Override public LessThan withOrdinal(int newOrdinal) {
+        return lt(name, newOrdinal, value);
+      }
+
+      @Override public boolean statUpdate(UTF8String min, UTF8String max) {
+        if (min == null && max == null) return false;
+        return value.compareTo(min) > 0;
+      }
+    };
+  }
+
+  //////////////////////////////////////////////////////////////
+  // GreaterThanOrEqual
+  //////////////////////////////////////////////////////////////
+
+  /**
+   * Create '>=' filter for integer value.
+   * @param name field name
+   * @param value filter value
+   * @return GE(field, int)
+   */
+  public static GreaterThanOrEqual ge(String name, int value) {
+    return ge(name, UNRESOLVED_ORDINAL, value);
+  }
+
+  private static GreaterThanOrEqual ge(String name, int ordinal, final int value) {
+    return new GreaterThanOrEqual(name, ordinal) {
+      @Override public Object value() {
+        return value;
+      }
+
+      @Override public boolean evaluate(InternalRow row) {
+        return !row.isNullAt(ordinal) && row.getInt(ordinal) >= value;
+      }
+
+      @Override public GreaterThanOrEqual withOrdinal(int newOrdinal) {
+        return ge(name, newOrdinal, value);
+      }
+
+      @Override public boolean statUpdate(int min, int max) {
+        return value <= max;
+      }
+    };
+  }
+
+  /**
+   * Create '>=' filter for long value.
+   * @param name field name
+   * @param value filter value
+   * @return GE(field, long)
+   */
+  public static GreaterThanOrEqual ge(String name, long value) {
+    return ge(name, UNRESOLVED_ORDINAL, value);
+  }
+
+  private static GreaterThanOrEqual ge(String name, int ordinal, final long value) {
+    return new GreaterThanOrEqual(name, ordinal) {
+      @Override public Object value() {
+        return value;
+      }
+
+      @Override public boolean evaluate(InternalRow row) {
+        return !row.isNullAt(ordinal) && row.getLong(ordinal) >= value;
+      }
+
+      @Override public GreaterThanOrEqual withOrdinal(int newOrdinal) {
+        return ge(name, newOrdinal, value);
+      }
+
+      @Override public boolean statUpdate(long min, long max) {
+        return value <= max;
+      }
+    };
+  }
+
+  /**
+   * Create '>=' filter for String value; value is converted into UTF8String.
+   * @param name field name
+   * @param value filter value
+   * @return GE(field, UTF8String)
+   */
+  public static GreaterThanOrEqual ge(String name, String value) {
+    if (value == null) throw new IllegalArgumentException("Value is null. Use `IsNull` instead");
+    return ge(name, UTF8String.fromString(value));
+  }
+
+  /**
+   * Create '>=' filter for UTF8String value.
+   * @param name field name
+   * @param value filter value
+   * @return GE(field, UTF8String)
+   */
+  public static GreaterThanOrEqual ge(String name, UTF8String value) {
+    if (value == null) throw new IllegalArgumentException("Value is null. Use `IsNull` instead");
+    return ge(name, UNRESOLVED_ORDINAL, value);
+  }
+
+  private static GreaterThanOrEqual ge(String name, int ordinal, final UTF8String value) {
+    return new GreaterThanOrEqual(name, ordinal) {
+      @Override public Object value() {
+        return value;
+      }
+
+      @Override public boolean evaluate(InternalRow row) {
+        return !row.isNullAt(ordinal) && row.getUTF8String(ordinal).compareTo(value) >= 0;
+      }
+
+      @Override public GreaterThanOrEqual withOrdinal(int newOrdinal) {
+        return ge(name, newOrdinal, value);
+      }
+
+      @Override public boolean statUpdate(UTF8String min, UTF8String max) {
+        if (min == null && max == null) return false;
+        return value.compareTo(max) <= 0;
+      }
+    };
+  }
+
+  //////////////////////////////////////////////////////////////
+  // LessThanOrEqual
+  //////////////////////////////////////////////////////////////
+
+  /**
+   * Create '<=' filter for integer value.
+   * @param name field name
+   * @param value filter value
+   * @return LE(field, int)
+   */
+  public static LessThanOrEqual le(String name, int value) {
+    return le(name, UNRESOLVED_ORDINAL, value);
+  }
+
+  private static LessThanOrEqual le(String name, int ordinal, final int value) {
+    return new LessThanOrEqual(name, ordinal) {
+      @Override public Object value() {
+        return value;
+      }
+
+      @Override public boolean evaluate(InternalRow row) {
+        return !row.isNullAt(ordinal) && row.getInt(ordinal) <= value;
+      }
+
+      @Override public LessThanOrEqual withOrdinal(int newOrdinal) {
+        return le(name, newOrdinal, value);
+      }
+
+      @Override public boolean statUpdate(int min, int max) {
+        return value >= min;
+      }
+    };
+  }
+
+  /**
+   * Create '<=' filter for long value.
+   * @param name field name
+   * @param value filter value
+   * @return LE(field, long)
+   */
+  public static LessThanOrEqual le(String name, long value) {
+    return le(name, UNRESOLVED_ORDINAL, value);
+  }
+
+  private static LessThanOrEqual le(String name, int ordinal, final long value) {
+    return new LessThanOrEqual(name, ordinal) {
+      @Override public Object value() {
+        return value;
+      }
+
+      @Override public boolean evaluate(InternalRow row) {
+        return !row.isNullAt(ordinal) && row.getLong(ordinal) <= value;
+      }
+
+      @Override public LessThanOrEqual withOrdinal(int newOrdinal) {
+        return le(name, newOrdinal, value);
+      }
+
+      @Override public boolean statUpdate(long min, long max) {
+        return value >= min;
+      }
+    };
+  }
+
+  /**
+   * Create '<=' filter for String value; value is converted into UTF8String.
+   * @param name field name
+   * @param value filter value
+   * @return LE(field, UTF8String)
+   */
+  public static LessThanOrEqual le(String name, String value) {
+    if (value == null) throw new IllegalArgumentException("Value is null. Use `IsNull` instead");
+    return le(name, UTF8String.fromString(value));
+  }
+
+  /**
+   * Create '<=' filter for UTF8String value.
+   * @param name field name
+   * @param value filter value
+   * @return LE(field, UTF8String)
+   */
+  public static LessThanOrEqual le(String name, UTF8String value) {
+    if (value == null) throw new IllegalArgumentException("Value is null. Use `IsNull` instead");
+    return le(name, UNRESOLVED_ORDINAL, value);
+  }
+
+  private static LessThanOrEqual le(String name, int ordinal, final UTF8String value) {
+    return new LessThanOrEqual(name, ordinal) {
+      @Override public Object value() {
+        return value;
+      }
+
+      @Override public boolean evaluate(InternalRow row) {
+        return !row.isNullAt(ordinal) && row.getUTF8String(ordinal).compareTo(value) <= 0;
+      }
+
+      @Override public LessThanOrEqual withOrdinal(int newOrdinal) {
+        return le(name, newOrdinal, value);
+      }
+
+      @Override public boolean statUpdate(UTF8String min, UTF8String max) {
+        if (min == null && max == null) return false;
+        return value.compareTo(min) >= 0;
+      }
+    };
   }
 
   //////////////////////////////////////////////////////////////
@@ -156,7 +599,7 @@ public class FilterApi {
    * @return IS_NULL(field)
    */
   public static TreeNode nvl(String name) {
-    return new IsNull(name, ORD);
+    return new IsNull(name, UNRESOLVED_ORDINAL);
   }
 
   //////////////////////////////////////////////////////////////
