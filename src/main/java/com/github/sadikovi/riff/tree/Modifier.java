@@ -22,15 +22,27 @@
 
 package com.github.sadikovi.riff.tree;
 
-import com.github.sadikovi.riff.tree.impl.EqualTo;
-import com.github.sadikovi.riff.tree.impl.IsNull;
-import com.github.sadikovi.riff.tree.impl.And;
-import com.github.sadikovi.riff.tree.impl.Or;
-import com.github.sadikovi.riff.tree.impl.Not;
-import com.github.sadikovi.riff.tree.impl.Trivial;
+import com.github.sadikovi.riff.tree.Tree.EqualTo;
+import com.github.sadikovi.riff.tree.Tree.GreaterThan;
+import com.github.sadikovi.riff.tree.Tree.LessThan;
+import com.github.sadikovi.riff.tree.Tree.GreaterThanOrEqual;
+import com.github.sadikovi.riff.tree.Tree.LessThanOrEqual;
+import com.github.sadikovi.riff.tree.Tree.IsNull;
+import com.github.sadikovi.riff.tree.Tree.And;
+import com.github.sadikovi.riff.tree.Tree.Or;
+import com.github.sadikovi.riff.tree.Tree.Not;
+import com.github.sadikovi.riff.tree.Tree.Trivial;
 
 public interface Modifier {
   TreeNode update(EqualTo node);
+
+  TreeNode update(GreaterThan node);
+
+  TreeNode update(LessThan node);
+
+  TreeNode update(GreaterThanOrEqual node);
+
+  TreeNode update(LessThanOrEqual node);
 
   TreeNode update(IsNull node);
 

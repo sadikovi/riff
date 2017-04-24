@@ -33,7 +33,7 @@ import org.apache.spark.sql.types.StringType;
 import org.apache.spark.unsafe.types.UTF8String;
 
 import com.github.sadikovi.riff.io.OutputBuffer;
-import com.github.sadikovi.riff.tree.LeafNode;
+import com.github.sadikovi.riff.tree.BoundReference;
 
 /**
  * Stripe min/max statistics.
@@ -80,13 +80,13 @@ public abstract class Statistics {
   protected abstract void merge(Statistics obj);
 
   /**
-   * Evaluate leaf node based on current statistics instance. Should return true if node value is
-   * within statistics and false otherwise. Most of the time it is useful to call method on node
-   * to evaluate it with min/max/null.
-   * @param leaf node to evaluate
+   * Evaluate bound reference (name and ordinal) based on current statistics instance.
+   * Should return true if node value is within statistics and false otherwise. Most of the time it
+   * is useful to call method on node to evaluate it with min/max/null.
+   * @param ref bound reference to evaluate
    * @return true if value is within range, false otherwise (similar with null values)
    */
-  public abstract boolean evaluateState(LeafNode leaf);
+  public abstract boolean evaluateState(BoundReference ref);
 
   /**
    * Get min value for this statistics. Used for testing purposes only.
@@ -219,9 +219,9 @@ public abstract class Statistics {
     }
 
     @Override
-    public boolean evaluateState(LeafNode leaf) {
+    public boolean evaluateState(BoundReference ref) {
       // statistics only contain information about nullability
-      return leaf.statUpdate(hasNulls);
+      return ref.statUpdate(hasNulls);
     }
 
     @Override
@@ -289,8 +289,8 @@ public abstract class Statistics {
     }
 
     @Override
-    public boolean evaluateState(LeafNode leaf) {
-      return leaf.statUpdate(hasNulls) && leaf.statUpdate(min, max);
+    public boolean evaluateState(BoundReference ref) {
+      return ref.statUpdate(hasNulls) && ref.statUpdate(min, max);
     }
 
     @Override
@@ -359,8 +359,8 @@ public abstract class Statistics {
     }
 
     @Override
-    public boolean evaluateState(LeafNode leaf) {
-      return leaf.statUpdate(hasNulls) && leaf.statUpdate(min, max);
+    public boolean evaluateState(BoundReference ref) {
+      return ref.statUpdate(hasNulls) && ref.statUpdate(min, max);
     }
 
     @Override
@@ -463,8 +463,8 @@ public abstract class Statistics {
     }
 
     @Override
-    public boolean evaluateState(LeafNode leaf) {
-      return leaf.statUpdate(hasNulls) && leaf.statUpdate(min, max);
+    public boolean evaluateState(BoundReference ref) {
+      return ref.statUpdate(hasNulls) && ref.statUpdate(min, max);
     }
 
     @Override

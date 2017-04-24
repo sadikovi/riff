@@ -28,21 +28,30 @@ import org.apache.spark.unsafe.types.UTF8String;
 import com.github.sadikovi.riff.Statistics;
 
 /**
- * Represents leaf node in the tree, is always evaluable. Leaf node contains information about
- * ordinal position in the row and some value associated with specific implementation of this class.
+ * [[BoundReference]] represents leaf node with known name/ordinal and potentially value that this
+ * name/ordinal binds to. This is a leaf node for filters, such as `EqualTo`, `GreaterThan`, etc.
+ * Classes should inherit typed bound references if possible that provide typed value for each
+ * implementation.
  */
-public abstract class LeafNode implements TreeNode {
-  protected final int ordinal;
-  // name is used to link field to type spec and resolve ordinal
+public abstract class BoundReference implements TreeNode {
   protected final String name;
+  protected final int ordinal;
 
-  public LeafNode(String name, int ordinal) {
+  public BoundReference(String name, int ordinal) {
     this.name = name;
     this.ordinal = ordinal;
   }
 
   /**
-   * Ordinal value of the corresponding type spec for which leaf node is created.
+   * Get name for reference.
+   * @return name
+   */
+  public String name() {
+    return name;
+  }
+
+  /**
+   * Get ordinal for reference. Note that for unresolved node ordinal may not be valid.
    * @return ordinal
    */
   public int ordinal() {
@@ -50,57 +59,56 @@ public abstract class LeafNode implements TreeNode {
   }
 
   /**
-   * Field name (optional), it is not used when evaluating predicate, but used for equality check,
-   * and resolving node.
-   * @return field name
+   * Return value as boxed object. This is only used for equals and hashCode methods and never
+   * called during evaluation of the tree.
+   * @return value
    */
-  public String name() {
-    return name;
-  }
-
-  /**
-   * This method is for evaluating row only. Use other special statistics methods to evaluate
-   * predicate based on statistics.
-   */
-  @Override
-  public final boolean evaluate(InternalRow row) {
-    if (!resolved()) throw new IllegalStateException("Node " + this + " is not resolved");
-    return evaluate(row, ordinal());
-  }
-
-  @Override
-  public final boolean evaluate(Statistics[] stats) {
-    if (!resolved()) throw new IllegalStateException("Node " + this + " is not resolved");
-    return stats[ordinal()].evaluateState(this);
-  }
+  public abstract Object value();
 
   @Override
   public final boolean resolved() {
     // return true if ordinal is a valid array index
-    return ordinal() >= 0;
+    return ordinal >= 0;
   }
 
   @Override
-  public String toString() {
-    String tag = resolved() ? (name() + "[" + ordinal() + "]") : ("*" + name());
-    return toString(tag);
+  public boolean equals(Object obj) {
+    // equals method is used only for testing to compare trees, it should never be used for
+    // evaluating predicate
+    if (obj == null || obj.getClass() != this.getClass()) return false;
+    BoundReference that = (BoundReference) obj;
+    if (!name.equals(that.name) || ordinal != that.ordinal) return false;
+    return (value() == null && that.value() == null) ||
+      (value() != null && that.value() != null && value().equals(that.value()));
+  }
+
+  @Override
+  public int hashCode() {
+    // hashCode method is used only for testing to compare trees, it should never be used for
+    // evaluating predicate
+    int result = 31 * ordinal + name.hashCode();
+    result = result * 31 + (value() == null ? 0 : value().hashCode());
+    return 31 * result + getClass().hashCode();
   }
 
   /**
-   * Evaluate row for this ordinal.
-   * This method is called after checks on predicate correctness and `resolved`.
-   * @param row row to evaluate
-   * @param ordinal position in a row
-   * @return true if evaluation is correct and passes filter, false otherwise
+   * Tree operator as string, for example. equality would return "=".
+   * @return operator symbol
    */
-  protected abstract boolean evaluate(InternalRow row, int ordinal);
+  public abstract String treeOperator();
 
-  /**
-   * String method to return string representation based on pretty tag name.
-   * @param tag pretty node name
-   * @return string representation
-   */
-  protected abstract String toString(String tag);
+  @Override
+  public final String toString() {
+    String tag = resolved() ? (name + "[" + ordinal + "]") : ("*" + name);
+    return tag + " " + treeOperator() + " " + value();
+  }
+
+  @Override
+  public final boolean evaluate(Statistics[] stats) {
+    // we do not enforce tree being resolved, instead the behaviour is undefined.
+    // to enforce correct result, resolve tree first and check with `resolved()` method.
+    return stats[ordinal].evaluateState(this);
+  }
 
   /**
    * Update node with statistics information about null values.

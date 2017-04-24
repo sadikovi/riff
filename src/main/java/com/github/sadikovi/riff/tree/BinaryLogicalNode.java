@@ -46,6 +46,7 @@ public abstract class BinaryLogicalNode implements TreeNode {
 
   @Override
   public boolean resolved() {
+    // both child nodes should be resolved
     return left().resolved() && right().resolved();
   }
 
