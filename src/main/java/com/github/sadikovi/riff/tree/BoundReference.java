@@ -107,10 +107,18 @@ public abstract class BoundReference implements TreeNode {
    */
   public abstract String treeOperator();
 
+  /**
+   * Return pretty string representation for value.
+   * @return string representation for value
+   */
+  public String prettyValue() {
+    return "" + value();
+  }
+
   @Override
   public final String toString() {
     String tag = resolved() ? (name + "[" + ordinal + "]") : ("*" + name);
-    return tag + " " + treeOperator() + " " + value();
+    return tag + " " + treeOperator() + " " + prettyValue();
   }
 
   @Override

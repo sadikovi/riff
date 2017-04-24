@@ -22,6 +22,8 @@
 
 package com.github.sadikovi.riff.tree;
 
+import java.util.Arrays;
+
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.unsafe.types.UTF8String;
 
@@ -29,6 +31,7 @@ import com.github.sadikovi.riff.tree.Tree.And;
 import com.github.sadikovi.riff.tree.Tree.GreaterThan;
 import com.github.sadikovi.riff.tree.Tree.GreaterThanOrEqual;
 import com.github.sadikovi.riff.tree.Tree.EqualTo;
+import com.github.sadikovi.riff.tree.Tree.In;
 import com.github.sadikovi.riff.tree.Tree.IsNull;
 import com.github.sadikovi.riff.tree.Tree.LessThan;
 import com.github.sadikovi.riff.tree.Tree.LessThanOrEqual;
@@ -163,6 +166,34 @@ public class FilterApi {
       return le(name, UNRESOLVED_ORDINAL, (UTF8String) value);
     } else if (value instanceof String) {
       return le(name, UNRESOLVED_ORDINAL, UTF8String.fromString((String) value));
+    } else {
+      throw new UnsupportedOperationException("No filter registered for value " + value +
+        " of type " + value.getClass());
+    }
+  }
+
+  /**
+   * Create 'isin' filter.
+   * @param name field name
+   * @param value filter value
+   * @return IN(field, value)
+   */
+  public static In in(String name, Object value) {
+    if (value == null) {
+      throw new IllegalArgumentException("Value is null. Use `IsNull` instead");
+    } else if (value instanceof int[]) {
+      return in(name, UNRESOLVED_ORDINAL, (int[]) value);
+    } else if (value instanceof long[]) {
+      return in(name, UNRESOLVED_ORDINAL, (long[]) value);
+    } else if (value instanceof UTF8String[]) {
+      return in(name, UNRESOLVED_ORDINAL, (UTF8String[]) value);
+    } else if (value instanceof String[]) {
+      String[] arr0 = (String[]) value;
+      UTF8String[] arr1 = new UTF8String[arr0.length];
+      for (int i = 0; i < arr0.length; i++) {
+        arr1[i] = UTF8String.fromString(arr0[i]);
+      }
+      return in(name, UNRESOLVED_ORDINAL, arr1);
     } else {
       throw new UnsupportedOperationException("No filter registered for value " + value +
         " of type " + value.getClass());
@@ -490,6 +521,95 @@ public class FilterApi {
       @Override public boolean statUpdate(UTF8String min, UTF8String max) {
         if (min == null && max == null) return false;
         return value.compareTo(min) >= 0;
+      }
+    };
+  }
+
+  //////////////////////////////////////////////////////////////
+  // In
+  //////////////////////////////////////////////////////////////
+
+  private static In in(String name, int ordinal, int[] value) {
+    final int[] arr = new int[value.length];
+    System.arraycopy(value, 0, arr, 0, value.length);
+    // sort in ascending order
+    Arrays.sort(arr);
+
+    return new In(name, ordinal) {
+      @Override public Object value() {
+        return arr;
+      }
+
+      @Override public boolean evaluate(InternalRow row) {
+        return !row.isNullAt(ordinal) && Arrays.binarySearch(arr, row.getInt(ordinal)) >= 0;
+      }
+
+      @Override public In withOrdinal(int newOrdinal) {
+        return in(name, newOrdinal, arr);
+      }
+
+      @Override public boolean statUpdate(int min, int max) {
+        for (int i = 0; i < arr.length; i++) {
+          if (arr[i] < min || arr[i] > max) return false;
+        }
+        return true;
+      }
+    };
+  }
+
+  private static In in(String name, int ordinal, long[] value) {
+    final long[] arr = new long[value.length];
+    System.arraycopy(value, 0, arr, 0, value.length);
+    // sort in ascending order
+    Arrays.sort(arr);
+
+    return new In(name, ordinal) {
+      @Override public Object value() {
+        return arr;
+      }
+
+      @Override public boolean evaluate(InternalRow row) {
+        return !row.isNullAt(ordinal) && Arrays.binarySearch(arr, row.getLong(ordinal)) >= 0;
+      }
+
+      @Override public In withOrdinal(int newOrdinal) {
+        return in(name, newOrdinal, arr);
+      }
+
+      @Override public boolean statUpdate(long min, long max) {
+        for (int i = 0; i < arr.length; i++) {
+          if (arr[i] < min || arr[i] > max) return false;
+        }
+        return true;
+      }
+    };
+  }
+
+  private static In in(String name, int ordinal, final UTF8String[] value) {
+    final UTF8String[] arr = new UTF8String[value.length];
+    System.arraycopy(value, 0, arr, 0, value.length);
+    // sort in ascending order
+    Arrays.sort(arr);
+
+    return new In(name, ordinal) {
+      @Override public Object value() {
+        return arr;
+      }
+
+      @Override public boolean evaluate(InternalRow row) {
+        return !row.isNullAt(ordinal) && Arrays.binarySearch(arr, row.getUTF8String(ordinal)) >= 0;
+      }
+
+      @Override public In withOrdinal(int newOrdinal) {
+        return in(name, newOrdinal, arr);
+      }
+
+      @Override public boolean statUpdate(UTF8String min, UTF8String max) {
+        if (min == null && max == null) return false;
+        for (int i = 0; i < arr.length; i++) {
+          if (arr[i].compareTo(min) < 0 || arr[i].compareTo(max) > 0) return false;
+        }
+        return true;
       }
     };
   }

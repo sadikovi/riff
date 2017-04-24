@@ -26,6 +26,7 @@ import com.github.sadikovi.riff.tree.Tree.And;
 import com.github.sadikovi.riff.tree.Tree.GreaterThan;
 import com.github.sadikovi.riff.tree.Tree.GreaterThanOrEqual;
 import com.github.sadikovi.riff.tree.Tree.EqualTo;
+import com.github.sadikovi.riff.tree.Tree.In;
 import com.github.sadikovi.riff.tree.Tree.IsNull;
 import com.github.sadikovi.riff.tree.Tree.LessThan;
 import com.github.sadikovi.riff.tree.Tree.LessThanOrEqual;
@@ -43,6 +44,8 @@ public interface Modifier {
   TreeNode update(GreaterThanOrEqual node);
 
   TreeNode update(LessThanOrEqual node);
+
+  TreeNode update(In node);
 
   TreeNode update(IsNull node);
 
