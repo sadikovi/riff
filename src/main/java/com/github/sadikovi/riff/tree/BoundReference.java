@@ -130,7 +130,6 @@ public abstract class BoundReference implements TreeNode {
   public boolean equals(Object obj) {
     // equals method is used only for testing to compare trees, it should never be used for
     // evaluating predicate
-    System.out.println("equals(" + obj + ")");
     if (obj == null || obj.getClass() != this.getClass()) return false;
     BoundReference that = (BoundReference) obj;
     if (!name.equals(that.name) || ordinal != that.ordinal || !dataType().equals(that.dataType())) {
@@ -166,7 +165,6 @@ public abstract class BoundReference implements TreeNode {
   public int hashCode() {
     // hashCode method is used only for testing to compare trees, it should never be used for
     // evaluating predicate
-    System.out.println("hashCode()");
     // value hash code, does not affect hashCode by default
     int valueCode = 0;
     if (dataType() instanceof IntegerType) {
