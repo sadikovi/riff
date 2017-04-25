@@ -25,6 +25,9 @@ package com.github.sadikovi.riff.tree;
 import java.util.Arrays;
 
 import org.apache.spark.sql.catalyst.InternalRow;
+import org.apache.spark.sql.types.DataType;
+import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.NullType;
 import org.apache.spark.unsafe.types.UTF8String;
 
 import com.github.sadikovi.riff.Statistics;
@@ -43,6 +46,11 @@ public class Tree {
     @Override
     public TreeNode transform(Modifier modifier) {
       return modifier.update(this);
+    }
+
+    @Override
+    public final boolean hasMultiplValues() {
+      return false;
     }
 
     @Override
@@ -65,6 +73,11 @@ public class Tree {
     }
 
     @Override
+    public final boolean hasMultiplValues() {
+      return false;
+    }
+
+    @Override
     public String treeOperator() {
       return ">";
     }
@@ -81,6 +94,11 @@ public class Tree {
     @Override
     public TreeNode transform(Modifier modifier) {
       return modifier.update(this);
+    }
+
+    @Override
+    public final boolean hasMultiplValues() {
+      return false;
     }
 
     @Override
@@ -103,6 +121,11 @@ public class Tree {
     }
 
     @Override
+    public final boolean hasMultiplValues() {
+      return false;
+    }
+
+    @Override
     public String treeOperator() {
       return ">=";
     }
@@ -122,6 +145,11 @@ public class Tree {
     }
 
     @Override
+    public final boolean hasMultiplValues() {
+      return false;
+    }
+
+    @Override
     public String treeOperator() {
       return "<=";
     }
@@ -138,6 +166,11 @@ public class Tree {
     }
 
     @Override
+    public final boolean hasMultiplValues() {
+      return true;
+    }
+
+    @Override
     public TreeNode transform(Modifier modifier) {
       return modifier.update(this);
     }
@@ -145,19 +178,6 @@ public class Tree {
     @Override
     public String treeOperator() {
       return "isin";
-    }
-
-    @Override
-    public String prettyValue() {
-      if (value() instanceof int[]) {
-        return Arrays.toString((int[]) value());
-      } else if (value() instanceof long[]) {
-        return Arrays.toString((long[]) value());
-      } else if (value() instanceof UTF8String[]) {
-        return Arrays.toString((UTF8String[]) value());
-      } else {
-        return "" + value();
-      }
     }
   }
 
@@ -187,8 +207,13 @@ public class Tree {
     }
 
     @Override
-    public Object value() {
-      return null;
+    public DataType dataType() {
+      return DataTypes.NullType;
+    }
+
+    @Override
+    public final boolean hasMultiplValues() {
+      return false;
     }
 
     @Override

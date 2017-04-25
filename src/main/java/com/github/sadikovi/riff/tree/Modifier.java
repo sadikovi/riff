@@ -34,6 +34,11 @@ import com.github.sadikovi.riff.tree.Tree.Not;
 import com.github.sadikovi.riff.tree.Tree.Or;
 import com.github.sadikovi.riff.tree.Tree.Trivial;
 
+/**
+ * Modifier allows to traverse tree and return updated tree which contains either copies of nodes
+ * or completely different subtrees. It mainly used to replace types of the subtrees, rather than
+ * node values.
+ */
 public interface Modifier {
   TreeNode update(EqualTo node);
 

@@ -25,6 +25,11 @@ package com.github.sadikovi.riff.tree;
 import java.util.Arrays;
 
 import org.apache.spark.sql.catalyst.InternalRow;
+import org.apache.spark.sql.types.DataType;
+import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.IntegerType;
+import org.apache.spark.sql.types.LongType;
+import org.apache.spark.sql.types.StringType;
 import org.apache.spark.unsafe.types.UTF8String;
 
 import com.github.sadikovi.riff.tree.Tree.And;
@@ -206,8 +211,12 @@ public class FilterApi {
 
   private static EqualTo eqt(String name, int ordinal, final int value) {
     return new EqualTo(name, ordinal) {
-      @Override public Object value() {
+      @Override public int getInt() {
         return value;
+      }
+
+      @Override public DataType dataType() {
+        return DataTypes.IntegerType;
       }
 
       @Override public boolean evaluate(InternalRow row) {
@@ -226,8 +235,12 @@ public class FilterApi {
 
   private static EqualTo eqt(String name, int ordinal, final long value) {
     return new EqualTo(name, ordinal) {
-      @Override public Object value() {
+      @Override public long getLong() {
         return value;
+      }
+
+      @Override public DataType dataType() {
+        return DataTypes.IntegerType;
       }
 
       @Override public boolean evaluate(InternalRow row) {
@@ -246,8 +259,12 @@ public class FilterApi {
 
   private static EqualTo eqt(String name, int ordinal, final UTF8String value) {
     return new EqualTo(name, ordinal) {
-      @Override public Object value() {
+      @Override public UTF8String getUTF8String() {
         return value;
+      }
+
+      @Override public DataType dataType() {
+        return DataTypes.StringType;
       }
 
       @Override public boolean evaluate(InternalRow row) {
@@ -271,8 +288,12 @@ public class FilterApi {
 
   private static GreaterThan gt(String name, int ordinal, final int value) {
     return new GreaterThan(name, ordinal) {
-      @Override public Object value() {
+      @Override public int getInt() {
         return value;
+      }
+
+      @Override public DataType dataType() {
+        return DataTypes.IntegerType;
       }
 
       @Override public boolean evaluate(InternalRow row) {
@@ -291,8 +312,12 @@ public class FilterApi {
 
   private static GreaterThan gt(String name, int ordinal, final long value) {
     return new GreaterThan(name, ordinal) {
-      @Override public Object value() {
+      @Override public long getLong() {
         return value;
+      }
+
+      @Override public DataType dataType() {
+        return DataTypes.LongType;
       }
 
       @Override public boolean evaluate(InternalRow row) {
@@ -311,8 +336,12 @@ public class FilterApi {
 
   private static GreaterThan gt(String name, int ordinal, final UTF8String value) {
     return new GreaterThan(name, ordinal) {
-      @Override public Object value() {
+      @Override public UTF8String getUTF8String() {
         return value;
+      }
+
+      @Override public DataType dataType() {
+        return DataTypes.StringType;
       }
 
       @Override public boolean evaluate(InternalRow row) {
@@ -336,8 +365,12 @@ public class FilterApi {
 
   private static LessThan lt(String name, int ordinal, final int value) {
     return new LessThan(name, ordinal) {
-      @Override public Object value() {
+      @Override public int getInt() {
         return value;
+      }
+
+      @Override public DataType dataType() {
+        return DataTypes.IntegerType;
       }
 
       @Override public boolean evaluate(InternalRow row) {
@@ -356,8 +389,12 @@ public class FilterApi {
 
   private static LessThan lt(String name, int ordinal, final long value) {
     return new LessThan(name, ordinal) {
-      @Override public Object value() {
+      @Override public long getLong() {
         return value;
+      }
+
+      @Override public DataType dataType() {
+        return DataTypes.LongType;
       }
 
       @Override public boolean evaluate(InternalRow row) {
@@ -376,8 +413,12 @@ public class FilterApi {
 
   private static LessThan lt(String name, int ordinal, final UTF8String value) {
     return new LessThan(name, ordinal) {
-      @Override public Object value() {
+      @Override public UTF8String getUTF8String() {
         return value;
+      }
+
+      @Override public DataType dataType() {
+        return DataTypes.StringType;
       }
 
       @Override public boolean evaluate(InternalRow row) {
@@ -401,8 +442,12 @@ public class FilterApi {
 
   private static GreaterThanOrEqual ge(String name, int ordinal, final int value) {
     return new GreaterThanOrEqual(name, ordinal) {
-      @Override public Object value() {
+      @Override public int getInt() {
         return value;
+      }
+
+      @Override public DataType dataType() {
+        return DataTypes.IntegerType;
       }
 
       @Override public boolean evaluate(InternalRow row) {
@@ -421,8 +466,12 @@ public class FilterApi {
 
   private static GreaterThanOrEqual ge(String name, int ordinal, final long value) {
     return new GreaterThanOrEqual(name, ordinal) {
-      @Override public Object value() {
+      @Override public long getLong() {
         return value;
+      }
+
+      @Override public DataType dataType() {
+        return DataTypes.LongType;
       }
 
       @Override public boolean evaluate(InternalRow row) {
@@ -441,8 +490,12 @@ public class FilterApi {
 
   private static GreaterThanOrEqual ge(String name, int ordinal, final UTF8String value) {
     return new GreaterThanOrEqual(name, ordinal) {
-      @Override public Object value() {
+      @Override public UTF8String getUTF8String() {
         return value;
+      }
+
+      @Override public DataType dataType() {
+        return DataTypes.StringType;
       }
 
       @Override public boolean evaluate(InternalRow row) {
@@ -466,8 +519,12 @@ public class FilterApi {
 
   private static LessThanOrEqual le(String name, int ordinal, final int value) {
     return new LessThanOrEqual(name, ordinal) {
-      @Override public Object value() {
+      @Override public int getInt() {
         return value;
+      }
+
+      @Override public DataType dataType() {
+        return DataTypes.IntegerType;
       }
 
       @Override public boolean evaluate(InternalRow row) {
@@ -486,8 +543,12 @@ public class FilterApi {
 
   private static LessThanOrEqual le(String name, int ordinal, final long value) {
     return new LessThanOrEqual(name, ordinal) {
-      @Override public Object value() {
+      @Override public long getLong() {
         return value;
+      }
+
+      @Override public DataType dataType() {
+        return DataTypes.LongType;
       }
 
       @Override public boolean evaluate(InternalRow row) {
@@ -506,8 +567,12 @@ public class FilterApi {
 
   private static LessThanOrEqual le(String name, int ordinal, final UTF8String value) {
     return new LessThanOrEqual(name, ordinal) {
-      @Override public Object value() {
+      @Override public UTF8String getUTF8String() {
         return value;
+      }
+
+      @Override public DataType dataType() {
+        return DataTypes.StringType;
       }
 
       @Override public boolean evaluate(InternalRow row) {
@@ -536,8 +601,12 @@ public class FilterApi {
     Arrays.sort(arr);
 
     return new In(name, ordinal) {
-      @Override public Object value() {
+      @Override public int[] getIntArray() {
         return arr;
+      }
+
+      @Override public DataType dataType() {
+        return DataTypes.IntegerType;
       }
 
       @Override public boolean evaluate(InternalRow row) {
@@ -564,8 +633,12 @@ public class FilterApi {
     Arrays.sort(arr);
 
     return new In(name, ordinal) {
-      @Override public Object value() {
+      @Override public long[] getLongArray() {
         return arr;
+      }
+
+      @Override public DataType dataType() {
+        return DataTypes.LongType;
       }
 
       @Override public boolean evaluate(InternalRow row) {
@@ -592,8 +665,12 @@ public class FilterApi {
     Arrays.sort(arr);
 
     return new In(name, ordinal) {
-      @Override public Object value() {
+      @Override public UTF8String[] getUTF8StringArray() {
         return arr;
+      }
+
+      @Override public DataType dataType() {
+        return DataTypes.StringType;
       }
 
       @Override public boolean evaluate(InternalRow row) {
