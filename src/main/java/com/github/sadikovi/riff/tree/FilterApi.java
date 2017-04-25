@@ -240,7 +240,7 @@ public class FilterApi {
       }
 
       @Override public DataType dataType() {
-        return DataTypes.IntegerType;
+        return DataTypes.LongType;
       }
 
       @Override public boolean evaluate(InternalRow row) {

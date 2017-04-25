@@ -39,6 +39,11 @@ import com.github.sadikovi.riff.Statistics;
  * name/ordinal binds to. This is a leaf node for filters, such as `EqualTo`, `GreaterThan`, etc.
  * Classes should inherit typed bound references if possible that provide typed value for each
  * implementation.
+ *
+ * TODO: Move all type information methods into TypedBoundReference, this will help "IsNull" to
+ * remove any override methods that it does not support.
+ * TODO: Introduce MultipleValuesBoundReference for filters, such as "In", this will remove boolean
+ * flag `hasMultiplValues`.
  */
 public abstract class BoundReference implements TreeNode {
   protected final String name;
