@@ -57,12 +57,12 @@ public interface TreeNode {
   boolean evaluate(Statistics[] stats);
 
   /**
-   * Transform current tree based on modifier. This should always return a copy of tree with
+   * Transform current tree based on rule. This should always return a copy of tree with
    * updates instead of updating current tree.
-   * @param modifier modifier
+   * @param rule rule
    * @return a new tree
    */
-  TreeNode transform(Modifier modifier);
+  TreeNode transform(Rule rule);
 
   /**
    * Whether or not this predicate is ready for evaluation.

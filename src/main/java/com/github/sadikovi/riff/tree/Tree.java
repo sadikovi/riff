@@ -44,8 +44,8 @@ public class Tree {
     }
 
     @Override
-    public TreeNode transform(Modifier modifier) {
-      return modifier.update(this);
+    public TreeNode transform(Rule rule) {
+      return rule.update(this);
     }
 
     @Override
@@ -68,8 +68,8 @@ public class Tree {
     }
 
     @Override
-    public TreeNode transform(Modifier modifier) {
-      return modifier.update(this);
+    public TreeNode transform(Rule rule) {
+      return rule.update(this);
     }
 
     @Override
@@ -92,8 +92,8 @@ public class Tree {
     }
 
     @Override
-    public TreeNode transform(Modifier modifier) {
-      return modifier.update(this);
+    public TreeNode transform(Rule rule) {
+      return rule.update(this);
     }
 
     @Override
@@ -116,8 +116,8 @@ public class Tree {
     }
 
     @Override
-    public TreeNode transform(Modifier modifier) {
-      return modifier.update(this);
+    public TreeNode transform(Rule rule) {
+      return rule.update(this);
     }
 
     @Override
@@ -140,8 +140,8 @@ public class Tree {
     }
 
     @Override
-    public TreeNode transform(Modifier modifier) {
-      return modifier.update(this);
+    public TreeNode transform(Rule rule) {
+      return rule.update(this);
     }
 
     @Override
@@ -171,8 +171,8 @@ public class Tree {
     }
 
     @Override
-    public TreeNode transform(Modifier modifier) {
-      return modifier.update(this);
+    public TreeNode transform(Rule rule) {
+      return rule.update(this);
     }
 
     @Override
@@ -202,8 +202,8 @@ public class Tree {
     }
 
     @Override
-    public TreeNode transform(Modifier modifier) {
-      return modifier.update(this);
+    public TreeNode transform(Rule rule) {
+      return rule.update(this);
     }
 
     @Override
@@ -260,8 +260,8 @@ public class Tree {
     }
 
     @Override
-    public TreeNode transform(Modifier modifier) {
-      return modifier.update(this);
+    public TreeNode transform(Rule rule) {
+      return rule.update(this);
     }
 
     @Override
@@ -304,8 +304,8 @@ public class Tree {
     }
 
     @Override
-    public TreeNode transform(Modifier modifier) {
-      return modifier.update(this);
+    public TreeNode transform(Rule rule) {
+      return rule.update(this);
     }
 
     @Override
@@ -340,8 +340,8 @@ public class Tree {
     }
 
     @Override
-    public TreeNode transform(Modifier modifier) {
-      return modifier.update(this);
+    public TreeNode transform(Rule rule) {
+      return rule.update(this);
     }
 
     @Override
@@ -379,8 +379,8 @@ public class Tree {
     }
 
     @Override
-    public TreeNode transform(Modifier modifier) {
-      return modifier.update(this);
+    public TreeNode transform(Rule rule) {
+      return rule.update(this);
     }
 
     @Override
