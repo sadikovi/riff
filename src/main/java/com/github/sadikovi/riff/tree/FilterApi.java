@@ -60,7 +60,7 @@ public class FilterApi {
   private FilterApi() { }
 
   // default unresolved ordinal
-  private static final int UNRESOLVED_ORDINAL = -1;
+  public static final int UNRESOLVED_ORDINAL = -1;
 
   /**
    * Create equality filter.
@@ -228,7 +228,7 @@ public class FilterApi {
       }
 
       @Override public boolean statUpdate(int min, int max) {
-        return min >= value && value <= max;
+        return min <= value && value <= max;
       }
     };
   }
@@ -252,7 +252,7 @@ public class FilterApi {
       }
 
       @Override public boolean statUpdate(long min, long max) {
-        return min >= value && value <= max;
+        return min <= value && value <= max;
       }
     };
   }
@@ -277,7 +277,7 @@ public class FilterApi {
 
       @Override public boolean statUpdate(UTF8String min, UTF8String max) {
         if (min == null && max == null) return false;
-        return min.compareTo(value) >= 0 && value.compareTo(max) <= 0;
+        return min.compareTo(value) <= 0 && value.compareTo(max) <= 0;
       }
     };
   }
@@ -619,9 +619,9 @@ public class FilterApi {
 
       @Override public boolean statUpdate(int min, int max) {
         for (int i = 0; i < arr.length; i++) {
-          if (arr[i] < min || arr[i] > max) return false;
+          if (arr[i] >= min && arr[i] <= max) return true;
         }
-        return true;
+        return false;
       }
     };
   }
@@ -651,9 +651,9 @@ public class FilterApi {
 
       @Override public boolean statUpdate(long min, long max) {
         for (int i = 0; i < arr.length; i++) {
-          if (arr[i] < min || arr[i] > max) return false;
+          if (arr[i] >= min && arr[i] <= max) return true;
         }
-        return true;
+        return false;
       }
     };
   }
@@ -684,9 +684,9 @@ public class FilterApi {
       @Override public boolean statUpdate(UTF8String min, UTF8String max) {
         if (min == null && max == null) return false;
         for (int i = 0; i < arr.length; i++) {
-          if (arr[i].compareTo(min) < 0 || arr[i].compareTo(max) > 0) return false;
+          if (arr[i].compareTo(min) >= 0 && arr[i].compareTo(max) <= 0) return true;
         }
-        return true;
+        return false;
       }
     };
   }
@@ -700,7 +700,7 @@ public class FilterApi {
    * @param name field name
    * @return IS_NULL(field)
    */
-  public static TreeNode nvl(String name) {
+  public static IsNull nvl(String name) {
     return new IsNull(name, UNRESOLVED_ORDINAL);
   }
 
@@ -714,7 +714,7 @@ public class FilterApi {
    * @param right right filter
    * @return AND(left, right)
    */
-  public static TreeNode and(TreeNode left, TreeNode right) {
+  public static And and(TreeNode left, TreeNode right) {
     if (left == null || right == null) throw new IllegalArgumentException("Child node is null");
     return new And(left, right);
   }
@@ -725,7 +725,7 @@ public class FilterApi {
    * @param right right filter
    * @return OR(left, right)
    */
-  public static TreeNode or(TreeNode left, TreeNode right) {
+  public static Or or(TreeNode left, TreeNode right) {
     if (left == null || right == null) throw new IllegalArgumentException("Child node is null");
     return new Or(left, right);
   }
@@ -735,7 +735,7 @@ public class FilterApi {
    * @param child child filter
    * @return NOT(child)
    */
-  public static TreeNode not(TreeNode child) {
+  public static Not not(TreeNode child) {
     if (child == null) throw new IllegalArgumentException("Child node is null");
     return new Not(child);
   }
@@ -748,7 +748,7 @@ public class FilterApi {
    * Create trivial `true` filter.
    * @return TRUE
    */
-  public static TreeNode TRUE() {
+  public static Trivial TRUE() {
     return new Trivial(true);
   }
 
@@ -756,7 +756,7 @@ public class FilterApi {
    * Create trivial `false` filter.
    * @return FALSE
    */
-  public static TreeNode FALSE() {
+  public static Trivial FALSE() {
     return new Trivial(false);
   }
 }

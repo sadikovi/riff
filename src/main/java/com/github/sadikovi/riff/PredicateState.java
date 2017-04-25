@@ -22,6 +22,9 @@
 
 package com.github.sadikovi.riff;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.github.sadikovi.riff.tree.BoundReference;
 import com.github.sadikovi.riff.tree.Rule;
 import com.github.sadikovi.riff.tree.TreeNode;
@@ -42,6 +45,8 @@ import com.github.sadikovi.riff.tree.Tree.Trivial;
  * split tree on indexed and full.
  */
 public class PredicateState {
+  private static final Logger LOG = LoggerFactory.getLogger(PredicateState.class);
+
   // full resolved predicate tree
   private TreeNode tree;
   // resolved tree containing only index fields
@@ -57,7 +62,8 @@ public class PredicateState {
     if (unresolvedTree == null) throw new IllegalArgumentException("Tree is null");
     if (td == null) throw new IllegalArgumentException("Type description is null");
     if (unresolvedTree.resolved()) {
-      throw new IllegalArgumentException("Expected unresolved tree, found " + unresolvedTree);
+      throw new IllegalArgumentException(
+        "Expected unresolved tree, found {" + unresolvedTree + "}");
     }
     this.tree = unresolvedTree.transform(new TreeResolve(td));
     // this should never happen, tree should be resolved after applying rule, or exception will be
@@ -75,6 +81,10 @@ public class PredicateState {
       // only maintain index tree at this point
       this.tree = null;
     }
+
+    LOG.info("Predicate has only index tree: {}", this.indexedOnly);
+    LOG.info("Predicate index tree: {}", this.indexTree);
+    LOG.info("Predicate state tree: {}", this.tree);
   }
 
   /**
@@ -113,9 +123,9 @@ public class PredicateState {
     }
 
     /** Update ordinal for bound reference */
-    private BoundReference updateRef(BoundReference ref) {
+    private BoundReference updateRef(BoundReference ref, boolean checkType) {
       TypeSpec spec = td.atPosition(td.position(ref.name()));
-      if (!spec.dataType().equals(ref.dataType())) {
+      if (checkType && !spec.dataType().equals(ref.dataType())) {
         throw new IllegalStateException("Type mismatch: ref=" + ref + ", spec=" + spec);
       }
       return ref.withOrdinal(spec.position());
@@ -123,40 +133,39 @@ public class PredicateState {
 
     @Override
     public TreeNode update(EqualTo node) {
-      return updateRef(node);
+      return updateRef(node, true);
     }
 
     @Override
     public TreeNode update(GreaterThan node) {
-      return updateRef(node);
+      return updateRef(node, true);
     }
 
     @Override
     public TreeNode update(LessThan node) {
-      return updateRef(node);
+      return updateRef(node, true);
     }
 
     @Override
     public TreeNode update(GreaterThanOrEqual node) {
-      return updateRef(node);
+      return updateRef(node, true);
     }
 
     @Override
     public TreeNode update(LessThanOrEqual node) {
-      return updateRef(node);
+      return updateRef(node, true);
     }
 
     @Override
     public TreeNode update(In node) {
-      return updateRef(node);
+      return updateRef(node, true);
     }
 
     @Override
     public TreeNode update(IsNull node) {
       // IsNull does not have value and has NullType, which is why it is handled differently
       // without type checking
-      TypeSpec spec = td.atPosition(td.position(node.name()));
-      return node.withOrdinal(spec.position());
+      return updateRef(node, false);
     }
 
     @Override
