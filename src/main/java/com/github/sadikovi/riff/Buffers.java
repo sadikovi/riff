@@ -37,6 +37,7 @@ import com.github.sadikovi.riff.io.StripeInputBuffer;
 
 /**
  * Container for available row buffers.
+ * Use `prepareRowBuffer()` to find buffer that matches input parameters.
  */
 public class Buffers {
   private static final Logger LOG = LoggerFactory.getLogger(RowBuffer.class);

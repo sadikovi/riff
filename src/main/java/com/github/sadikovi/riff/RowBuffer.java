@@ -26,9 +26,30 @@ import java.util.Iterator;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 
+/**
+ * [[RowBuffer]] interface to return set of records from input stream.
+ * See `Buffers` class for available implementations.
+ */
 public interface RowBuffer extends Iterator<InternalRow> {
+  /**
+   * Return true, if buffer has more records to read.
+   * @return true if records are available, false otherwise
+   */
   boolean hasNext();
+
+  /**
+   * Return next record from buffer.
+   * @return internal row
+   */
   InternalRow next();
+
+  /**
+   * Remove operation is currently not supported.
+   */
   void remove();
+
+  /**
+   * Close current buffer and release all resources associated with this buffer.
+   */
   void close();
 }
