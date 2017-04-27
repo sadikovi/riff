@@ -70,6 +70,8 @@ public class IndexedRowReader {
    */
   public InternalRow readRow(InStream in) throws IOException {
     int magic = in.read();
+    // magic is an indicator of nullability in this case. Which means it will either magic1 or
+    // magic2, otherwise we raise assertion error (&& check)
     if (magic != IndexedRow.MAGIC1 && magic != IndexedRow.MAGIC2) {
       throw new AssertionError("Wrong magic number " + magic);
     }

@@ -51,6 +51,7 @@ import com.github.sadikovi.riff.io.StripeOutputBuffer;
  *
  * Usage:
  * {{{
+ * Iterator<InternalRow> rows = ...;
  * writer.prepareWrite();
  * while (rows.hasNext()) {
  *   writer.write(rows.next());
