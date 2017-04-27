@@ -34,7 +34,6 @@ import org.slf4j.LoggerFactory;
 import com.github.sadikovi.riff.io.CompressionCodec;
 import com.github.sadikovi.riff.io.InStream;
 import com.github.sadikovi.riff.io.StripeInputBuffer;
-import com.github.sadikovi.riff.tree.Tree.Trivial;
 
 /**
  * Container for available row buffers.
@@ -67,15 +66,14 @@ public class Buffers {
     } else {
       // resolve state: if state is negative trivial return empty buffer, otherwise choose
       // depending on availability of state
-      if (state != null && !state.isStateTrivial()) {
+      if (state != null && !state.isResultKnown()) {
         rowbuf = new PredicateScanRowBuffer(in, stripes, td, codec, bufferSize, state);
       } else if (state == null) {
         rowbuf = new DirectScanRowBuffer(in, stripes, td, codec, bufferSize);
       } else {
         // at this point state is known to contain trivial result
         LOG.debug("Analyze state {}", state);
-        Trivial root = (Trivial) (state.hasIndexedTreeOnly() ? state.indexTree() : state.tree());
-        if (root.result()) {
+        if (state.result()) {
           rowbuf = new DirectScanRowBuffer(in, stripes, td, codec, bufferSize);
         } else {
           rowbuf = new EmptyRowBuffer(in);

@@ -65,7 +65,11 @@ public class PredicateState {
       throw new IllegalArgumentException(
         "Expected unresolved tree, found {" + unresolvedTree + "}");
     }
-    this.tree = unresolvedTree.transform(new TreeResolve(td));
+    this.tree = unresolvedTree
+      /* rule to resolve all nodes */
+      .transform(new TreeResolve(td))
+      /* rule modifies existing tree to simplify */
+      .transform(new IndexTreeBooleanSimplification());
     // this should never happen, tree should be resolved after applying rule, or exception will be
     // thrown during updates; but just in case changes are made to traversal or default behaviour.
     if (!this.tree.resolved()) {
@@ -113,13 +117,25 @@ public class PredicateState {
   }
 
   /**
-   * Whether or not state is trivial.
-   * Trivial state contains resolved trivial tree node in either full tree or index tree depending
-   * on availability.
+   * Whether or not state is trivial and result is already known before evaluation.
+   * TODO: Move this functionality into TreeNode and extend it to return result.
    * @return true if state is trivial, false otherwise
    */
-  public boolean isStateTrivial() {
+  public boolean isResultKnown() {
     return hasIndexedTreeOnly() ? (indexTree instanceof Trivial) : (tree instanceof Trivial);
+  }
+
+  /**
+   * If state is trivial, returns boolean flag, main predicate tree (index or full) is a Trivial
+   * node, otherwise throws Exception.
+   * TODO: Move this functionality into TreeNode and extend it to return result.
+   * @return true if tree is positive Trivial node, false if tree is negative Trivial node
+   * @throws IllegalStateException if state is not trivial
+   */
+  public boolean result() {
+    if (!isResultKnown()) throw new IllegalStateException("Result is valid for trivial state only");
+    Trivial node = (Trivial) (hasIndexedTreeOnly() ? indexTree : tree);
+    return node.result();
   }
 
   /**
