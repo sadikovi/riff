@@ -113,6 +113,16 @@ public class PredicateState {
   }
 
   /**
+   * Whether or not state is trivial.
+   * Trivial state contains resolved trivial tree node in either full tree or index tree depending
+   * on availability.
+   * @return true if state is trivial, false otherwise
+   */
+  public boolean isStateTrivial() {
+    return hasIndexedTreeOnly() ? (indexTree instanceof Trivial) : (tree instanceof Trivial);
+  }
+
+  /**
    * Resolve tree using type description.
    */
   static class TreeResolve implements Rule {
