@@ -133,7 +133,7 @@ public class PredicateState {
    * @throws IllegalStateException if state is not trivial
    */
   public boolean result() {
-    if (!isResultKnown()) throw new IllegalStateException("Result is valid for trivial state only");
+    if (!isResultKnown()) throw new IllegalStateException("Non-trivial predicate state");
     Trivial node = (Trivial) (hasIndexedTreeOnly() ? indexTree : tree);
     return node.result();
   }
