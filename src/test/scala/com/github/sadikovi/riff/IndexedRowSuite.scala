@@ -29,6 +29,8 @@ import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
 import com.github.sadikovi.riff.io._
+import com.github.sadikovi.riff.tree.TreeNode
+import com.github.sadikovi.riff.tree.FilterApi._
 import com.github.sadikovi.testutil.UnitTestSuite
 
 class IndexedRowSuite extends UnitTestSuite {
@@ -342,5 +344,78 @@ class IndexedRowSuite extends UnitTestSuite {
       "[nulls=false, fields=3, " +
       "index_region=[0, 0, 0, 8, 0, 0, 0, 4, 97, 98, 99, 53], " +
       "data_region=[0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 5]]")
+  }
+
+  // read rows for provided filter
+  // col2 - indexed field
+  // col1 and col3 - data fields
+  private def readWithPredicate(tree: TreeNode): (TypeDescription, Seq[IndexedRow]) = {
+    val schema = StructType(
+      StructField("col1", IntegerType) ::
+      StructField("col2", StringType) ::
+      StructField("col3", LongType) :: Nil)
+    val batch = Seq(
+      InternalRow(1, UTF8String.fromString("abc"), 1L),
+      InternalRow(2, UTF8String.fromString("def"), 2L),
+      InternalRow(3, UTF8String.fromString("abc"), 3L),
+      InternalRow(4, UTF8String.fromString("xyz"), 4L),
+      InternalRow(5, UTF8String.fromString("xyz"), 5L))
+
+    val td = new TypeDescription(schema, Array("col2"))
+    val writer = new IndexedRowWriter(td)
+    val reader = new IndexedRowReader(td)
+    val state = new PredicateState(tree, td)
+    val stripe = new StripeOutputBuffer(1.toByte)
+    val out = new OutStream(64, null, stripe)
+
+    for (row <- batch) {
+      writer.writeRow(row, out)
+    }
+    out.flush()
+
+    val in = new InStream(64, null, new StripeInputBuffer(1.toByte, stripe.array()))
+    var ind = Seq[IndexedRow]()
+    while (in.available() != 0) {
+      ind = ind :+ reader.readRow(in, state).asInstanceOf[IndexedRow]
+    }
+    (td, ind)
+  }
+
+  test("write/read with predicate on both index and data fields") {
+    val (td, ind) = readWithPredicate(or(eqt("col2", "abc"), gt("col1", 4)))
+    // sequence should contain following records
+    ind(0).getUTF8String(td.position("col2")) should be (UTF8String.fromString("abc"))
+    ind(0).getInt(td.position("col1")) should be (1)
+    ind(1) should be (null)
+    ind(2).getUTF8String(td.position("col2")) should be (UTF8String.fromString("abc"))
+    ind(2).getInt(td.position("col1")) should be (3)
+    ind(3) should be (null)
+    ind(4).getUTF8String(td.position("col2")) should be (UTF8String.fromString("xyz"))
+    ind(4).getInt(td.position("col1")) should be (5)
+  }
+
+  test("write/read with predicate on data fields") {
+    val (td, ind) = readWithPredicate(in("col1", Array(1, 4)))
+    // sequence should contain following records
+    ind(0).getUTF8String(td.position("col2")) should be (UTF8String.fromString("abc"))
+    ind(0).getInt(td.position("col1")) should be (1)
+    ind(1) should be (null)
+    ind(2) should be (null)
+    ind(3).getUTF8String(td.position("col2")) should be (UTF8String.fromString("xyz"))
+    ind(3).getInt(td.position("col1")) should be (4)
+    ind(4) should be (null)
+  }
+
+  test("write/read with predicate on index fields") {
+    val (td, ind) = readWithPredicate(in("col2", Array("def", "abc")))
+    // sequence should contain following records
+    ind(0).getUTF8String(td.position("col2")) should be (UTF8String.fromString("abc"))
+    ind(0).getInt(td.position("col1")) should be (1)
+    ind(1).getUTF8String(td.position("col2")) should be (UTF8String.fromString("def"))
+    ind(1).getInt(td.position("col1")) should be (2)
+    ind(2).getUTF8String(td.position("col2")) should be (UTF8String.fromString("abc"))
+    ind(2).getInt(td.position("col1")) should be (3)
+    ind(3) should be (null)
+    ind(4) should be (null)
   }
 }

@@ -152,7 +152,7 @@ public class PredicateState {
     private BoundReference updateRef(BoundReference ref, boolean checkType) {
       TypeSpec spec = td.atPosition(td.position(ref.name()));
       if (checkType && !spec.dataType().equals(ref.dataType())) {
-        throw new IllegalStateException("Type mismatch: ref=" + ref + ", spec=" + spec);
+        throw new IllegalStateException("Type mismatch: ref={" + ref + "}, spec=" + spec);
       }
       return ref.withOrdinal(spec.position());
     }
