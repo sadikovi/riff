@@ -61,14 +61,14 @@ public class IndexedRowReader {
   }
 
   /**
-   * Read row from input stream. This should reflect write logic in `IndexedRowWriter`. We check
-   * magic byte and buffer optional null bit set; then copy index region and data region into
-   * indexed row.
-   *
-   * @param in input stream to read from
-   * @return indexed row as InternalRow
+   * Read common part of indexed row.
+   * Prepare indexed row for both filtered and standard scans. Row already has nullability
+   * information and row offsets adjusted.
+   * @param in input stream
+   * @return initialized indexed row
+   * @throws IOException
    */
-  public InternalRow readRow(InStream in) throws IOException {
+  private IndexedRow readRowHeader(InStream in) throws IOException {
     int magic = in.read();
     // magic is an indicator of nullability in this case. Which means it will either magic1 or
     // magic2, otherwise we raise assertion error (&& check)
@@ -77,7 +77,19 @@ public class IndexedRowReader {
     }
     long nulls = (magic == IndexedRow.MAGIC1) ? 0L : in.readLong();
     // prepare row, compute row offsets
-    IndexedRow row = new IndexedRow(this.indexed, nulls, rowOffsets(nulls));
+    return new IndexedRow(this.indexed, nulls, rowOffsets(nulls));
+  }
+
+  /**
+   * Read row from input stream. This should reflect write logic in `IndexedRowWriter`. We check
+   * magic byte and buffer optional null bit set; then copy index region and data region into
+   * indexed row.
+   * @param in input stream to read from
+   * @return indexed row as InternalRow
+   * @throws IOException
+   */
+  public InternalRow readRow(InStream in) throws IOException {
+    IndexedRow row = readRowHeader(in);
     // read index region, note that if no bytes were written, we do not set index region at all
     int indexBytes = in.readInt();
     if (indexBytes > 0) {
@@ -93,6 +105,48 @@ public class IndexedRowReader {
       row.setDataRegion(dataRegion);
     }
     return row;
+  }
+
+  /**
+   * Read row from input stream based on current predicate state.
+   * If row is not accepted by predicate state null is return and this row should be skipped in
+   * row buffer. State is guaranteed to be non-null and fully resolved. Because we can evaluate
+   * index region separately, if row is discarded stream is automatically advanced to the data
+   * region length.
+   * @param in input stream
+   * @param state valid predicate state
+   * @return indexed row as InternalRow
+   * @throws IOException
+   */
+  public InternalRow readRow(InStream in, PredicateState state) throws IOException {
+    IndexedRow row = readRowHeader(in);
+    // read index region, note that if no bytes were written, we do not set index region at all
+    int indexBytes = in.readInt();
+    if (indexBytes > 0) {
+      byte[] indexRegion = new byte[indexBytes];
+      in.read(indexRegion, 0, indexBytes);
+      row.setIndexRegion(indexRegion);
+    }
+    // read data region, similarly we do not initialize data region, if no bytes were written
+    int dataBytes = in.readInt();
+    // if index tree does not accept current row, return it and skip data region
+    if (!state.indexTree().evaluate(row)) {
+      in.skip(dataBytes);
+      return null;
+    }
+    // at this point row passes predicate state for index region.
+    // state contains index tree only, there is no need to evaluate predicate twice, return row
+    // directly, otherwise run predicate state full tree on fully-read row.
+    if (dataBytes > 0) {
+      byte[] dataRegion = new byte[dataBytes];
+      in.read(dataRegion, 0, dataBytes);
+      row.setDataRegion(dataRegion);
+    }
+    // we would have evaluated index tree in previous step
+    if (state.hasIndexedTreeOnly()) return row;
+    // row passes predicate state
+    if (state.tree().evaluate(row)) return row;
+    return null;
   }
 
   /** Compute relative row offsets for indexed row */
