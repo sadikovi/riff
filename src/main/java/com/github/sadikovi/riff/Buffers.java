@@ -252,7 +252,7 @@ public class Buffers {
    */
   static class DirectScanRowBuffer extends InternalRowBuffer {
     // indexed row reader
-    private IndexedRowReader reader;
+    private final IndexedRowReader reader;
 
     protected DirectScanRowBuffer(
         FSDataInputStream in,
@@ -299,6 +299,11 @@ public class Buffers {
    * Does not perform filtering on stripe statistics.
    */
   static class PredicateScanRowBuffer extends InternalRowBuffer {
+    private boolean found;
+    private InternalRow currentRow;
+    private final IndexedRowReader reader;
+    private final PredicateState state;
+
     protected PredicateScanRowBuffer(
         FSDataInputStream in,
         StripeInformation[] stripes,
@@ -307,18 +312,45 @@ public class Buffers {
         int bufferSize,
         PredicateState state) {
       super(in, stripes, codec, bufferSize);
+      this.reader = new IndexedRowReader(td);
+      LOG.info("Created reader {}", reader);
+      this.state = state;
+      this.found = false;
+      this.currentRow = null;
     }
 
     @Override
     public boolean hasNext() {
-      // TODO: implement predicate scan
-      return false;
+      try {
+        while (!found) {
+          // check if there are bytes in the stream or buffer next stripe
+          if (currentStream == null || currentStream.available() <= 0) {
+            bufferStripe();
+          }
+          // if stream is still empty after buffering we break loop
+          if (currentStream == null || currentStream.available() <= 0) {
+            break;
+          }
+          currentRow = reader.readRow(currentStream, state);
+          if (currentRow != null) {
+            found = true;
+          }
+        }
+        return found;
+      } catch (IOException ioe) {
+        LOG.error("Failed to read stream={}, stripe input={}", currentStream, currentStripe);
+        close();
+        throw new RuntimeException(ioe.getMessage(), ioe);
+      }
     }
 
     @Override
     public InternalRow next() {
-      // TODO: implement predicate scan
-      return null;
+      if (!found) throw new NoSuchElementException("Empty iterator");
+      // this should never happen when operating correctly, since `found` would be false
+      if (currentRow == null) throw new IllegalStateException("Out of sync in " + this);
+      found = false;
+      return currentRow;
     }
   }
 }
