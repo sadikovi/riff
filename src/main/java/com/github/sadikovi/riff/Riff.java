@@ -36,6 +36,38 @@ import org.slf4j.LoggerFactory;
 import com.github.sadikovi.riff.io.CompressionCodec;
 import com.github.sadikovi.riff.io.CompressionCodecFactory;
 
+/**
+ * [[Riff]] class is the main entrypoint of working with Riff file format.
+ * It exposes two primary methods to create either writer or reader as builders with set methods
+ * for different options.
+ *
+ * Example of writing/reading simple file:
+ * {{{
+ * // writing ".gz" file
+ * FileWriter writer = Riff.writer
+ *   .setTypeDesc(structType, "indexField")
+ *   .create(new org.apache.hadoop.fs.Path("file.gz"));
+ *
+ * writer.prepareWrite();
+ * while (rows.hasNext()) {
+ *   writer.write(rows.next());
+ * }
+ * writer.finishWrite();
+ *
+ * // reading file
+ * TreeNode filter = eqt("indexField", "abc");
+ * FileReader reader = Riff.reader
+ *   .create(new org.apache.hadoop.fs.Path("file.gz"));
+ * RowBuffer rowbuf = reader.prepareRead(filter);
+ * while (rowbuf.hasNext()) {
+ *   process(rowbuf.next()); // user-specific processing of an InternalRow
+ * }
+ * rowbuf.close();
+ * }}}
+ *
+ * See additional methods to set options for write/read, such as enforcing compression codec,
+ * specifying file system, HDFS buffer size, in/out stream buffer size, type description, etc.
+ */
 public class Riff {
   private static final Logger LOG = LoggerFactory.getLogger(Riff.class);
 
