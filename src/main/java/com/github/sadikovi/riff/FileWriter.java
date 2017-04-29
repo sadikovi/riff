@@ -81,6 +81,8 @@ class FileWriter {
   private final int numRowsInStripe;
   // buffer size for outstream
   private final int bufferSize;
+  // HDFS buffer size for creating stream
+  private final int hdfsBufferSize;
   // compression codec, can be null
   private final CompressionCodec codec;
 
@@ -144,6 +146,7 @@ class FileWriter {
     this.fileId = nextFileKey();
     this.numRowsInStripe = Riff.Options.numRowsInStripe(conf);
     this.bufferSize = Riff.Options.power2BufferSize(conf);
+    this.hdfsBufferSize = Riff.Options.hdfsBufferSize(conf);
     this.codec = codec;
   }
 
@@ -241,7 +244,7 @@ class FileWriter {
     LOG.info("Initialize stripe outstream {}", stripeStream);
     // create stream for data file
     try {
-      out = fs.create(dataPath, false);
+      out = fs.create(dataPath, false, hdfsBufferSize);
       LOG.info("Prepare data file header");
       writeHeader(out);
     } catch (IOException ioe) {
@@ -313,7 +316,7 @@ class FileWriter {
 
       // write header file
       LOG.info("Prepare header file");
-      out = fs.create(headerPath, false);
+      out = fs.create(headerPath, false, hdfsBufferSize);
       writeHeader(out);
       writeHeaderState(out);
       // write type description
@@ -403,6 +406,7 @@ class FileWriter {
       ", type_desc=" + td +
       ", rows_per_stripe=" + numRowsInStripe +
       ", is_compressed=" + (codec != null) +
-      ", buffer_size=" + bufferSize + "]";
+      ", buffer_size=" + bufferSize +
+      ", hdfs_buffer_size=" + hdfsBufferSize + "]";
   }
 }

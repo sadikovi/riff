@@ -22,13 +22,23 @@
 
 package com.github.sadikovi.riff;
 
+import java.io.IOException;
+
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+
+import org.apache.spark.sql.types.StructType;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.github.sadikovi.riff.io.CompressionCodec;
 import com.github.sadikovi.riff.io.ZlibCodec;
 
 public class Riff {
+  private static final Logger LOG = LoggerFactory.getLogger(Riff.class);
+
   public static final String MAGIC = "RIFF";
   // suffix for data files
   public static final String DATA_FILE_SUFFIX = ".data";
@@ -42,11 +52,15 @@ public class Riff {
     public static final int STRIPE_ROWS_DEFAULT = 10000;
 
     // buffer size in bytes
-    // TODO: link to the "io.file.buffer.size" setting for hadoop output stream
     public static final String BUFFER_SIZE = "riff.buffer.size";
     public static final int BUFFER_SIZE_DEFAULT = 256 * 1024;
     public static final int BUFFER_SIZE_MIN = 4 * 1024;
     public static final int BUFFER_SIZE_MAX = 512 * 1024;
+
+    // buffer size for Hadoop output/input stream
+    public static final String HDFS_BUFFER_SIZE = "io.file.buffer.size";
+    // default buffer size for HDFS, should be multiple of 4096 bytes, same as in core-default.xml
+    public static final int HDFS_BUFFER_SIZE_DEFAULT = 4 * 1024;
 
     /**
      * Select next power of 2 as buffer size.
@@ -61,6 +75,20 @@ public class Riff {
       if ((bytes & (bytes - 1)) == 0) return bytes;
       bytes = Integer.highestOneBit(bytes) << 1;
       return (bytes < Riff.Options.BUFFER_SIZE_MAX) ? bytes : Riff.Options.BUFFER_SIZE_MAX;
+    }
+
+    /**
+     * Select HDFS buffer size.
+     * @param conf configuration
+     * @return HDFS buffer size when open or create file
+     */
+    static int hdfsBufferSize(Configuration conf) {
+      // bytes should be multiple of hardware pages 4096
+      int pageSize = 4096;
+      int bytes = conf.getInt(HDFS_BUFFER_SIZE, HDFS_BUFFER_SIZE_DEFAULT);
+      if (bytes > 0 && bytes % pageSize == 0) return bytes;
+      if (bytes < 0) bytes = 0;
+      return (bytes / pageSize + 1) * pageSize;
     }
 
     /**
@@ -115,5 +143,230 @@ public class Riff {
     throw new UnsupportedOperationException("Unknown codec flag: " + flag);
   }
 
-  private Riff() { }
+  /**
+   * Base builder class.
+   * Provides access to set most of the options. For additional specific to write/read options see
+   * either [[WriterBuilder]] or [[ReaderBuilder]].
+   */
+  protected static abstract class Builder<T, R> {
+    // instance to return
+    protected T instance;
+    // file system to use
+    protected FileSystem fs;
+    // internal configuration, used to set riff options, is not intended to hold other hadoop
+    // settings, but it can be set as such. It is recommended to use external hadoop configuration
+    // to initialize file system
+    protected Configuration conf;
+
+    protected Builder() {
+      this.fs = null;
+      this.conf = new Configuration();
+    }
+
+    /**
+     * Set file system.
+     * @param fs file system, must not be null
+     * @return this instance
+     */
+    public T setFileSystem(FileSystem fs) {
+      if (fs == null) throw new NullPointerException("File system is null");
+      this.fs = fs;
+      return this.instance;
+    }
+
+    /**
+     * Set configuration.
+     * This replaces current instance configuration.
+     * @param conf configuration, must not be null
+     * @return this instance
+     */
+    public T setConf(Configuration conf) {
+      if (conf == null) throw new NullPointerException("Configuration is null");
+      this.conf = conf;
+      return this.instance;
+    }
+
+    /**
+     * Set buffer size in bytes.
+     * @param bytes buffer size
+     * @return this instance
+     */
+    public T setBufferSize(int bytes) {
+      this.conf.setInt(Options.BUFFER_SIZE, bytes);
+      return this.instance;
+    }
+
+    /**
+     * Set buffer size for Hadoop input or output stream.
+     * @param bytes buffer size
+     * @return this instance
+     */
+    public T setHadoopStreamBufferSize(int bytes) {
+      this.conf.setInt("io.file.buffer.size", bytes);
+      return this.instance;
+    }
+
+    /**
+     * Set number of rows in stripe.
+     * @param rows number of rows
+     * @return this instance
+     */
+    public T setRowsInStripe(int rows) {
+      this.conf.setInt(Options.STRIPE_ROWS, rows);
+      return this.instance;
+    }
+
+    /**
+     * Create final instance of either writer or reader depending on param type for provided path.
+     * @param path path to a file for specified file system
+     * @return T instance
+     * @throws IOException if any IO error occurs
+     */
+    public abstract R create(Path path) throws IOException;
+  }
+
+  /**
+   * Writer settings builder.
+   */
+  public static class WriterBuilder extends Builder<WriterBuilder, FileWriter> {
+    private CompressionCodec codec;
+    private boolean codecSet;
+    private TypeDescription td;
+
+    protected WriterBuilder() {
+      super();
+      this.instance = this;
+      this.codec = null;
+      this.codecSet = false;
+      this.td = null;
+    }
+
+    /**
+     * Force compression codec for writer.
+     * @param codecName string name of the codec {ZLIB, NONE}
+     * @return this instance
+     */
+    public WriterBuilder setCodec(String codecName) {
+      switch (codecName.toLowerCase()) {
+        case "zlib":
+          this.codec = new ZlibCodec();
+          break;
+        case "none":
+          this.codec = null;
+          break;
+        default:
+          throw new UnsupportedOperationException("Unknown codec: " + codecName);
+      }
+      this.codecSet = true;
+      return this;
+    }
+
+    /**
+     * Force compression codec for writer.
+     * @param codec codec to use, can be null
+     * @return this instance
+     */
+    public WriterBuilder setCodec(CompressionCodec codec) {
+      // codec can be null
+      this.codec = codec;
+      this.codecSet = true;
+      return this;
+    }
+
+    /**
+     * Set type description for writer.
+     * @param td type description to use, must not be null
+     * @return this instance
+     */
+    public WriterBuilder setTypeDesc(TypeDescription td) {
+      if (td == null) throw new NullPointerException("Type description is null");
+      this.td = td;
+      return this;
+    }
+
+    /**
+     * Set type description using Spark SQL schema and list of index fields that should be
+     * indexed in this schema.
+     * @param schema Spark SQL schema
+     * @param indexFields list of potential index fields
+     * @return this instance
+     */
+    public WriterBuilder setTypeDesc(StructType schema, String... indexFields) {
+      return setTypeDesc(new TypeDescription(schema, indexFields));
+    }
+
+    /**
+     * Set type description using Spark SQL schema.
+     * This method does not set any index fields for schema.
+     * @param schema Spark SQL schema
+     * @return this instance
+     */
+    public WriterBuilder setTypeDesc(StructType schema) {
+      return setTypeDesc(new TypeDescription(schema));
+    }
+
+    /**
+     * Infer compression codec from file name.
+     * @param path path to the file
+     * @return compression codec or null for uncompressed
+     */
+    private CompressionCodec inferCompressionCodec(Path path) {
+      // TODO: infer compression from path
+      return null;
+    }
+
+    @Override
+    public FileWriter create(Path path) throws IOException {
+      // if codec is not set infer from path
+      if (!codecSet) {
+        codec = inferCompressionCodec(path);
+      }
+      // set file system if none found
+      if (fs == null) {
+        fs = path.getFileSystem(conf);
+      }
+      FileWriter writer = new FileWriter(fs, conf, path, td, codec);
+      LOG.info("Created writer {}", writer);
+      return writer;
+    }
+  }
+
+  /**
+   * Reader settings builder.
+   */
+  public static class ReaderBuilder extends Builder<ReaderBuilder, FileReader> {
+    protected ReaderBuilder() {
+      super();
+      this.instance = this;
+    }
+
+    @Override
+    public FileReader create(Path path) throws IOException {
+      // set file system if none found
+      if (fs == null) {
+        fs = path.getFileSystem(conf);
+      }
+      FileReader reader = new FileReader(fs, conf, path);
+      LOG.info("Created reader {}", reader);
+      return reader;
+    }
+  }
+
+  private Riff() { /* no-op */ }
+
+  /**
+   * Get new writer.
+   * @return writer builder
+   */
+  public static WriterBuilder writer() {
+    return new WriterBuilder();
+  }
+
+  /**
+   * Get new reader.
+   * @return reader builder
+   */
+  public static ReaderBuilder reader() {
+    return new ReaderBuilder();
+  }
 }

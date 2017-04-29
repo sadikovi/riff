@@ -69,6 +69,8 @@ public class FileReader {
   private final Path dataPath;
   // buffer size for instream
   private final int bufferSize;
+  // HDFS buffer size for opening stream
+  private final int hdfsBufferSize;
 
   FileReader(FileSystem fs, Configuration conf, Path path) {
     this.fs = fs;
@@ -76,6 +78,7 @@ public class FileReader {
     this.headerPath = fs.makeQualified(path);
     this.dataPath = Riff.makeDataPath(this.headerPath);
     this.bufferSize = Riff.Options.power2BufferSize(conf);
+    this.hdfsBufferSize = Riff.Options.hdfsBufferSize(conf);
   }
 
   /**
@@ -99,7 +102,7 @@ public class FileReader {
     // file and/or resolve statistics
     FSDataInputStream in = null;
     try {
-      in = fs.open(headerPath);
+      in = fs.open(headerPath, hdfsBufferSize);
       // read input stream and return header file id, this will be used to compare with data file
       byte[] fileId = readHeader(in);
       // extract 8 byte long flags
@@ -167,7 +170,7 @@ public class FileReader {
       // reevaluate stripes based on predicate tree
       stripes = evaluateStripes(stripes, state);
       // open data file and check file id
-      in = fs.open(dataPath);
+      in = fs.open(dataPath, hdfsBufferSize);
       assertBytes(fileId, readHeader(in), "Wrong file id");
       return Buffers.prepareRowBuffer(in, stripes, td, codec, bufferSize, state);
     } catch (IOException ioe) {
@@ -312,6 +315,7 @@ public class FileReader {
     return "FileReader[" +
       "header=" + headerPath +
       ", data=" + dataPath +
-      ", buffer_size=" + bufferSize + "]";
+      ", buffer_size=" + bufferSize +
+      ", hdfs_buffer_size=" + hdfsBufferSize + "]";
   }
 }
