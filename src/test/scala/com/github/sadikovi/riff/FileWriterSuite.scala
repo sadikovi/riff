@@ -121,7 +121,7 @@ class FileWriterSuite extends UnitTestSuite {
       val err = intercept[IllegalArgumentException] {
         new FileWriter(fs, conf, path, td, codec)
       }
-      err.getMessage should be ("Expected positive number of rows in stripe, found -1")
+      err.getMessage should be ("Expected positive number of rows in stripe, found -1 <= 0")
     }
   }
 
@@ -201,8 +201,8 @@ class FileWriterSuite extends UnitTestSuite {
       writer.finishWrite()
       val header = fs.getFileStatus(writer.headerPath)
       val data = fs.getFileStatus(writer.dataPath)
-      // should be greater than header size
-      assert(header.getLen > 16)
+      // should be greater than header size + header flags
+      assert(header.getLen > 16 + 8)
       assert(data.getLen > 16)
     }
   }
@@ -222,8 +222,8 @@ class FileWriterSuite extends UnitTestSuite {
       writer.finishWrite()
       val header = fs.getFileStatus(writer.headerPath)
       val data = fs.getFileStatus(writer.dataPath)
-      // should be greater than header size
-      assert(header.getLen > 16)
+      // should be greater than header size + header flags
+      assert(header.getLen > 16 + 8)
       assert(data.getLen > 16)
     }
   }
@@ -239,8 +239,8 @@ class FileWriterSuite extends UnitTestSuite {
       writer.finishWrite()
       val header = fs.getFileStatus(writer.headerPath)
       val data = fs.getFileStatus(writer.dataPath)
-      // should be greater than header size
-      assert(header.getLen > 16)
+      // should be greater than header size + header flags
+      assert(header.getLen > 16 + 8)
       assert(data.getLen > 16)
     }
   }
