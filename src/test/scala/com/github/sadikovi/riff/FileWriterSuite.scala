@@ -56,7 +56,8 @@ class FileWriterSuite extends UnitTestSuite {
         s"type_desc=$td, " +
         s"rows_per_stripe=${Riff.Options.STRIPE_ROWS_DEFAULT}, " +
         s"is_compressed=${codec != null}, " +
-        s"buffer_size=${Riff.Options.BUFFER_SIZE_DEFAULT}]")
+        s"buffer_size=${Riff.Options.BUFFER_SIZE_DEFAULT}, " +
+        s"hdfs_buffer_size=${Riff.Options.HDFS_BUFFER_SIZE_DEFAULT}]")
     }
   }
 
@@ -78,7 +79,8 @@ class FileWriterSuite extends UnitTestSuite {
         s"type_desc=$td, " +
         s"rows_per_stripe=${Riff.Options.STRIPE_ROWS_DEFAULT}, " +
         s"is_compressed=${codec != null}, " +
-        s"buffer_size=${Riff.Options.BUFFER_SIZE_DEFAULT}]")
+        s"buffer_size=${Riff.Options.BUFFER_SIZE_DEFAULT}, " +
+        s"hdfs_buffer_size=${Riff.Options.HDFS_BUFFER_SIZE_DEFAULT}]")
     }
   }
 
@@ -121,36 +123,7 @@ class FileWriterSuite extends UnitTestSuite {
       val err = intercept[IllegalArgumentException] {
         new FileWriter(fs, conf, path, td, codec)
       }
-      err.getMessage should be ("Expected positive number of rows in stripe, found -1")
-    }
-  }
-
-  test("select power of 2 buffer size") {
-    withTempDir { dir =>
-      val conf = new Configuration(false)
-      val path = dir / "file"
-      val codec: CompressionCodec = null
-      val td = new TypeDescription(StructType(StructField("col", StringType) :: Nil))
-
-      conf.setInt(Riff.Options.BUFFER_SIZE, -1)
-      var writer = new FileWriter(fs, conf, path, td, codec)
-      writer.bufferSize should be (Riff.Options.BUFFER_SIZE_MIN)
-
-      conf.setInt(Riff.Options.BUFFER_SIZE, Int.MaxValue)
-      writer = new FileWriter(fs, conf, path, td, codec)
-      writer.bufferSize should be (Riff.Options.BUFFER_SIZE_MAX)
-
-      conf.setInt(Riff.Options.BUFFER_SIZE, 128 * 1024)
-      writer = new FileWriter(fs, conf, path, td, codec)
-      writer.bufferSize should be (128 * 1024)
-
-      conf.setInt(Riff.Options.BUFFER_SIZE, 129 * 1024)
-      writer = new FileWriter(fs, conf, path, td, codec)
-      writer.bufferSize should be (256 * 1024)
-
-      conf.setInt(Riff.Options.BUFFER_SIZE, 257 * 1024)
-      writer = new FileWriter(fs, conf, path, td, codec)
-      writer.bufferSize should be (Riff.Options.BUFFER_SIZE_MAX)
+      err.getMessage should be ("Expected positive number of rows in stripe, found -1 <= 0")
     }
   }
 
@@ -201,8 +174,8 @@ class FileWriterSuite extends UnitTestSuite {
       writer.finishWrite()
       val header = fs.getFileStatus(writer.headerPath)
       val data = fs.getFileStatus(writer.dataPath)
-      // should be greater than header size
-      assert(header.getLen > 16)
+      // should be greater than header size + header flags
+      assert(header.getLen > 16 + 8)
       assert(data.getLen > 16)
     }
   }
@@ -222,8 +195,8 @@ class FileWriterSuite extends UnitTestSuite {
       writer.finishWrite()
       val header = fs.getFileStatus(writer.headerPath)
       val data = fs.getFileStatus(writer.dataPath)
-      // should be greater than header size
-      assert(header.getLen > 16)
+      // should be greater than header size + header flags
+      assert(header.getLen > 16 + 8)
       assert(data.getLen > 16)
     }
   }
@@ -239,8 +212,8 @@ class FileWriterSuite extends UnitTestSuite {
       writer.finishWrite()
       val header = fs.getFileStatus(writer.headerPath)
       val data = fs.getFileStatus(writer.dataPath)
-      // should be greater than header size
-      assert(header.getLen > 16)
+      // should be greater than header size + header flags
+      assert(header.getLen > 16 + 8)
       assert(data.getLen > 16)
     }
   }

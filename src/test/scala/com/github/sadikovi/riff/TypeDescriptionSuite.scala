@@ -284,10 +284,10 @@ class TypeDescriptionSuite extends UnitTestSuite {
       StructField("col2", LongType) ::
       StructField("col3", IntegerType) :: Nil)
     val td = new TypeDescription(schema, Array("col1"))
-    td.toString should be ("TypeDescription({" +
-      "col1=TypeSpec(col1: int, indexed=true, position=0, origPos=0), " +
-      "col3=TypeSpec(col3: int, indexed=false, position=2, origPos=2), " +
-      "col2=TypeSpec(col2: bigint, indexed=false, position=1, origPos=1)})")
+    td.toString should be ("TypeDescription[" +
+      "TypeSpec(col1: int, indexed=true, position=0, origPos=0), " +
+      "TypeSpec(col2: bigint, indexed=false, position=1, origPos=1), " +
+      "TypeSpec(col3: int, indexed=false, position=2, origPos=2)]")
   }
 
   test("write/read type description") {

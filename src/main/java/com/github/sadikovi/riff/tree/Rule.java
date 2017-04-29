@@ -36,8 +36,8 @@ import com.github.sadikovi.riff.tree.Tree.Trivial;
 
 /**
  * Rule allows to traverse tree and return updated/modified tree which contains either copies of
- * nodes or completely different subtrees. It mainly used to replace types of the subtrees, rather
- * than node values.
+ * nodes or completely different subtrees. It is mainly used to replace types of the subtrees,
+ * rather than node values.
  */
 public interface Rule {
   TreeNode update(EqualTo node);

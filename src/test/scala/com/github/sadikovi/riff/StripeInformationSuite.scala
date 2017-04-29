@@ -122,4 +122,42 @@ class StripeInformationSuite extends UnitTestSuite {
     info2.getStatistics() should be (info1.getStatistics())
     info2.toString() should be (info1.toString())
   }
+
+  test("equality") {
+    var stripe1 = new StripeInformation(1.toByte, 123L, 100, null)
+    var stripe2 = new StripeInformation(1.toByte, 123L, 100, null)
+    assert(stripe1 == stripe2)
+    assert(stripe1.equals(stripe1))
+    assert(stripe2.equals(stripe2))
+
+    assert(!stripe1.equals(null))
+
+    stripe1 = new StripeInformation(1.toByte, 123L, 100, null)
+    stripe2 = new StripeInformation(2.toByte, 123L, 100, null)
+    assert(stripe1 != stripe2)
+
+    stripe1 = new StripeInformation(1.toByte, 123L, 100, null)
+    stripe2 = new StripeInformation(1.toByte, 124L, 100, null)
+    assert(stripe1 != stripe2)
+
+    stripe1 = new StripeInformation(1.toByte, 123L, 100, null)
+    stripe2 = new StripeInformation(1.toByte, 123L, 101, null)
+    assert(stripe1 != stripe2)
+
+    stripe1 = new StripeInformation(1.toByte, 123L, 100, Array.empty)
+    stripe2 = new StripeInformation(1.toByte, 123L, 100, null)
+    assert(stripe1 != stripe2)
+
+    stripe1 = new StripeInformation(1.toByte, 123L, 100,
+      Array(Statistics.sqlTypeToStatistics(IntegerType)))
+    stripe2 = new StripeInformation(1.toByte, 123L, 100,
+      Array(Statistics.sqlTypeToStatistics(LongType)))
+    assert(stripe1 != stripe2)
+
+    stripe1 = new StripeInformation(1.toByte, 123L, 100,
+      Array(Statistics.sqlTypeToStatistics(IntegerType)))
+    stripe2 = new StripeInformation(1.toByte, 123L, 100,
+      Array(Statistics.sqlTypeToStatistics(IntegerType)))
+    assert(stripe1 == stripe2)
+  }
 }

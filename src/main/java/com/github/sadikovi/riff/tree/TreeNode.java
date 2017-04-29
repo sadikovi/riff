@@ -37,6 +37,8 @@ import com.github.sadikovi.riff.Statistics;
  * predicate passed or it is impossible to evaluate predicate (because there is not enough
  * information), in which case we just report it as correct. Note that if predicate or value is not
  * supported, or any other misuses or invalid data types, exception is raised.
+ *
+ * Use FilterApi class to create predicate trees containing pre-built nodes.
  */
 public interface TreeNode {
   /**

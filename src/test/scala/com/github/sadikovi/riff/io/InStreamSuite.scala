@@ -103,6 +103,13 @@ class InStreamSuite extends UnitTestSuite {
     in.available() should be (0)
   }
 
+  test("uncompressed, skip all remaining bytes") {
+    val source = new StripeInputBuffer(1.toByte, Array[Byte](1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
+    val in = new InStream(32, null, source)
+    in.skip(10)
+    in.available() should be (0)
+  }
+
   test("compressed, init with input stream having fewer than HEADER_SIZE bytes") {
     // header is 4 bytes long
     val source = new StripeInputBuffer(1.toByte, Array[Byte](1, 2, 3))
@@ -147,6 +154,7 @@ class InStreamSuite extends UnitTestSuite {
     val source = new StripeInputBuffer(1.toByte, Array[Byte](
       /* header */
       -128, 0, 0, 13,
+      /* bytes: 12, 0, 0, 0, 125, 0, 0, 0, 0, 0, 0, 0, 125, 2, 3, 4 */
       -29, 97, 96, 96, -88, 101, -128, -128, 90, 38, 102, 22, 0,
       0, 0, 0, 4,
       1, 2, 3, 4
@@ -159,7 +167,9 @@ class InStreamSuite extends UnitTestSuite {
     // skip last 3 bytes which are 2, 3, 4
     in.skip(3)
 
-    in.available() should be (4)
+    // at this point available() is checked based on source, as `uncompressed.remaining` is 0,
+    // source has 4 (header) + 4 (data) bytes for the next chunk
+    in.available() should be (4 + 4)
     in.read() should be (1)
     in.read() should be (2)
     in.read() should be (3)
@@ -181,6 +191,17 @@ class InStreamSuite extends UnitTestSuite {
     in.read() should be (4)
   }
 
+  test("compressed, skip all remaining bytes") {
+    val source = new StripeInputBuffer(1.toByte, Array[Byte](
+      /* header */
+      -128, 0, 0, 13,
+      -29, 97, 96, 96, -88, 101, -128, -128, 90, 38, 102, 22, 0
+    ))
+    val in = new InStream(64, new ZlibCodec(), source)
+    in.skip(16)
+    in.available() should be (0)
+  }
+
   test("compressed, available when no bytes left in tmp buffer") {
     val source = new StripeInputBuffer(1.toByte, Array[Byte](
       /* header */
@@ -191,8 +212,9 @@ class InStreamSuite extends UnitTestSuite {
     ))
     val in = new InStream(16, new ZlibCodec(), source)
     in.skip(4)
-    // buffers next chunk of 16 bytes
-    in.available() should be (16)
+    // at this point in.available() is based on source as `uncompressed.remaining` is 0, which
+    // results in 4 (header) + 13 (data) bytes
+    in.available() should be (4 + 13)
   }
 
   test("mark/reset is unsupported") {

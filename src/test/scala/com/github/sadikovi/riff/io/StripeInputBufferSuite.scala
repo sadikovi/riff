@@ -28,16 +28,21 @@ import java.nio.ByteBuffer
 import com.github.sadikovi.testutil.UnitTestSuite
 
 class StripeInputBufferSuite extends UnitTestSuite {
-  test("init with empty data array") {
-    var err = intercept[IllegalArgumentException] {
+  test("init with null data array") {
+    // data array cannot be null
+    val err = intercept[IllegalArgumentException] {
       new StripeInputBuffer(1.toByte, null)
     }
-    err.getMessage should be ("Empty data for stripe")
+    err.getMessage should be ("Null data for stripe")
+  }
 
-    err = intercept[IllegalArgumentException] {
-      new StripeInputBuffer(1.toByte, new Array[Byte](0))
-    }
-    err.getMessage should be ("Empty data for stripe")
+  test("init with empty data array") {
+    // this case is perfectly valid, indicates that no records were written
+    // note that stripe metadata is written into header, not data file
+    val buf = new StripeInputBuffer(1.toByte, Array[Byte]())
+    buf.length should be (0)
+    buf.position should be (0)
+    buf.id should be (1)
   }
 
   test("initial configuration") {

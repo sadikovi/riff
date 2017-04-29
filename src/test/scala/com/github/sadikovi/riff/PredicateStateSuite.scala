@@ -150,4 +150,54 @@ class PredicateStateSuite extends UnitTestSuite {
       )
     )
   }
+
+  test("check isResultKnown for predicate state") {
+    val schema = StructType(
+      StructField("col1", IntegerType) ::
+      StructField("col2", StringType) :: Nil)
+    val td = new TypeDescription(schema, Array("col1"))
+    val p = or(eqt("col1", 12), gt("col2", "abc"))
+    val state = new PredicateState(p, td)
+    state.isResultKnown should be (false)
+  }
+
+  test("check isResultKnown for index predicate state") {
+    val schema = StructType(
+      StructField("col1", IntegerType) :: Nil)
+    val td = new TypeDescription(schema, Array("col1"))
+    val p = eqt("col1", 12)
+    val state = new PredicateState(p, td)
+    state.isResultKnown should be (false)
+  }
+
+  test("check isResultKnown for trivial predicate state") {
+    val schema = StructType(
+      StructField("col1", IntegerType) :: Nil)
+    val td = new TypeDescription(schema, Array("col1"))
+    val state = new PredicateState(or(TRUE, eqt("col1", 1)), td)
+    state.isResultKnown should be (true)
+  }
+
+  test("fail to check result for non-trivial predicate state") {
+    val schema = StructType(
+      StructField("col1", IntegerType) ::
+      StructField("col2", StringType) :: Nil)
+    val td = new TypeDescription(schema, Array("col1"))
+    val p = or(eqt("col1", 12), gt("col2", "abc"))
+    val state = new PredicateState(p, td)
+
+    val err = intercept[IllegalStateException] {
+      state.result()
+    }
+    err.getMessage should be ("Non-trivial predicate state")
+  }
+
+  test("check result for predicate state") {
+    val schema = StructType(
+      StructField("col1", IntegerType) ::
+      StructField("col2", StringType) :: Nil)
+    val td = new TypeDescription(schema, Array("col1"))
+    new PredicateState(or(TRUE, eqt("col1", 1)), td).result() should be (true)
+    new PredicateState(and(FALSE, eqt("col1", 1)), td).result() should be (false)
+  }
 }

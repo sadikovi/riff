@@ -217,7 +217,7 @@ public class InStream extends InputStream {
 
     // if we have some bytes left in buffer, just shift position, but only if we have some remaining
     // bytes left after this operation
-    if (uncompressed.remaining() > bytes) {
+    if (uncompressed.remaining() >= bytes) {
       uncompressed.position(uncompressed.position() + (int) bytes);
       return bytes;
     }

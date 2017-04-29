@@ -658,7 +658,7 @@ public class FilterApi {
     };
   }
 
-  private static In in(String name, int ordinal, final UTF8String[] value) {
+  private static In in(String name, int ordinal, UTF8String[] value) {
     final UTF8String[] arr = new UTF8String[value.length];
     System.arraycopy(value, 0, arr, 0, value.length);
     // sort in ascending order

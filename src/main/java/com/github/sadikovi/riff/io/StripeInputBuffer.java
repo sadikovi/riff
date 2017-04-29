@@ -40,8 +40,9 @@ public class StripeInputBuffer {
   private int offset;
 
   public StripeInputBuffer(short id, byte[] data) {
-    if (data == null || data.length == 0) {
-      throw new IllegalArgumentException("Empty data for stripe");
+    // data array can be empty
+    if (data == null) {
+      throw new IllegalArgumentException("Null data for stripe");
     }
     this.id = id;
     this.data = data;
