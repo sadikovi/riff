@@ -86,6 +86,14 @@ public class Buffers {
   }
 
   /**
+   * Return empty row buffer directly without any stream.
+   * @return empty row buffer
+   */
+  public static RowBuffer emptyRowBuffer() {
+    return new EmptyRowBuffer(null);
+  }
+
+  /**
    * Empty row buffer.
    * This row buffer represents empty iterator and is created when no stripes are available for
    * read or predicate state is either undefined or trivial
@@ -97,6 +105,7 @@ public class Buffers {
     private FSDataInputStream in;
 
     protected EmptyRowBuffer(FSDataInputStream in) {
+      // input can be null
       this.in = in;
     }
 

@@ -66,8 +66,6 @@ import com.github.sadikovi.riff.io.StripeOutputBuffer;
  */
 class FileWriter {
   private static final Logger LOG = LoggerFactory.getLogger(FileWriter.class);
-  // suffix for data files
-  private static final String DATA_FILE_SUFFIX = ".data";
 
   // file system to use for writing a file
   private final FileSystem fs;
@@ -128,7 +126,7 @@ class FileWriter {
       CompressionCodec codec) throws IOException {
     this.fs = fs;
     this.headerPath = fs.makeQualified(path);
-    this.dataPath = makeDataPath(headerPath);
+    this.dataPath = Riff.makeDataPath(headerPath);
     this.writePrepared = false;
     this.writeFinished = false;
     if (this.fs.exists(headerPath)) {
@@ -144,24 +142,9 @@ class FileWriter {
     // generate unique id for this file, collisions are possible, this mainly to prevent accidental
     // renaming of files
     this.fileId = nextFileKey();
-    this.numRowsInStripe =
-      conf.getInt(Riff.Options.STRIPE_ROWS, Riff.Options.STRIPE_ROWS_DEFAULT);
-    if (numRowsInStripe < 1) {
-      throw new IllegalArgumentException(
-        "Expected positive number of rows in stripe, found " + numRowsInStripe);
-    }
-    this.bufferSize = power2BufferSize(
-      conf.getInt(Riff.Options.BUFFER_SIZE, Riff.Options.BUFFER_SIZE_DEFAULT));
+    this.numRowsInStripe = Riff.Options.numRowsInStripe(conf);
+    this.bufferSize = Riff.Options.power2BufferSize(conf);
     this.codec = codec;
-  }
-
-  /**
-   * Append data file suffix to the path, suffix is always the last block in file name.
-   * @param path header path
-   * @return data path
-   */
-  private static Path makeDataPath(Path path) {
-    return path.suffix(DATA_FILE_SUFFIX);
   }
 
   /**
@@ -174,20 +157,6 @@ class FileWriter {
     byte[] key = new byte[12];
     rand.nextBytes(key);
     return key;
-  }
-
-  /**
-   * Select next power of 2 as buffer size.
-   * @param bytes initial bytes value
-   * @return validated bytes value
-   */
-  private static int power2BufferSize(int bytes) {
-    if (bytes > Riff.Options.BUFFER_SIZE_MAX) return Riff.Options.BUFFER_SIZE_MAX;
-    if (bytes < Riff.Options.BUFFER_SIZE_MIN) return Riff.Options.BUFFER_SIZE_MIN;
-    // bytes is already power of 2
-    if ((bytes & (bytes - 1)) == 0) return bytes;
-    bytes = Integer.highestOneBit(bytes) << 1;
-    return (bytes < Riff.Options.BUFFER_SIZE_MAX) ? bytes : Riff.Options.BUFFER_SIZE_MAX;
   }
 
   /**
@@ -237,6 +206,19 @@ class FileWriter {
         dataHeader.bytesWritten());
     }
     dataHeader.writeExternal(out);
+  }
+
+  /**
+   * Encode additional information in output stream for flags, such as compression codec.
+   * Right now we write 8 bytes for additional data. This should written only in header file.
+   * Flags: [0] - compression codec
+   * @param out output stream
+   * @throws IOException
+   */
+  private void writeHeaderState(FSDataOutputStream out) throws IOException {
+    byte[] state = new byte[8];
+    state[0] = Riff.encodeCompressionCodec(codec);
+    out.write(state);
   }
 
   /**
@@ -333,6 +315,9 @@ class FileWriter {
       LOG.info("Prepare header file");
       out = fs.create(headerPath, false);
       writeHeader(out);
+      writeHeaderState(out);
+      // write type description
+      td.writeExternal(out);
       // == file content ==
       // combine all statistics for a file
       LOG.info("Merge stripe statistics");
@@ -345,21 +330,35 @@ class FileWriter {
         }
       }
       LOG.info("Write header file content");
+      // buffer stores content of the entire header file content, when being read, this should be
+      // loaded into byte buffer
       OutputBuffer buffer = new OutputBuffer();
-      // write type description and stripe information
-      td.writeExternal(buffer);
-      // write file statistics
+
+      // we write content in 2 parts:
+      // 1. Write file statistics, this is done to evaluate predicate state on global file stats,
+      // and skip if necessary
+      // 2. Write the rest of the content, right now this includes stripe information only. This
+      // is only loaded if actual data is required for reads
+
+      // 1. Write file statistics
       buffer.writeInt(fileStats.length);
       for (int i = 0; i < fileStats.length; i++) {
         LOG.info("Writing file statistics {}", fileStats[i]);
         fileStats[i].writeExternal(buffer);
       }
-      // write stripe information
+      out.writeInt(buffer.bytesWritten());
+      buffer.writeExternal(out);
+
+      // 2. Write stripe information
+      buffer.reset();
       LOG.info("Writing {} stripes", stripes.size());
-      for (StripeInformation info : stripes) {
-        info.writeExternal(buffer);
+      buffer.writeInt(stripes.size());
+      for (int i = 0; i < stripes.size(); i++) {
+        stripes.get(i).writeExternal(buffer);
       }
-      // flush buffer into output stream
+      // flush buffer into output stream, close output stream similar to writing data file
+      // and report when it is done. In case of exceptions out will be closed in `finally` block
+      out.writeInt(buffer.bytesWritten());
       buffer.writeExternal(out);
       out.close();
       LOG.info("Finished writing header file {}", headerPath);
