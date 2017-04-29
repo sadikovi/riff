@@ -222,6 +222,15 @@ public class Buffers {
       LOG.info("Buffer new stream {}", currentStream);
     }
 
+    /**
+     * Return stripes for this internal buffer.
+     * Used for testing purposes only.
+     * @return stripes
+     */
+    protected StripeInformation[] getStripes() {
+      return stripes;
+    }
+
     @Override
     public void remove() {
       throw new UnsupportedOperationException();

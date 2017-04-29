@@ -195,6 +195,14 @@ class FileWriter {
   }
 
   /**
+   * Get current compression codec.
+   * @return compression codec or null for uncompressed
+   */
+  public CompressionCodec codec() {
+    return codec;
+  }
+
+  /**
    * Write global header that is shared between header file and data file.
    * @param out output stream to write into
    * @throws IOException

@@ -127,35 +127,6 @@ class FileWriterSuite extends UnitTestSuite {
     }
   }
 
-  test("select power of 2 buffer size") {
-    withTempDir { dir =>
-      val conf = new Configuration(false)
-      val path = dir / "file"
-      val codec: CompressionCodec = null
-      val td = new TypeDescription(StructType(StructField("col", StringType) :: Nil))
-
-      conf.setInt(Riff.Options.BUFFER_SIZE, -1)
-      var writer = new FileWriter(fs, conf, path, td, codec)
-      writer.bufferSize should be (Riff.Options.BUFFER_SIZE_MIN)
-
-      conf.setInt(Riff.Options.BUFFER_SIZE, Int.MaxValue)
-      writer = new FileWriter(fs, conf, path, td, codec)
-      writer.bufferSize should be (Riff.Options.BUFFER_SIZE_MAX)
-
-      conf.setInt(Riff.Options.BUFFER_SIZE, 128 * 1024)
-      writer = new FileWriter(fs, conf, path, td, codec)
-      writer.bufferSize should be (128 * 1024)
-
-      conf.setInt(Riff.Options.BUFFER_SIZE, 129 * 1024)
-      writer = new FileWriter(fs, conf, path, td, codec)
-      writer.bufferSize should be (256 * 1024)
-
-      conf.setInt(Riff.Options.BUFFER_SIZE, 257 * 1024)
-      writer = new FileWriter(fs, conf, path, td, codec)
-      writer.bufferSize should be (Riff.Options.BUFFER_SIZE_MAX)
-    }
-  }
-
   test("fail to make subsequent write using the same writer") {
     withTempDir { dir =>
       val conf = new Configuration(false)

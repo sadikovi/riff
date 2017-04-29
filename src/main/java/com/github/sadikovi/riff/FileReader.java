@@ -133,8 +133,8 @@ public class FileReader {
       final int len = in.readInt();
       LOG.info("Read file statistics content of {} bytes", len);
       ByteBuffer buffer = ByteBuffer.allocate(len);
-      in.read(buffer);
-      buffer.flip();
+      // do not flip buffer after this operation as we write directly into underlying array
+      in.readFully(buffer.array(), buffer.arrayOffset(), buffer.limit());
       // read file statistics
       Statistics[] fileStats = new Statistics[buffer.getInt()];
       for (int i = 0; i < fileStats.length; i++) {
@@ -160,8 +160,8 @@ public class FileReader {
       final int contentLen = in.readInt();
       LOG.info("Read content of {} bytes", contentLen);
       buffer = ByteBuffer.allocate(contentLen);
-      in.read(buffer);
-      buffer.flip();
+      // do not flip buffer after this operation as we write directly into underlying array
+      in.readFully(buffer.array(), buffer.arrayOffset(), buffer.limit());
       StripeInformation[] stripes = new StripeInformation[buffer.getInt()];
       for (int i = 0; i < stripes.length; i++) {
         stripes[i] = StripeInformation.readExternal(buffer);
