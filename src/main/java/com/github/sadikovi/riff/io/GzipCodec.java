@@ -49,7 +49,11 @@ public class GzipCodec implements CompressionCodec {
     compressedStream.finish();
     byte[] data = buffer.array();
     // if compressed data is larger than raw data, return false without updating out buffer
-    if (length <= data.length) return false;
+    if (length <= data.length) {
+      out.position(out.limit());
+      overflow.position(overflow.limit());
+      return false;
+    }
     int pos = 0;
     while (pos < data.length) {
       int len = Math.min(data.length - pos, out.remaining());
@@ -71,18 +75,22 @@ public class GzipCodec implements CompressionCodec {
     ByteArrayInputStream stream = new ByteArrayInputStream(in.array(),
       in.arrayOffset() + in.position(), in.remaining());
     GZIPInputStream compressedStream = new GZIPInputStream(stream, GZIP_BUFFER_SIZE);
-    boolean hasRemaining = true;
-    while (hasRemaining) {
-      int bytes = compressedStream.read(out.array(), out.arrayOffset() + out.position(),
-        out.remaining());
-      if (bytes < 0) throw new IOException("EOF decompressing buffer");
-      out.position(bytes + out.position());
-      hasRemaining = compressedStream.available() != 0;
-      // if out buffer has 0 bytes space left, but inflater has some bytes to decompress, throw an
-      // exception because of output buffer being too short; this is similar to zlibcodec
-      if (out.remaining() == 0 && hasRemaining) {
-        throw new IOException("Output buffer is too short, could not insert more bytes from " +
-          "compressed byte buffer");
+    int bytes = 0;
+    while (bytes != -1) {
+      if (out.remaining() == 0) {
+        bytes = compressedStream.read();
+      } else {
+        bytes = compressedStream.read(out.array(), out.arrayOffset() + out.position(),
+          out.remaining());
+      }
+      if (bytes != -1) {
+        // if out buffer has 0 bytes space left, but inflater has some bytes to decompress, throw an
+        // exception because of output buffer being too short; this is similar to zlibcodec
+        if (out.remaining() == 0) {
+          throw new IOException("Output buffer is too short, could not insert more bytes from " +
+            "compressed byte buffer");
+        }
+        out.position(bytes + out.position());
       }
     }
     compressedStream.close();
