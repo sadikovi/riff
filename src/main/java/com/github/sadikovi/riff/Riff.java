@@ -34,8 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.github.sadikovi.riff.io.CompressionCodec;
-import com.github.sadikovi.riff.io.GzipCodec;
-import com.github.sadikovi.riff.io.ZlibCodec;
+import com.github.sadikovi.riff.io.CompressionCodecFactory;
 
 public class Riff {
   private static final Logger LOG = LoggerFactory.getLogger(Riff.class);
@@ -118,32 +117,22 @@ public class Riff {
   }
 
   /**
-   * Encode compression codec into byte flag. If codec is null return 0 for uncompressed flag.
-   * Flag should always be positive.
+   * Encode compression codec into byte flag.
    * @param codec compression codec, can be null
    * @return byte encoded flag
    */
   static byte encodeCompressionCodec(CompressionCodec codec) {
-    // uncompressed stream
-    if (codec == null) return 0;
-    if (codec instanceof ZlibCodec) return 1;
-    if (codec instanceof GzipCodec) return 2;
-    throw new UnsupportedOperationException("Unknown codec: " + codec);
+    return CompressionCodecFactory.encode(codec);
   }
 
   /**
-   * Decode byte encoded flag into compression codec. Compression codec can be null if flag is set
-   * to 0. Flag should always be positive.
+   * Decode byte encoded flag into compression codec.
+   * Compression codec can be null if flag is set to 0.
    * @param flag byte flag
    * @return compression codec or null for uncompressed stream
    */
   static CompressionCodec decodeCompressionCodec(byte flag) {
-    // uncompressed stream
-    if (flag == 0) return null;
-    // return zlib codec with default settings
-    if (flag == 1) return new ZlibCodec();
-    if (flag == 2) return new GzipCodec();
-    throw new UnsupportedOperationException("Unknown codec flag: " + flag);
+    return CompressionCodecFactory.decode(flag);
   }
 
   /**
@@ -205,7 +194,7 @@ public class Riff {
      * @return this instance
      */
     public T setHadoopStreamBufferSize(int bytes) {
-      this.conf.setInt("io.file.buffer.size", bytes);
+      this.conf.setInt(Options.HDFS_BUFFER_SIZE, bytes);
       return this.instance;
     }
 
@@ -246,25 +235,11 @@ public class Riff {
 
     /**
      * Force compression codec for writer.
-     * @param codecName string name of the codec {DEFLATE, NONE}
+     * @param codecName string name of the codec {DEFLATE, GZIP, NONE}
      * @return this instance
      */
     public WriterBuilder setCodec(String codecName) {
-      switch (codecName.toLowerCase()) {
-        case "deflate":
-          this.codec = new ZlibCodec();
-          break;
-        case "gzip":
-          this.codec = new GzipCodec();
-          break;
-        case "none":
-          this.codec = null;
-          break;
-        default:
-          throw new UnsupportedOperationException("Unknown codec: " + codecName);
-      }
-      this.codecSet = true;
-      return this;
+      return setCodec(CompressionCodecFactory.forShortName(codecName));
     }
 
     /**
@@ -273,7 +248,6 @@ public class Riff {
      * @return this instance
      */
     public WriterBuilder setCodec(CompressionCodec codec) {
-      // codec can be null
       this.codec = codec;
       this.codecSet = true;
       return this;
@@ -318,10 +292,9 @@ public class Riff {
      */
     protected CompressionCodec inferCompressionCodec(Path path) {
       String name = path.getName();
-      if (name.endsWith(".deflate")) return new ZlibCodec();
-      if (name.endsWith(".gz")) return new GzipCodec();
-      // return null for uncompressed
-      return null;
+      int start = name.lastIndexOf('.');
+      String ext = (start <= 0) ? "" : name.substring(start);
+      return CompressionCodecFactory.forFileExt(ext);
     }
 
     @Override
