@@ -24,6 +24,7 @@ package com.github.sadikovi.riff;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 import com.github.sadikovi.riff.io.OutputBuffer;
 import com.github.sadikovi.riff.io.StripeOutputBuffer;
@@ -32,7 +33,7 @@ import com.github.sadikovi.riff.io.StripeOutputBuffer;
  * Interface for single stripe.
  * Contains information for reader.
  */
-public class StripeInformation {
+public class StripeInformation implements Comparable<StripeInformation> {
   public static final byte MAGIC = 47;
 
   private final short id;
@@ -155,6 +156,23 @@ public class StripeInformation {
       }
     }
     return new StripeInformation(id, offset, length, stats);
+  }
+
+  @Override
+  public int compareTo(StripeInformation that) {
+    return Long.compare(this.offset, that.offset);
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (obj == null || !(obj instanceof StripeInformation)) return false;
+    StripeInformation that = (StripeInformation) obj;
+    boolean same = this.id() == that.id() && this.offset() == that.offset() &&
+      this.length() == that.length() && this.hasStatistics() == that.hasStatistics();
+    if (same && hasStatistics()) {
+      return Arrays.equals(this.getStatistics(), that.getStatistics());
+    }
+    return same;
   }
 
   @Override

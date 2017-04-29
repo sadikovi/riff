@@ -113,6 +113,17 @@ class BufferSuite extends UnitTestSuite {
     }
   }
 
+  test("initialize empty row buffer with null stream") {
+    val rowbuf = Buffers.emptyRowBuffer()
+    rowbuf.hasNext should be (false)
+    val err = intercept[NoSuchElementException] {
+      rowbuf.next
+    }
+    err.getMessage should be ("Empty iterator")
+    // should be able to close with null stream
+    rowbuf.close()
+  }
+
   test("select direct scan buffer") {
     withTempDir { dir =>
       val writer = new IndexedRowWriter(td)

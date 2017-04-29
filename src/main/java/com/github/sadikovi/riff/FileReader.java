@@ -224,7 +224,7 @@ public class FileReader {
    * @param state predicate state to evaluate, can be null
    * @return reduced stripe information
    */
-  private static StripeInformation[] evaluateStripes(
+  protected static StripeInformation[] evaluateStripes(
       StripeInformation[] stripes,
       PredicateState state) {
     if (state != null) {
@@ -268,8 +268,9 @@ public class FileReader {
    * @param expectedFileId expected file id
    * @throws AssertionError if file ids do not match
    */
-  private static void assertBytes(byte[] arr1, byte[] arr2, String prefix) {
-    String msg = prefix + ": " + Arrays.toString(arr1) + " != " + Arrays.toString(arr2);
+  protected static void assertBytes(byte[] arr1, byte[] arr2, String prefix) {
+    String msg = prefix + ": " + ((arr1 == null) ? "null" : Arrays.toString(arr1)) + " != " +
+      ((arr2 == null) ? "null" : Arrays.toString(arr2));
     if (arr1 == null || arr2 == null || arr1.length != arr2.length) {
       throw new AssertionError(msg);
     }
