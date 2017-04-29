@@ -34,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.github.sadikovi.riff.io.CompressionCodec;
+import com.github.sadikovi.riff.io.GzipCodec;
 import com.github.sadikovi.riff.io.ZlibCodec;
 
 public class Riff {
@@ -126,6 +127,7 @@ public class Riff {
     // uncompressed stream
     if (codec == null) return 0;
     if (codec instanceof ZlibCodec) return 1;
+    if (codec instanceof GzipCodec) return 2;
     throw new UnsupportedOperationException("Unknown codec: " + codec);
   }
 
@@ -140,6 +142,7 @@ public class Riff {
     if (flag == 0) return null;
     // return zlib codec with default settings
     if (flag == 1) return new ZlibCodec();
+    if (flag == 2) return new GzipCodec();
     throw new UnsupportedOperationException("Unknown codec flag: " + flag);
   }
 
@@ -243,13 +246,16 @@ public class Riff {
 
     /**
      * Force compression codec for writer.
-     * @param codecName string name of the codec {ZLIB, NONE}
+     * @param codecName string name of the codec {DEFLATE, NONE}
      * @return this instance
      */
     public WriterBuilder setCodec(String codecName) {
       switch (codecName.toLowerCase()) {
-        case "zlib":
+        case "deflate":
           this.codec = new ZlibCodec();
+          break;
+        case "gzip":
+          this.codec = new GzipCodec();
           break;
         case "none":
           this.codec = null;
@@ -310,8 +316,11 @@ public class Riff {
      * @param path path to the file
      * @return compression codec or null for uncompressed
      */
-    private CompressionCodec inferCompressionCodec(Path path) {
-      // TODO: infer compression from path
+    protected CompressionCodec inferCompressionCodec(Path path) {
+      String name = path.getName();
+      if (name.endsWith(".deflate")) return new ZlibCodec();
+      if (name.endsWith(".gz")) return new GzipCodec();
+      // return null for uncompressed
       return null;
     }
 
@@ -324,6 +333,10 @@ public class Riff {
       // set file system if none found
       if (fs == null) {
         fs = path.getFileSystem(conf);
+      }
+      // type description is required
+      if (td == null) {
+        throw new RuntimeException("Type description is not set");
       }
       FileWriter writer = new FileWriter(fs, conf, path, td, codec);
       LOG.info("Created writer {}", writer);

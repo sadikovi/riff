@@ -56,7 +56,8 @@ class FileWriterSuite extends UnitTestSuite {
         s"type_desc=$td, " +
         s"rows_per_stripe=${Riff.Options.STRIPE_ROWS_DEFAULT}, " +
         s"is_compressed=${codec != null}, " +
-        s"buffer_size=${Riff.Options.BUFFER_SIZE_DEFAULT}]")
+        s"buffer_size=${Riff.Options.BUFFER_SIZE_DEFAULT}, " +
+        s"hdfs_buffer_size=${Riff.Options.HDFS_BUFFER_SIZE_DEFAULT}]")
     }
   }
 
@@ -78,7 +79,8 @@ class FileWriterSuite extends UnitTestSuite {
         s"type_desc=$td, " +
         s"rows_per_stripe=${Riff.Options.STRIPE_ROWS_DEFAULT}, " +
         s"is_compressed=${codec != null}, " +
-        s"buffer_size=${Riff.Options.BUFFER_SIZE_DEFAULT}]")
+        s"buffer_size=${Riff.Options.BUFFER_SIZE_DEFAULT}, " +
+        s"hdfs_buffer_size=${Riff.Options.HDFS_BUFFER_SIZE_DEFAULT}]")
     }
   }
 
