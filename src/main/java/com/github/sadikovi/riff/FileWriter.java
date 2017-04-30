@@ -64,7 +64,7 @@ import com.github.sadikovi.riff.io.StripeOutputBuffer;
  * goes for `finishWrite` method. When `finishWrite` is called, writer flushes the last stripe and
  * creates header file for the already written data file.
  */
-class FileWriter {
+public class FileWriter {
   private static final Logger LOG = LoggerFactory.getLogger(FileWriter.class);
 
   // file system to use for writing a file
