@@ -94,6 +94,11 @@ public class Riff {
     // default buffer size for HDFS, should be multiple of 4096 bytes, same as in core-default.xml
     public static final int HDFS_BUFFER_SIZE_DEFAULT = 4 * 1024;
 
+    // whether or not column filters are enabled and should be written into header
+    public static final String COLUMN_FILTER_ENABLED = "riff.column.filter.enabled";
+    // column filters are enabled by default
+    public static final boolean COLUMN_FILTER_ENABLED_DEFAULT = false;
+
     /**
      * Select next power of 2 as buffer size.
      * @param conf configuration
@@ -101,12 +106,12 @@ public class Riff {
      */
     static int power2BufferSize(Configuration conf) {
       int bytes = conf.getInt(BUFFER_SIZE, BUFFER_SIZE_DEFAULT);
-      if (bytes > Riff.Options.BUFFER_SIZE_MAX) return Riff.Options.BUFFER_SIZE_MAX;
-      if (bytes < Riff.Options.BUFFER_SIZE_MIN) return Riff.Options.BUFFER_SIZE_MIN;
+      if (bytes > BUFFER_SIZE_MAX) return BUFFER_SIZE_MAX;
+      if (bytes < BUFFER_SIZE_MIN) return BUFFER_SIZE_MIN;
       // bytes is already power of 2
       if ((bytes & (bytes - 1)) == 0) return bytes;
       bytes = Integer.highestOneBit(bytes) << 1;
-      return (bytes < Riff.Options.BUFFER_SIZE_MAX) ? bytes : Riff.Options.BUFFER_SIZE_MAX;
+      return (bytes < BUFFER_SIZE_MAX) ? bytes : BUFFER_SIZE_MAX;
     }
 
     /**
@@ -129,13 +134,22 @@ public class Riff {
      * @return number of rows in stripe, or throws exception if number is invalid
      */
     static int numRowsInStripe(Configuration conf) {
-      int rows = conf.getInt(Riff.Options.STRIPE_ROWS, Riff.Options.STRIPE_ROWS_DEFAULT);
+      int rows = conf.getInt(STRIPE_ROWS, STRIPE_ROWS_DEFAULT);
       // there should be positive number of rows in stripe
       if (rows < 1) {
         throw new IllegalArgumentException("Expected positive number of rows in stripe, found " +
           rows + " <= 0");
       }
       return rows;
+    }
+
+    /**
+     * Select column filters (enable/disable).
+     * @param conf configuration
+     * @return true if column filters are enabled
+     */
+    static boolean columnFilterEnabled(Configuration conf) {
+      return conf.getBoolean(COLUMN_FILTER_ENABLED, COLUMN_FILTER_ENABLED_DEFAULT);
     }
   }
 

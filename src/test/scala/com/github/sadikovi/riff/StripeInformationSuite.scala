@@ -45,11 +45,15 @@ class StripeInformationSuite extends UnitTestSuite {
 
   test("toString method") {
     val info1 = new StripeInformation(123.toByte, 12345L, Int.MaxValue, null)
-    info1.toString should be (
-      s"Stripe[id=123, offset=12345, length=${Int.MaxValue}, has_stats=false]")
+    info1.toString should be (s"Stripe[id=123, offset=12345, length=${Int.MaxValue}, " +
+      "has_stats=false, has_column_filters=false]")
     val info2 = new StripeInformation(123.toByte, 12345L, Int.MaxValue, Array[Statistics]())
-    info2.toString should be (
-      s"Stripe[id=123, offset=12345, length=${Int.MaxValue}, has_stats=true]")
+    info2.toString should be (s"Stripe[id=123, offset=12345, length=${Int.MaxValue}, " +
+      "has_stats=true, has_column_filters=false]")
+    val info3 = new StripeInformation(123.toByte, 12345L, Int.MaxValue, Array[Statistics](),
+      Array[ColumnFilter]())
+    info3.toString should be (s"Stripe[id=123, offset=12345, length=${Int.MaxValue}, " +
+      "has_stats=true, has_column_filters=true]")
   }
 
   test("assert negative values in stripe information") {
@@ -144,7 +148,7 @@ class StripeInformationSuite extends UnitTestSuite {
     stripe2 = new StripeInformation(1.toByte, 123L, 101, null)
     assert(stripe1 != stripe2)
 
-    stripe1 = new StripeInformation(1.toByte, 123L, 100, Array.empty)
+    stripe1 = new StripeInformation(1.toByte, 123L, 100, Array.empty[Statistics])
     stripe2 = new StripeInformation(1.toByte, 123L, 100, null)
     assert(stripe1 != stripe2)
 

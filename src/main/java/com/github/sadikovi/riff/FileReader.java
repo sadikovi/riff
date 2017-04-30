@@ -243,6 +243,14 @@ public class FileReader {
             keep = state.tree().evaluate(stripes[i].getStatistics());
           }
         }
+        // if predicate passes statistics, evaluate column filters
+        if (keep && stripes[i].hasColumnFilters()) {
+          if (state.hasIndexedTreeOnly()) {
+            keep = state.indexTree().evaluate(stripes[i].getColumnFilters());
+          } else {
+            keep = state.tree().evaluate(stripes[i].getColumnFilters());
+          }
+        }
 
         if (!keep) {
           stripes[i] = null;

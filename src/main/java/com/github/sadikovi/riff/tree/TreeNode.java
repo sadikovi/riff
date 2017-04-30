@@ -24,6 +24,7 @@ package com.github.sadikovi.riff.tree;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 
+import com.github.sadikovi.riff.ColumnFilter;
 import com.github.sadikovi.riff.Statistics;
 
 /**
@@ -57,6 +58,15 @@ public interface TreeNode {
    * @return true if predicate is unknown or evaluated, false if it does not pass statistics
    */
   boolean evaluate(Statistics[] stats);
+
+  /**
+   * Evaluate tree for provided non-null array of column filters. They are loaded as part of stripe
+   * information, and each ordinal of filter instance corresponds to the ordinal of type spec - and
+   * matches ordinal stored for each leaf node. Each filter is guaranteed to be non-null.
+   * @param filters array of column filters
+   * @return true if predicate is unknown or evaluated, false if it does not pass filter
+   */
+  boolean evaluate(ColumnFilter[] filters);
 
   /**
    * Transform current tree based on rule. This should always return a copy of tree with

@@ -41,16 +41,28 @@ public class StripeInformation implements Comparable<StripeInformation> {
   private final int length;
   // array of statistics, each index matches type spec index in type description
   private final Statistics[] stats;
+  // array of column filters, each index matches type spec index in type description
+  private final ColumnFilter[] filters;
 
   public StripeInformation(StripeOutputBuffer stripe, long pos) {
-    this(stripe.id(), pos, stripe.length(), null);
+    this(stripe.id(), pos, stripe.length(), null, null);
   }
 
   public StripeInformation(StripeOutputBuffer stripe, long pos, Statistics[] stats) {
-    this(stripe.id(), pos, stripe.length(), stats);
+    this(stripe.id(), pos, stripe.length(), stats, null);
+  }
+
+  public StripeInformation(
+      StripeOutputBuffer stripe, long pos, Statistics[] stats, ColumnFilter[] filters) {
+    this(stripe.id(), pos, stripe.length(), stats, filters);
   }
 
   public StripeInformation(short id, long offset, int length, Statistics[] stats) {
+    this(id, offset, length, stats, null);
+  }
+
+  public StripeInformation(
+      short id, long offset, int length, Statistics[] stats, ColumnFilter[] filters) {
     if (id < 0) throw new IllegalArgumentException("Negative id: " + id);
     if (offset < 0) throw new IllegalArgumentException("Negative offset: " + offset);
     if (length < 0) throw new IllegalArgumentException("Negative length: " + length);
@@ -58,6 +70,7 @@ public class StripeInformation implements Comparable<StripeInformation> {
     this.offset = offset;
     this.length = length;
     this.stats = stats;
+    this.filters = filters;
   }
 
   /**
@@ -102,6 +115,23 @@ public class StripeInformation implements Comparable<StripeInformation> {
   }
 
   /**
+   * Whether or not this stripe has column filters.
+   * @return true if stripe has filters, false otherwise
+   */
+  public boolean hasColumnFilters() {
+    return this.filters != null;
+  }
+
+  /**
+   * Get column filters for this stripe, can be null - see `hasColumnFilters()` method.
+   * Returned instance should be considered read-only.
+   * @return stripe filters
+   */
+  public ColumnFilter[] getColumnFilters() {
+    return this.filters;
+  }
+
+  /**
    * Write stripe information into external stream.
    * @param buffer output buffer
    * @throws IOException
@@ -110,6 +140,7 @@ public class StripeInformation implements Comparable<StripeInformation> {
     byte flags = 0;
     // flag per bit, e.g. stripe has statistics, etc.
     flags |= hasStatistics() ? 1 : 0;
+    flags |= hasColumnFilters() ? 2 : 0;
     // stripe identifiers and flags
     buffer.writeByte(MAGIC);
     buffer.writeByte(flags);
@@ -124,6 +155,17 @@ public class StripeInformation implements Comparable<StripeInformation> {
       for (Statistics obj : stats) {
         if (obj == null) {
           throw new NullPointerException("Encountered null statistics for stripe " + this);
+        }
+        obj.writeExternal(buffer);
+      }
+    }
+    // stripe filters information
+    if (hasColumnFilters()) {
+      buffer.writeInt(filters.length);
+      // filters instance should never be null
+      for (ColumnFilter obj : filters) {
+        if (obj == null) {
+          throw new NullPointerException("Encountered null column filter for stripe " + this);
         }
         obj.writeExternal(buffer);
       }
@@ -144,6 +186,7 @@ public class StripeInformation implements Comparable<StripeInformation> {
     // stripe flags
     byte flags = buf.get();
     boolean hasStatistics = (flags & 1) != 0;
+    boolean hasFilters = (flags & 2) != 0;
     short id = buf.getShort();
     long offset = buf.getLong();
     int length = buf.getInt();
@@ -155,7 +198,15 @@ public class StripeInformation implements Comparable<StripeInformation> {
         stats[i] = Statistics.readExternal(buf);
       }
     }
-    return new StripeInformation(id, offset, length, stats);
+    ColumnFilter[] filters = null;
+    if (hasFilters) {
+      int len = buf.getInt();
+      filters = new ColumnFilter[len];
+      for (int i = 0; i < len; i++) {
+        filters[i] = ColumnFilter.readExternal(buf);
+      }
+    }
+    return new StripeInformation(id, offset, length, stats, filters);
   }
 
   @Override
@@ -169,8 +220,11 @@ public class StripeInformation implements Comparable<StripeInformation> {
     StripeInformation that = (StripeInformation) obj;
     boolean same = this.id() == that.id() && this.offset() == that.offset() &&
       this.length() == that.length() && this.hasStatistics() == that.hasStatistics();
-    if (same && hasStatistics()) {
-      return Arrays.equals(this.getStatistics(), that.getStatistics());
+    if (hasStatistics()) {
+      same = same && Arrays.equals(this.getStatistics(), that.getStatistics());
+    }
+    if (hasColumnFilters()) {
+      same = same && Arrays.equals(this.getColumnFilters(), that.getColumnFilters());
     }
     return same;
   }
@@ -178,6 +232,6 @@ public class StripeInformation implements Comparable<StripeInformation> {
   @Override
   public String toString() {
     return "Stripe[id=" + id + ", offset=" + offset + ", length=" + length +
-      ", has_stats=" + hasStatistics() + "]";
+      ", has_stats=" + hasStatistics() + ", has_column_filters=" + hasColumnFilters() + "]";
   }
 }
