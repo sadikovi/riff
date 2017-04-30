@@ -426,9 +426,9 @@ public class FileWriter {
    */
   private static ColumnFilter[] createColumnFilters(
       TypeDescription td, boolean enabled, int stripeRows) {
-    if (!enabled) return null;
+    // column filters are created only if enabled and type description contains any indexed fields
+    if (!enabled || td.indexFields().length == 0) return null;
     ColumnFilter[] filters = new ColumnFilter[td.fields().length];
-    // column filters are created for index fields only
     for (int i = 0; i < td.fields().length; i++) {
       if (td.fields()[i].isIndexed()) {
         filters[i] = ColumnFilter.sqlTypeToBloomFilter(td.fields()[i].dataType(), stripeRows);
