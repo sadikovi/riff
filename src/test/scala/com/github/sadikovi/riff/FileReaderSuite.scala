@@ -22,6 +22,8 @@
 
 package com.github.sadikovi.riff
 
+import java.io.IOException
+
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.catalyst.InternalRow
@@ -150,5 +152,53 @@ class FileReaderSuite extends UnitTestSuite {
     val res = FileReader.evaluateStripes(stripes, state)
     // must be sorted by offset
     res should be (Array(stripes(1)))
+  }
+
+  test("file reader reuse") {
+    withTempDir { dir =>
+      val writer = Riff.writer.setTypeDesc(td).create(dir / "path")
+      writer.prepareWrite()
+      writer.finishWrite()
+
+      // test prepareRead
+      val reader1 = Riff.reader.create(dir / "path")
+      reader1.prepareRead()
+      var err = intercept[IOException] { reader1.prepareRead() }
+      err.getMessage should be ("Reader reuse")
+      err = intercept[IOException] { reader1.readTypeDescription() }
+      err.getMessage should be ("Reader reuse")
+
+      // test readTypeDescription
+      val reader2 = Riff.reader.create(dir / "path")
+      reader2.readTypeDescription()
+      err = intercept[IOException] { reader2.readTypeDescription() }
+      err.getMessage should be ("Reader reuse")
+      err = intercept[IOException] { reader2.prepareRead() }
+      err.getMessage should be ("Reader reuse")
+    }
+  }
+
+  test("read type description") {
+    withTempDir { dir =>
+      val writer = Riff.writer.setTypeDesc(td).create(dir / "path")
+      writer.prepareWrite()
+      writer.finishWrite()
+
+      val reader = Riff.reader.create(dir / "path")
+      val td1 = reader.readTypeDescription()
+      val td2 = reader.getTypeDescription()
+      td1 should be (td)
+      td2 should be (td)
+    }
+  }
+
+  test("fail to get type description if it is not set") {
+    withTempDir { dir =>
+      val reader = Riff.reader.create(dir / "path")
+      val err = intercept[IllegalStateException] {
+        reader.getTypeDescription()
+      }
+      assert(err.getMessage.contains("Type description is not set"))
+    }
   }
 }

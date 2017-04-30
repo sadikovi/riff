@@ -306,4 +306,28 @@ class TypeDescriptionSuite extends UnitTestSuite {
     td2.equals(td1) should be (true)
     td2.toString should be (td1.toString)
   }
+
+  test("convert to struct type") {
+    val schema = StructType(
+      StructField("col1", IntegerType) ::
+      StructField("col2", LongType) ::
+      StructField("col3", IntegerType) ::
+      StructField("col4", StringType) ::
+      StructField("col5", StringType) :: Nil)
+    val td = new TypeDescription(schema, Array("col4", "col1", "col5"))
+    td.toStructType() should be (StructType(
+      StructField("col4", StringType) ::
+      StructField("col1", IntegerType) ::
+      StructField("col5", StringType) ::
+      StructField("col2", LongType) ::
+      StructField("col3", IntegerType) :: Nil))
+  }
+
+  test("convert to struct type without index fields") {
+    val schema = StructType(
+      StructField("col1", IntegerType) ::
+      StructField("col2", LongType) :: Nil)
+    val td = new TypeDescription(schema)
+    td.toStructType() should be (schema)
+  }
 }
