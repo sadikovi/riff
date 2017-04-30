@@ -71,6 +71,10 @@ public class FileReader {
   private final int bufferSize;
   // HDFS buffer size for opening stream
   private final int hdfsBufferSize;
+  // type description for this file reader
+  private TypeDescription td;
+  // whether or not read has been prepared, this flag is also set when reading type description
+  private boolean readPrepared;
 
   FileReader(FileSystem fs, Configuration conf, Path path) {
     this.fs = fs;
@@ -79,6 +83,9 @@ public class FileReader {
     this.dataPath = Riff.makeDataPath(this.headerPath);
     this.bufferSize = Riff.Options.power2BufferSize(conf);
     this.hdfsBufferSize = Riff.Options.hdfsBufferSize(conf);
+    // type description is only available after preparing read
+    this.td = null;
+    this.readPrepared = false;
   }
 
   /**
@@ -98,6 +105,7 @@ public class FileReader {
    * @throws IOException
    */
   public RowBuffer prepareRead(TreeNode filter) throws FileNotFoundException, IOException {
+    if (readPrepared) throw new IOException("Reader reuse");
     // we start with reading header file and extracting all information that is required to validate
     // file and/or resolve statistics
     FSDataInputStream in = null;
@@ -108,7 +116,7 @@ public class FileReader {
       // extract 8 byte long flags
       byte[] flags = readHeaderState(in);
       // read type description
-      TypeDescription td = TypeDescription.readExternal(in);
+      td = TypeDescription.readExternal(in);
       LOG.info("Found type description {}", td);
       LOG.info("Read header flags {}", Arrays.toString(flags));
       CompressionCodec codec = Riff.decodeCompressionCodec(flags[0]);
@@ -172,12 +180,56 @@ public class FileReader {
       // open data file and check file id
       in = fs.open(dataPath, hdfsBufferSize);
       assertBytes(fileId, readHeader(in), "Wrong file id");
+      readPrepared = true;
       return Buffers.prepareRowBuffer(in, stripes, td, codec, bufferSize, state);
     } catch (IOException ioe) {
       if (in != null) {
         in.close();
       }
       throw ioe;
+    }
+  }
+
+  /**
+   * Type description for this reader.
+   * Only available after calling prepareRead() method, since it deserializes type description as
+   * part of that call, otherwise exception is thrown.
+   * @return type description
+   * @throws IllegalStateException if not set
+   */
+  public TypeDescription getTypeDescription() {
+    if (td == null) {
+      throw new IllegalStateException("Type description is not set, did you call `prepareRead()` " +
+        "or `readTypeDescription` methods?");
+    }
+    return td;
+  }
+
+  /**
+   * Read type description from header file for this reader.
+   * This method should be invoked separately from `prepareRead()`, and after this call type
+   * description is available with `getTypeDescription()` call.
+   *
+   * Note: this method should be in sync with `readHeader` and `readHeaderState`.
+   *
+   * @return type description and set it internally, so there is no need to call it again
+   * @throws FileNotFoundException if header file does not exist
+   * @throws IOException if IO error occurs
+   */
+  public TypeDescription readTypeDescription() throws FileNotFoundException, IOException {
+    if (readPrepared) throw new IOException("Reader reuse");
+    FSDataInputStream in = null;
+    try {
+      in = fs.open(headerPath, hdfsBufferSize);
+      // we skip header (4 bytes magic + 12 bytes file id) and state (8 bytes flags)
+      in.skipBytes(4 + 12 + 8);
+      td = TypeDescription.readExternal(in);
+      readPrepared = true;
+      return td;
+    } finally {
+      if (in != null) {
+        in.close();
+      }
     }
   }
 
