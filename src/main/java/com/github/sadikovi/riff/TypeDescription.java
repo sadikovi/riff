@@ -209,6 +209,20 @@ public class TypeDescription implements Serializable {
   }
 
   /**
+   * Convert this type description into Spark SQL struct type.
+   * @return struct type
+   */
+  public StructType toStructType() {
+    // StructField instances are immutable, therefore it is safe to pass them directly to
+    // construct struct type
+    StructType struct = new StructType();
+    for (int i = 0; i < ordinalFields.length; i++) {
+      struct = struct.add(ordinalFields[i].field());
+    }
+    return struct;
+  }
+
+  /**
    * Write type description into external output stream.
    * Does not close stream.
    * @param out output stream
