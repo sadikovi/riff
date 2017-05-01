@@ -29,6 +29,11 @@ import com.github.sadikovi.riff.Statistics;
 import com.github.sadikovi.riff.TypeDescription;
 import com.github.sadikovi.riff.TypeSpec;
 
+/**
+ * [[BoundReference]] represents leaf node with known name/ordinal. This is a leaf node for filters,
+ * such as `IsNull` and other that do need value information for comparison. Subclasses might
+ * overwrite default behaviours to bind name/ordinal to value expression.
+ */
 public abstract class BoundReference implements Tree {
   // alias for unresolved ordinal
   protected static final int UNRESOLVED_ORDINAL = -1;
