@@ -42,31 +42,31 @@ public interface TypedExpression<T> extends Comparable<T> {
    * Value at ordinal in row equals this expression.
    * @return true if row ordinal value equals expression, false otherwise
    */
-  boolean eqExpression(InternalRow row, int ordinal);
+  boolean eqExpr(InternalRow row, int ordinal);
 
   /**
    * Value at ordinal in row is greater than this expression.
    * @return true if row ordinal value is greater than expression, false otherwise
    */
-  boolean gtExpression(InternalRow row, int ordinal);
+  boolean gtExpr(InternalRow row, int ordinal);
 
   /**
    * Value at ordinal in row is less than this expression.
    * @return true if row ordinal value is less than expression, false otherwise
    */
-  boolean ltExpression(InternalRow row, int ordinal);
+  boolean ltExpr(InternalRow row, int ordinal);
 
   /**
    * Row value at ordinal in row is greater than or equal to this expression.
    * @return true if ordinal value is greater than or equal to expression, false otherwise
    */
-  boolean geExpression(InternalRow row, int ordinal);
+  boolean geExpr(InternalRow row, int ordinal);
 
   /**
    * Row value at ordinal in row is less than or equal to this expression.
    * @return true if ordinal value is less than or equal to expression, false otherwise
    */
-  boolean leExpression(InternalRow row, int ordinal);
+  boolean leExpr(InternalRow row, int ordinal);
 
   /**
    * Java "equals" method to compare with an object.

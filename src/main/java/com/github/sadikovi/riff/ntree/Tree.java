@@ -24,6 +24,8 @@ package com.github.sadikovi.riff.ntree;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 
+import com.github.sadikovi.riff.ColumnFilter;
+import com.github.sadikovi.riff.Statistics;
 import com.github.sadikovi.riff.TypeDescription;
 
 /**
@@ -41,12 +43,36 @@ public interface Tree {
   boolean evaluateState(InternalRow row);
 
   /**
+   * Evaluate tree for provided statistics. Statistics array comes from stripe information, each
+   * ordinal of statistics instance corresponds to the ordinal of type spec - and matches ordinal
+   * stored for each leaf node.
+   * @param stats array of statistics
+   * @return true if predicate is unknown or evaluated, false if it does not pass statistics
+   */
+  boolean evaluateState(Statistics[] stats);
+
+  /**
+   * Evaluate tree for provided non-null array of column filters. They are loaded as part of stripe
+   * information, and each ordinal of filter instance corresponds to the ordinal of type spec - and
+   * matches ordinal stored for each leaf node. Each filter is guaranteed to be non-null.
+   * @param filters array of column filters
+   * @return true if predicate is unknown or evaluated, false if it does not pass filter
+   */
+  boolean evaluateState(ColumnFilter[] filters);
+
+  /**
    * Transform current tree using rule.
    * This should always return full copy of the tree.
    * @param rule rule to use for transform
    * @return copy of this tree
    */
   Tree transform(Rule rule);
+
+  /**
+   * Return a full copy of this node and all its children.
+   * @return copy of the tree
+   */
+  Tree copy();
 
   /**
    * Analyze this tree for current type description. Type description is evaluated for bound
