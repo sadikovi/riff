@@ -30,6 +30,7 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.NullType;
 import org.apache.spark.unsafe.types.UTF8String;
 
+import com.github.sadikovi.riff.ColumnFilter;
 import com.github.sadikovi.riff.Statistics;
 
 public class Tree {
@@ -260,6 +261,11 @@ public class Tree {
     }
 
     @Override
+    public boolean evaluate(ColumnFilter[] filters) {
+      return left.evaluate(filters) && right.evaluate(filters);
+    }
+
+    @Override
     public TreeNode transform(Rule rule) {
       return rule.update(this);
     }
@@ -304,6 +310,11 @@ public class Tree {
     }
 
     @Override
+    public boolean evaluate(ColumnFilter[] filters) {
+      return left.evaluate(filters) || right.evaluate(filters);
+    }
+
+    @Override
     public TreeNode transform(Rule rule) {
       return rule.update(this);
     }
@@ -316,6 +327,7 @@ public class Tree {
 
   /**
    * "Not" unary logical node, negates expression of child.
+   * TODO: fix how not handles state, currently `not` would inverse "unknown" state.
    */
   public static class Not extends UnaryLogicalNode {
     private final TreeNode child;
@@ -337,6 +349,11 @@ public class Tree {
     @Override
     public boolean evaluate(Statistics[] stats) {
       return !child.evaluate(stats);
+    }
+
+    @Override
+    public boolean evaluate(ColumnFilter[] filters) {
+      return !child.evaluate(filters);
     }
 
     @Override
@@ -375,6 +392,11 @@ public class Tree {
 
     @Override
     public boolean evaluate(Statistics[] stats) {
+      return result;
+    }
+
+    @Override
+    public boolean evaluate(ColumnFilter[] filters) {
       return result;
     }
 

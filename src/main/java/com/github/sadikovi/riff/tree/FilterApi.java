@@ -32,6 +32,7 @@ import org.apache.spark.sql.types.LongType;
 import org.apache.spark.sql.types.StringType;
 import org.apache.spark.unsafe.types.UTF8String;
 
+import com.github.sadikovi.riff.ColumnFilter;
 import com.github.sadikovi.riff.tree.Tree.And;
 import com.github.sadikovi.riff.tree.Tree.GreaterThan;
 import com.github.sadikovi.riff.tree.Tree.GreaterThanOrEqual;
@@ -230,6 +231,10 @@ public class FilterApi {
       @Override public boolean statUpdate(int min, int max) {
         return min <= value && value <= max;
       }
+
+      @Override protected boolean evaluateFilter(ColumnFilter filter) {
+        return filter.mightContain(value);
+      }
     };
   }
 
@@ -253,6 +258,10 @@ public class FilterApi {
 
       @Override public boolean statUpdate(long min, long max) {
         return min <= value && value <= max;
+      }
+
+      @Override protected boolean evaluateFilter(ColumnFilter filter) {
+        return filter.mightContain(value);
       }
     };
   }
@@ -278,6 +287,10 @@ public class FilterApi {
       @Override public boolean statUpdate(UTF8String min, UTF8String max) {
         if (min == null && max == null) return false;
         return min.compareTo(value) <= 0 && value.compareTo(max) <= 0;
+      }
+
+      @Override protected boolean evaluateFilter(ColumnFilter filter) {
+        return filter.mightContain(value);
       }
     };
   }
@@ -623,6 +636,13 @@ public class FilterApi {
         }
         return false;
       }
+
+      @Override protected boolean evaluateFilter(ColumnFilter filter) {
+        for (int i = 0; i < arr.length; i++) {
+          if (filter.mightContain(arr[i])) return true;
+        }
+        return false;
+      }
     };
   }
 
@@ -652,6 +672,13 @@ public class FilterApi {
       @Override public boolean statUpdate(long min, long max) {
         for (int i = 0; i < arr.length; i++) {
           if (arr[i] >= min && arr[i] <= max) return true;
+        }
+        return false;
+      }
+
+      @Override protected boolean evaluateFilter(ColumnFilter filter) {
+        for (int i = 0; i < arr.length; i++) {
+          if (filter.mightContain(arr[i])) return true;
         }
         return false;
       }
@@ -685,6 +712,13 @@ public class FilterApi {
         if (min == null && max == null) return false;
         for (int i = 0; i < arr.length; i++) {
           if (arr[i].compareTo(min) >= 0 && arr[i].compareTo(max) <= 0) return true;
+        }
+        return false;
+      }
+
+      @Override protected boolean evaluateFilter(ColumnFilter filter) {
+        for (int i = 0; i < arr.length; i++) {
+          if (filter.mightContain(arr[i])) return true;
         }
         return false;
       }

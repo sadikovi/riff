@@ -45,11 +45,15 @@ class StripeInformationSuite extends UnitTestSuite {
 
   test("toString method") {
     val info1 = new StripeInformation(123.toByte, 12345L, Int.MaxValue, null)
-    info1.toString should be (
-      s"Stripe[id=123, offset=12345, length=${Int.MaxValue}, has_stats=false]")
+    info1.toString should be (s"Stripe[id=123, offset=12345, length=${Int.MaxValue}, " +
+      "has_stats=false, has_column_filters=false]")
     val info2 = new StripeInformation(123.toByte, 12345L, Int.MaxValue, Array[Statistics]())
-    info2.toString should be (
-      s"Stripe[id=123, offset=12345, length=${Int.MaxValue}, has_stats=true]")
+    info2.toString should be (s"Stripe[id=123, offset=12345, length=${Int.MaxValue}, " +
+      "has_stats=true, has_column_filters=false]")
+    val info3 = new StripeInformation(123.toByte, 12345L, Int.MaxValue, Array[Statistics](),
+      Array[ColumnFilter]())
+    info3.toString should be (s"Stripe[id=123, offset=12345, length=${Int.MaxValue}, " +
+      "has_stats=true, has_column_filters=true]")
   }
 
   test("assert negative values in stripe information") {
@@ -90,6 +94,8 @@ class StripeInformationSuite extends UnitTestSuite {
     info2.length() should be (info1.length())
     info2.hasStatistics() should be (info1.hasStatistics())
     info2.getStatistics() should be (info1.getStatistics())
+    info2.hasColumnFilters() should be (info1.hasColumnFilters())
+    info2.getColumnFilters() should be (info1.getColumnFilters())
     info2.toString() should be (info1.toString())
   }
 
@@ -144,7 +150,7 @@ class StripeInformationSuite extends UnitTestSuite {
     stripe2 = new StripeInformation(1.toByte, 123L, 101, null)
     assert(stripe1 != stripe2)
 
-    stripe1 = new StripeInformation(1.toByte, 123L, 100, Array.empty)
+    stripe1 = new StripeInformation(1.toByte, 123L, 100, Array.empty[Statistics])
     stripe2 = new StripeInformation(1.toByte, 123L, 100, null)
     assert(stripe1 != stripe2)
 
@@ -158,6 +164,63 @@ class StripeInformationSuite extends UnitTestSuite {
       Array(Statistics.sqlTypeToStatistics(IntegerType)))
     stripe2 = new StripeInformation(1.toByte, 123L, 100,
       Array(Statistics.sqlTypeToStatistics(IntegerType)))
+    assert(stripe1 == stripe2)
+  }
+
+  test("assert null column filter") {
+    val out = new OutputBuffer()
+    val filters = Array[ColumnFilter](null)
+    val info = new StripeInformation(123.toByte, 12345L, Int.MaxValue, null, filters)
+    val err = intercept[NullPointerException] {
+      info.writeExternal(out)
+    }
+    err.getMessage should be (s"Encountered null column filter for stripe $info")
+  }
+
+  test("write/read external with column filters") {
+    val out = new OutputBuffer()
+    val filters = Array(
+      ColumnFilter.sqlTypeToColumnFilter(IntegerType, 10),
+      ColumnFilter.sqlTypeToColumnFilter(LongType, 10),
+      ColumnFilter.sqlTypeToColumnFilter(StringType, 10))
+    val info1 = new StripeInformation(123.toByte, 12345L, Int.MaxValue, null, filters)
+    info1.writeExternal(out)
+
+    val in = ByteBuffer.wrap(out.array())
+    val info2 = StripeInformation.readExternal(in)
+
+    info2.id() should be (info1.id())
+    info2.offset() should be (info1.offset())
+    info2.length() should be (info1.length())
+    info2.hasStatistics() should be (info1.hasStatistics())
+    info2.getStatistics() should be (info1.getStatistics())
+    info2.hasColumnFilters() should be (info1.hasColumnFilters())
+    info2.getColumnFilters() should be (info1.getColumnFilters())
+    info2.toString() should be (info1.toString())
+  }
+
+  test("equality with column filters") {
+    var stripe1 = new StripeInformation(1.toByte, 123L, 100, null,
+      Array[ColumnFilter](null))
+    var stripe2 = new StripeInformation(1.toByte, 123L, 100, null)
+    assert(stripe1 != stripe2)
+
+    stripe1 = new StripeInformation(1.toByte, 123L, 100, null,
+      Array(ColumnFilter.noopFilter))
+    stripe2 = new StripeInformation(1.toByte, 123L, 100, null,
+      Array(ColumnFilter.noopFilter))
+    assert(stripe1 == stripe2)
+
+    stripe1 = new StripeInformation(1.toByte, 123L, 100, null,
+      Array(ColumnFilter.sqlTypeToColumnFilter(IntegerType, 10)))
+    stripe2 = new StripeInformation(1.toByte, 123L, 100, null,
+      Array(ColumnFilter.noopFilter))
+    assert(stripe1 != stripe2)
+
+    stripe1 = new StripeInformation(1.toByte, 123L, 100, null,
+      Array(ColumnFilter.sqlTypeToColumnFilter(IntegerType, 10)))
+    stripe2 = new StripeInformation(1.toByte, 123L, 100, null,
+      Array(ColumnFilter.sqlTypeToColumnFilter(IntegerType, 20)))
     assert(stripe1 == stripe2)
   }
 }

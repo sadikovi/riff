@@ -83,6 +83,8 @@ public class FileWriter {
   private final int bufferSize;
   // HDFS buffer size for creating stream
   private final int hdfsBufferSize;
+  // whether or not column filters are enabled
+  private final boolean columnFilterEnabled;
   // compression codec, can be null
   private final CompressionCodec codec;
 
@@ -106,6 +108,8 @@ public class FileWriter {
   private int stripeCurrentRecords;
   // statistics per stripe
   private Statistics[] stripeStats;
+  // column filters per stripe
+  private ColumnFilter[] stripeFilters;
 
   /**
    * Create file writer for path.
@@ -147,7 +151,11 @@ public class FileWriter {
     this.numRowsInStripe = Riff.Options.numRowsInStripe(conf);
     this.bufferSize = Riff.Options.power2BufferSize(conf);
     this.hdfsBufferSize = Riff.Options.hdfsBufferSize(conf);
+    this.columnFilterEnabled = Riff.Options.columnFilterEnabled(conf);
     this.codec = codec;
+    // current stripe stats and filters
+    this.stripeStats = null;
+    this.stripeFilters = null;
   }
 
   /**
@@ -248,6 +256,7 @@ public class FileWriter {
     stripe = new StripeOutputBuffer(stripeId++);
     stripeStream = new OutStream(bufferSize, codec, stripe);
     stripeStats = createStatistics(td);
+    stripeFilters = createColumnFilters(td, columnFilterEnabled, numRowsInStripe);
     stripeCurrentRecords = numRowsInStripe;
     LOG.info("Initialize stripe outstream {}", stripeStream);
     // create stream for data file
@@ -276,9 +285,9 @@ public class FileWriter {
       if (stripeCurrentRecords == 0) {
         // flush data into stripe buffer
         stripeStream.flush();
-        // write stripe information into output, such as
-        // stripe id and length, and capture position
-        StripeInformation stripeInfo = new StripeInformation(stripe, out.getPos(), stripeStats);
+        // write stripe information into output, such as stripe id and length, and capture position
+        StripeInformation stripeInfo =
+          new StripeInformation(stripe, out.getPos(), stripeStats, stripeFilters);
         stripe.flush(out);
         LOG.info("Finished writing stripe {}, records={}", stripeInfo, numRowsInStripe);
         stripes.add(stripeInfo);
@@ -288,6 +297,7 @@ public class FileWriter {
         stripeStats = createStatistics(td);
       }
       updateStatistics(stripeStats, td, row);
+      updateColumnFilters(stripeFilters, td, row);
       recordWriter.writeRow(row, stripeStream);
       stripeCurrentRecords--;
     } catch (IOException ioe) {
@@ -389,6 +399,7 @@ public class FileWriter {
     Statistics[] stats = new Statistics[td.fields().length];
     for (int i = 0; i < td.fields().length; i++) {
       stats[i] = Statistics.sqlTypeToStatistics(td.fields()[i].dataType());
+      LOG.info("Create statistics {} for field {}", stats[i], td.fields()[i]);
     }
     return stats;
   }
@@ -406,6 +417,44 @@ public class FileWriter {
     }
   }
 
+  /**
+   * Create new array of column filters for a stripe.
+   * Returns null if column filters are disabled.
+   * @param td type description
+   * @param enabled true if column filters are enabled
+   * @param stripeRows expected number of rows in stripe
+   * @return array of column filters or null if filters are disabled
+   */
+  private static ColumnFilter[] createColumnFilters(
+      TypeDescription td, boolean enabled, int stripeRows) {
+    // column filters are created only if enabled and type description contains any indexed fields
+    if (!enabled || td.indexFields().length == 0) return null;
+    ColumnFilter[] filters = new ColumnFilter[td.fields().length];
+    for (int i = 0; i < td.fields().length; i++) {
+      if (td.fields()[i].isIndexed()) {
+        filters[i] = ColumnFilter.sqlTypeToColumnFilter(td.fields()[i].dataType(), stripeRows);
+        LOG.info("Create filter {} for indexed field {}", filters[i], td.fields()[i]);
+      } else {
+        filters[i] = ColumnFilter.noopFilter();
+      }
+    }
+    return filters;
+  }
+
+  /**
+   * Update each instance of column filters with value of internal row.
+   * @param filters array of filters, can be null
+   * @param td type description
+   * @param row row to use for updates
+   */
+  private static void updateColumnFilters(
+      ColumnFilter[] filters, TypeDescription td, InternalRow row) {
+    if (filters == null) return;
+    for (int i = 0; i < filters.length; i++) {
+      filters[i].update(row, td.atPosition(i).origSQLPos());
+    }
+  }
+
   @Override
   public String toString() {
     return "FileWriter[" +
@@ -415,6 +464,7 @@ public class FileWriter {
       ", rows_per_stripe=" + numRowsInStripe +
       ", is_compressed=" + (codec != null) +
       ", buffer_size=" + bufferSize +
-      ", hdfs_buffer_size=" + hdfsBufferSize + "]";
+      ", hdfs_buffer_size=" + hdfsBufferSize +
+      ", column_filter_enabled=" + columnFilterEnabled + "]";
   }
 }

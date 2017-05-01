@@ -32,6 +32,7 @@ import org.apache.spark.sql.types.NullType;
 import org.apache.spark.sql.types.StringType;
 import org.apache.spark.unsafe.types.UTF8String;
 
+import com.github.sadikovi.riff.ColumnFilter;
 import com.github.sadikovi.riff.Statistics;
 
 /**
@@ -250,7 +251,7 @@ public abstract class BoundReference implements TreeNode {
 
   //////////////////////////////////////////////////////////////
   // Statistics support
-  // Overwrite any of the methods below if filter can be evaluated based on statistics
+  // Overwrite any of the methods below if node can be evaluated based on statistics
   //////////////////////////////////////////////////////////////
 
   @Override
@@ -304,6 +305,27 @@ public abstract class BoundReference implements TreeNode {
    * @return true if predicate passes statistics, false otherwise
    */
   public boolean statUpdate(UTF8String min, UTF8String max) {
+    return true;
+  }
+
+  //////////////////////////////////////////////////////////////
+  // Column filter support
+  // Overwrite any of the methods below if node can be evaluated based on column filters
+  //////////////////////////////////////////////////////////////
+
+  @Override
+  public boolean evaluate(ColumnFilter[] filters) {
+    // method assumes that tree is resolved to access ordinal
+    return evaluateFilter(filters[ordinal]);
+  }
+
+  /**
+   * Evaluate column filter for this bound reference.
+   * This should invoke `mightContain` method of filter if this node supports filtering.
+   * @param filter for this node
+   * @return true if node value passes filter or unknown, false if value does not pass filter
+   */
+  protected boolean evaluateFilter(ColumnFilter filter) {
     return true;
   }
 }
