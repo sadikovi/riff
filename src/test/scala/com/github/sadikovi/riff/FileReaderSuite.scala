@@ -197,7 +197,7 @@ class FileReaderSuite extends UnitTestSuite {
     // stripe 0 should be discarded because of column filter
     res should be (Array(stripes(1)))
   }
-  
+
   test("file reader reuse") {
     withTempDir { dir =>
       val writer = Riff.writer.setTypeDesc(td).create(dir / "path")
