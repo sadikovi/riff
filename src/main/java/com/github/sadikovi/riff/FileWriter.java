@@ -399,6 +399,7 @@ public class FileWriter {
     Statistics[] stats = new Statistics[td.fields().length];
     for (int i = 0; i < td.fields().length; i++) {
       stats[i] = Statistics.sqlTypeToStatistics(td.fields()[i].dataType());
+      LOG.info("Create statistics {} for field {}", stats[i], td.fields()[i]);
     }
     return stats;
   }
@@ -431,7 +432,8 @@ public class FileWriter {
     ColumnFilter[] filters = new ColumnFilter[td.fields().length];
     for (int i = 0; i < td.fields().length; i++) {
       if (td.fields()[i].isIndexed()) {
-        filters[i] = ColumnFilter.sqlTypeToBloomFilter(td.fields()[i].dataType(), stripeRows);
+        filters[i] = ColumnFilter.sqlTypeToColumnFilter(td.fields()[i].dataType(), stripeRows);
+        LOG.info("Create filter {} for indexed field {}", filters[i], td.fields()[i]);
       } else {
         filters[i] = ColumnFilter.noopFilter();
       }

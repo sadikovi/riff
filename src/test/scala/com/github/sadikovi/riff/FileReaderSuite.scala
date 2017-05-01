@@ -64,6 +64,24 @@ class FileReaderSuite extends UnitTestSuite {
     stats
   }
 
+  private def filter(value: Int): ColumnFilter = {
+    val filter = ColumnFilter.sqlTypeToColumnFilter(IntegerType, 10)
+    filter.update(InternalRow(value), 0)
+    filter
+  }
+
+  private def filter(value: Long): ColumnFilter = {
+    val filter = ColumnFilter.sqlTypeToColumnFilter(LongType, 10)
+    filter.update(InternalRow(value), 0)
+    filter
+  }
+
+  private def filter(value: String): ColumnFilter = {
+    val filter = ColumnFilter.sqlTypeToColumnFilter(StringType, 10)
+    filter.update(InternalRow(UTF8String.fromString(value)), 0)
+    filter
+  }
+
   test("initialize file reader for non-existent path") {
     withTempDir { dir =>
       val path = dir / "file"
@@ -147,6 +165,32 @@ class FileReaderSuite extends UnitTestSuite {
         statistics(1L, 3L, false)
       )))
     val state = new PredicateState(eqt("col1", 5), td)
+    val res = FileReader.evaluateStripes(stripes, state)
+    // must be sorted by offset
+    res should be (Array(stripes(1)))
+  }
+
+  test("evaluate stripes for predicate state with column filters") {
+    val stripes = Array(
+      new StripeInformation(1.toByte, 0L, 100, Array(
+        statistics("a", "z", false),
+        statistics(1, 3, false),
+        statistics(1L, 3L, false)
+      ), Array(
+        filter("z"),
+        filter(1),
+        filter(2L)
+      )),
+      new StripeInformation(2.toByte, 101L, 100, Array(
+        statistics("a", "z", false),
+        statistics(1, 3, false),
+        statistics(1L, 3L, false)
+      ), Array(
+        filter("b"),
+        filter(1),
+        filter(2L)
+      )))
+    val state = new PredicateState(eqt("col2", "b"), td)
     val res = FileReader.evaluateStripes(stripes, state)
     // must be sorted by offset
     res should be (Array(stripes(1)))

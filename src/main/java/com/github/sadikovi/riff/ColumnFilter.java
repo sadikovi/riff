@@ -39,6 +39,7 @@ import com.github.sadikovi.riff.io.OutputBuffer;
 /**
  * [[ColumnFilter]] class is a set that can resolve predicates with higher selectivity than
  * statistics and should be considered optional optimization.
+ * Current implementation uses Bloom filter to report if value *is not* in the stripe.
  */
 public abstract class ColumnFilter {
   protected final byte id;
@@ -82,22 +83,6 @@ public abstract class ColumnFilter {
   protected abstract void readState(ByteBuffer buffer) throws IOException;
 
   /**
-   * Select filter based on its byte id. Throws exception if id is not valid.
-   * @param id filter id
-   * @return filter instance
-   */
-  protected static ColumnFilter select(byte id) {
-    switch (id) {
-      case NoopColumnFilter.ID:
-        return new NoopColumnFilter();
-      case BloomColumnFilter.ID:
-        return new BloomColumnFilter();
-      default:
-        throw new UnsupportedOperationException("Unknown id: " + id);
-    }
-  }
-
-  /**
    * Return new noop column filter.
    * @return noop filter
    */
@@ -111,7 +96,7 @@ public abstract class ColumnFilter {
    * @param numItems expected number of items
    * @return bloom column filter
    */
-  public static ColumnFilter sqlTypeToBloomFilter(DataType dataType, int numItems) {
+  public static ColumnFilter sqlTypeToColumnFilter(DataType dataType, int numItems) {
     if (dataType instanceof IntegerType) {
       return new BloomColumnFilter(numItems) {
         @Override
@@ -134,7 +119,7 @@ public abstract class ColumnFilter {
         }
       };
     } else {
-      throw new UnsupportedOperationException("Type for bloom column filter: " + dataType);
+      return noopFilter();
     }
   }
 
@@ -145,7 +130,15 @@ public abstract class ColumnFilter {
    * @throws IOException
    */
   public static ColumnFilter readExternal(ByteBuffer buffer) throws IOException {
-    ColumnFilter filter = select(buffer.get());
+    byte id = buffer.get();
+    ColumnFilter filter = null;
+    if (id == NoopColumnFilter.ID) {
+      filter = new NoopColumnFilter();
+    } else if (id == BloomColumnFilter.ID) {
+      filter = new BloomColumnFilter();
+    } else {
+      throw new IOException("Unknown column filter id: " + id);
+    }
     filter.readState(buffer);
     return filter;
   }
@@ -200,6 +193,16 @@ public abstract class ColumnFilter {
     protected void readState(ByteBuffer buffer) throws IOException {
       // NoopColumnFilter does not have any state, no bytes are read from buffer.
     }
+
+    @Override
+    public boolean equals(Object obj) {
+      return obj != null && obj instanceof NoopColumnFilter;
+    }
+
+    @Override
+    public String toString() {
+      return "NoopColumnFilter";
+    }
   }
 
   /**
@@ -208,7 +211,7 @@ public abstract class ColumnFilter {
    * Each subclass must overwrite method to update filter for a given data type.
    */
   static class BloomColumnFilter extends ColumnFilter {
-    public static final byte ID = 125;
+    public static final byte ID = 2;
     // default false positive probability
     private static final double DEFAULT_FPP = 0.5;
     // default number of records
@@ -267,6 +270,16 @@ public abstract class ColumnFilter {
         buffer.arrayOffset() + buffer.position(), len);
       filter = BloomFilter.readFrom(in);
       buffer.position(buffer.position() + len);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      return obj != null && obj instanceof BloomColumnFilter;
+    }
+
+    @Override
+    public String toString() {
+      return "BloomColumnFilter";
     }
   }
 }

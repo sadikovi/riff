@@ -300,6 +300,17 @@ public class Riff {
     }
 
     /**
+     * Enable or disable column filters when writing file.
+     * They are used by reader automatically if available.
+     * @param enable true to write filters, false otherwise
+     * @return this instance
+     */
+    public WriterBuilder enableColumnFilter(boolean enable) {
+      this.conf.setBoolean(Options.COLUMN_FILTER_ENABLED, enable);
+      return this;
+    }
+
+    /**
      * Set type description for writer.
      * @param td type description to use, must not be null
      * @return this instance

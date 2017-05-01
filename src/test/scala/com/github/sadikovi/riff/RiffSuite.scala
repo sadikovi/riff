@@ -112,6 +112,14 @@ class RiffSuite extends UnitTestSuite {
     dpath should be (new Path("/a/b/c.data"))
   }
 
+  test("select column filter enabled") {
+    val conf = new Configuration()
+    Riff.Options.columnFilterEnabled(conf) should be (Riff.Options.COLUMN_FILTER_ENABLED_DEFAULT)
+
+    conf.setBoolean(Riff.Options.COLUMN_FILTER_ENABLED, true)
+    Riff.Options.columnFilterEnabled(conf) should be (true)
+  }
+
   test("fail writer if type description is not set") {
     withTempDir { dir =>
       val err = intercept[RuntimeException] {
@@ -357,11 +365,50 @@ class RiffSuite extends UnitTestSuite {
     }
   }
 
+  test("write/read with column filters") {
+    withTempDir { dir =>
+      val writer = Riff.writer
+        .setCodec("gzip")
+        .setRowsInStripe(2)
+        .enableColumnFilter(true)
+        .setTypeDesc(schema, "col2")
+        .create(dir / "file")
+      writer.prepareWrite()
+      for (row <- batch) {
+        writer.write(row)
+      }
+      writer.finishWrite()
+
+      val reader = Riff.reader.create(dir / "file")
+      val rowbuf = reader.prepareRead()
+      var cnt = 0
+      while (rowbuf.hasNext) {
+        rowbuf.next
+        cnt += 1
+      }
+      cnt should be (batch.length)
+    }
+  }
+
   // == empty file scan ==
 
   test("write/read empty file, gzip") {
     withTempDir { dir =>
       val writer = Riff.writer.setCodec("gzip").setTypeDesc(schema, "col2").create(dir / "file")
+      writer.prepareWrite()
+      writer.finishWrite()
+      val reader = Riff.reader.create(dir / "file")
+      val rowbuf = reader.prepareRead()
+      rowbuf.hasNext should be (false)
+    }
+  }
+
+  test("write/read empty file, gzip, column filters enabled") {
+    withTempDir { dir =>
+      val writer = Riff.writer
+        .setCodec("gzip")
+        .setTypeDesc(schema, "col2")
+        .enableColumnFilter(true).create(dir / "file")
       writer.prepareWrite()
       writer.finishWrite()
       val reader = Riff.reader.create(dir / "file")
