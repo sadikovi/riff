@@ -40,6 +40,11 @@ import com.github.sadikovi.riff.tree.BoundReference;
  * Keeps information about min and max values and nulls.
  */
 public abstract class Statistics {
+  // ordinal for min value in a row
+  public static final int ORD_MIN = 0;
+  // ordinal for max value in a row
+  public static final int ORD_MAX = 1;
+
   protected final byte id;
   protected boolean hasNulls;
 
@@ -89,6 +94,21 @@ public abstract class Statistics {
   public abstract boolean evaluateState(BoundReference ref);
 
   /**
+   * Convert content of this statistics into internal row. Each such row contains two fields:
+   * [min, max] which are type dependent. `nulls` field is always boolean, min/max depends on
+   * statistics type. Ordinals are provided as global constants for access.
+   */
+  public abstract InternalRow toRow();
+
+  /**
+   * Return unique statistics id.
+   * @return id
+   */
+  public byte id() {
+    return id;
+  }
+
+  /**
    * Get min value for this statistics. Used for testing purposes only.
    * Recommended that implementations overwrite this method.
    * @return min value
@@ -104,14 +124,6 @@ public abstract class Statistics {
    */
   public Object getMax() {
     throw new UnsupportedOperationException();
-  }
-
-  /**
-   * Return unique statistics id.
-   * @return id
-   */
-  public byte id() {
-    return id;
   }
 
   /**
@@ -193,6 +205,51 @@ public abstract class Statistics {
   }
 
   /**
+   * [[StatisticsRow]] is a container to store min/max values for each statistics type to be used
+   * in evaluating predicate.
+   */
+  static class StatisticsRow extends GenericInternalRow {
+    private int[] intValues;
+    private long[] longValues;
+    private UTF8String[] utf8Values;
+
+    protected StatisticsRow() { /* no-op */ }
+
+    protected StatisticsRow(int min, int max) {
+      intValues = new int[2];
+      intValues[ORD_MIN] = min;
+      intValues[ORD_MAX] = max;
+    }
+
+    protected StatisticsRow(long min, long max) {
+      longValues = new long[2];
+      longValues[ORD_MIN] = min;
+      longValues[ORD_MAX] = max;
+    }
+
+    protected StatisticsRow(UTF8String min, UTF8String max) {
+      utf8Values = new UTF8String[2];
+      utf8Values[ORD_MIN] = min;
+      utf8Values[ORD_MAX] = max;
+    }
+
+    @Override
+    public int getInt(int ordinal) {
+      return intValues[ordinal];
+    }
+
+    @Override
+    public long getLong(int ordinal) {
+      return longValues[ordinal];
+    }
+
+    @Override
+    public UTF8String getUTF8String(int ordinal) {
+      return utf8Values[ordinal];
+    }
+  }
+
+  /**
    * Noop statistics are created when data type is unknown or unsupported. Such statistics always
    * yield true, when asked if value is in range, because they do not any information about data.
    * Note that statistics still collect information about null values regardless.
@@ -222,6 +279,11 @@ public abstract class Statistics {
     public boolean evaluateState(BoundReference ref) {
       // statistics only contain information about nullability
       return ref.statUpdate(hasNulls);
+    }
+
+    @Override
+    public InternalRow toRow() {
+      return new StatisticsRow();
     }
 
     @Override
@@ -294,6 +356,11 @@ public abstract class Statistics {
     }
 
     @Override
+    public InternalRow toRow() {
+      return new StatisticsRow(min, max);
+    }
+
+    @Override
     public boolean equals(Object obj) {
       if (obj == null || !(obj instanceof IntStatistics)) return false;
       IntStatistics that = (IntStatistics) obj;
@@ -361,6 +428,11 @@ public abstract class Statistics {
     @Override
     public boolean evaluateState(BoundReference ref) {
       return ref.statUpdate(hasNulls) && ref.statUpdate(min, max);
+    }
+
+    @Override
+    public InternalRow toRow() {
+      return new StatisticsRow(min, max);
     }
 
     @Override
@@ -465,6 +537,11 @@ public abstract class Statistics {
     @Override
     public boolean evaluateState(BoundReference ref) {
       return ref.statUpdate(hasNulls) && ref.statUpdate(min, max);
+    }
+
+    @Override
+    public InternalRow toRow() {
+      return new StatisticsRow(min, max);
     }
 
     @Override
