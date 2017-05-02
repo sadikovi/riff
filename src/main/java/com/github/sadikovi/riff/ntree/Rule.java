@@ -22,11 +22,21 @@
 
 package com.github.sadikovi.riff.ntree;
 
+import com.github.sadikovi.riff.ntree.expression.IsNull;
+import com.github.sadikovi.riff.ntree.expression.Not;
+import com.github.sadikovi.riff.ntree.expression.And;
+import com.github.sadikovi.riff.ntree.expression.Or;
+import com.github.sadikovi.riff.ntree.expression.Trivial;
+
 /**
  * Rule allows to traverse tree and return updated/modified tree which contains either copies of
  * nodes or completely different subtrees. It is mainly used to replace types of the subtrees,
  * rather than node values.
  */
 public interface Rule {
-
+  Tree update(IsNull node);
+  Tree update(Not node);
+  Tree update(And node);
+  Tree update(Or node);
+  Tree update(Trivial node);
 }

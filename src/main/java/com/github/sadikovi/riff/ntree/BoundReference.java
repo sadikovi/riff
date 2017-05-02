@@ -90,6 +90,17 @@ public abstract class BoundReference implements Tree {
   }
 
   /**
+   * Copy ordinal from previous instance into this one.
+   * Used for `copy()` method only to transfer ordinal information.
+   * @param prev previous instance of bound reference
+   * @return this instance
+   */
+  protected BoundReference copyOrdinal(BoundReference prev) {
+    ordinal = prev.ordinal();
+    return this;
+  }
+
+  /**
    * Return pretty name for column and ordinal that can be used by subclasses for `toString` method.
    * This reflects whether or not current bound reference is resolved.
    * @return pretty column name
