@@ -76,7 +76,8 @@ public interface Tree {
 
   /**
    * Analyze this tree for current type description. Type description is evaluated for bound
-   * reference only; throws exception if tree cannot be analyzed.
+   * reference only; throws exception if tree cannot be analyzed. This method should be run before
+   * evaluating this tree.
    * @param td type description
    */
   void analyze(TypeDescription td);

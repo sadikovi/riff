@@ -22,49 +22,54 @@
 
 package com.github.sadikovi.riff.ntree;
 
-import com.github.sadikovi.riff.TypeDescription;
+import org.apache.spark.sql.types.DataType;
 
 /**
- * Binary logical node is a tree node that can be evaluated based on its children and operator.
- * Mainly used as a container for concrete implementations by providing `equals` and `hashCode`
- * methods.
+ * Bound reference that has type information and value expression.
  */
-public abstract class BinaryLogical implements Tree {
-  /**
-   * Get left subtree.
-   * @return left subtree
-   */
-  public abstract Tree left();
+public abstract class TypedBoundReference extends BoundReference {
 
   /**
-   * Get right subtree.
-   * @return right subtree
+   * Typed expression for this reference.
+   * @return typed expression
    */
-  public abstract Tree right();
+  public abstract TypedExpression expression();
 
-  @Override
-  public final void analyze(TypeDescription td) {
-    left().analyze(td);
-    right().analyze(td);
-  }
+  /**
+   * Operator symbol for typed bound reference.
+   * @return operator
+   */
+  public abstract String operator();
 
-  @Override
-  public final boolean analyzed() {
-    return left().analyzed() && right().analyzed();
+  /**
+   * Data type associated with this typed bound reference
+   * @return Spark SQL data type
+   */
+  public DataType dataType() {
+    return expression().dataType();
   }
 
   @Override
   public boolean equals(Object obj) {
+    // equals method is used only for testing to compare trees, it should never be used for
+    // evaluating predicate
     if (obj == null || obj.getClass() != this.getClass()) return false;
-    BinaryLogical that = (BinaryLogical) obj;
-    return this.left().equals(that.left()) && this.right().equals(that.right());
+    TypedBoundReference that = (TypedBoundReference) obj;
+    return name().equals(that.name()) && ordinal() == that.ordinal() &&
+      expression().equals(that.expression());
   }
 
   @Override
   public int hashCode() {
-    int result = left().hashCode();
-    result = 31 * result + right().hashCode();
-    result = 31 * result + getClass().hashCode();
-    return result;
+    // hashCode method is used only for testing to compare trees, it should never be used for
+    // evaluating predicate
+    int result = 31 * ordinal() + name().hashCode();
+    result = 31 * result + expression().hashCode();
+    return 31 * result + getClass().hashCode();
+  }
+
+  @Override
+  public String toString() {
+    return prettyName() + " " + operator() + " " + expression().prettyString();
   }
 }

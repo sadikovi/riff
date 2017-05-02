@@ -27,11 +27,11 @@ import org.apache.spark.sql.types.DataType;
 
 /**
  * Typed expression interface encapsulates all options that are used to resolve `BoundReference`
- * nodes. Subclasses are required to implement equals, hashCode and compareTo methods.
+ * nodes. Subclasses are required to implement equals and hashCode methods.
  * All predicate related methods should be implement following this rule:
  * {value at ordinal <action> this expression}.
  */
-public interface TypedExpression<T> extends Comparable<T> {
+public interface TypedExpression {
   /**
    * Associated Spark SQL data type for this expression.
    * @return data type
@@ -74,13 +74,6 @@ public interface TypedExpression<T> extends Comparable<T> {
    * @return true if this instance equals to obj, false otherwise
    */
   boolean equals(Object obj);
-
-  /**
-   * Comparison method is required to implement as it is used for some tree nodes.
-   * @param other other typed expression
-   * @return integer value for comparison (-1, 0, 1)
-   */
-  int compareTo(T other);
 
   /**
    * Get hash code.

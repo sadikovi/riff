@@ -56,6 +56,32 @@ public abstract class BoundReference implements Tree {
   public abstract boolean evaluateState(InternalRow row, int ordinal);
 
   /**
+   * Evaluate state for provided statistics instance.
+   * This is optional optimization and we return true to always scan stripe.
+   * @param stats statistics
+   * @return true if predicate passes statistics, false otherwise
+   */
+  public abstract boolean evaluateState(Statistics stats);
+
+  /**
+   * Evaluate state for provided column filter. This is optional optimization, and by default
+   * column filter is ignored and we return true to always scan stripe.
+   * @param filter column filter
+   * @return true if predicate passes column filter, false otherwise
+   */
+  public abstract boolean evaluateState(ColumnFilter filter);
+
+  /**
+   * Update current node using type spec information for the column node is associated with.
+   * Default implementation does not update node.
+   * @param spec type specification for the field
+   */
+  public void update(TypeSpec spec) {
+    /* no-op */
+    /* subclass overwrite */
+  }
+
+  /**
    * Ordinal for column in type description.
    * Only available if bound reference is analyzed.
    * @return ordinal value
@@ -71,38 +97,6 @@ public abstract class BoundReference implements Tree {
    */
   protected String prettyName() {
     return analyzed() ? (name() + "[" + ordinal() + "]") : "*" + name();
-  }
-
-  /**
-   * Evaluate state for provided statistics instance.
-   * This is optional optimization and we return true to always scan stripe.
-   * @param stats statistics
-   * @return true if predicate passes statistics, false otherwise
-   */
-  public boolean evaluateState(Statistics stats) {
-    /* subclass overwrite */
-    return true;
-  }
-
-  /**
-   * Evaluate state for provided column filter. This is optional optimization, and by default
-   * column filter is ignored and we return true to always scan stripe.
-   * @param filter column filter
-   * @return true if predicate passes column filter, false otherwise
-   */
-  public boolean evaluateState(ColumnFilter filter) {
-    /* subclass overwrite */
-    return true;
-  }
-
-  /**
-   * Update current node using type spec information for the column node is associated with.
-   * Default implementation does not update node.
-   * @param spec type specification for the field
-   */
-  public void update(TypeSpec spec) {
-    /* no-op */
-    /* subclass overwrite */
   }
 
   @Override

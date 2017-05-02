@@ -36,12 +36,12 @@ public abstract class UnaryLogical implements Tree {
   public abstract Tree child();
 
   @Override
-  public void analyze(TypeDescription td) {
+  public final void analyze(TypeDescription td) {
     child().analyze(td);
   }
 
   @Override
-  public boolean analyzed() {
+  public final boolean analyzed() {
     return child().analyzed();
   }
 
