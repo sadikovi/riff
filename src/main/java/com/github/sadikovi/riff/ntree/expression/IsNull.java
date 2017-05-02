@@ -68,8 +68,7 @@ public class IsNull extends BoundReference {
 
   @Override
   public Tree copy() {
-    IsNull copy = new IsNull(name);
-    return copy.copyOrdinal(this);
+    return new IsNull(name).copyOrdinal(this);
   }
 
   @Override

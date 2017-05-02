@@ -27,6 +27,7 @@ import com.github.sadikovi.riff.ntree.expression.GreaterThan;
 import com.github.sadikovi.riff.ntree.expression.LessThan;
 import com.github.sadikovi.riff.ntree.expression.GreaterThanOrEqual;
 import com.github.sadikovi.riff.ntree.expression.LessThanOrEqual;
+import com.github.sadikovi.riff.ntree.expression.In;
 import com.github.sadikovi.riff.ntree.expression.IsNull;
 import com.github.sadikovi.riff.ntree.expression.Not;
 import com.github.sadikovi.riff.ntree.expression.And;
@@ -44,6 +45,7 @@ public interface Rule {
   Tree update(LessThan node);
   Tree update(GreaterThanOrEqual node);
   Tree update(LessThanOrEqual node);
+  Tree update(In node);
   Tree update(IsNull node);
   Tree update(Not node);
   Tree update(And node);

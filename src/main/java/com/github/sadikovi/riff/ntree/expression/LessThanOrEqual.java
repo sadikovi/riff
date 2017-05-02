@@ -25,11 +25,11 @@ package com.github.sadikovi.riff.ntree.expression;
 import org.apache.spark.sql.catalyst.InternalRow;
 
 import com.github.sadikovi.riff.ColumnFilter;
-import com.github.sadikovi.riff.ntree.TypedBoundReference;
-import com.github.sadikovi.riff.ntree.TypedExpression;
 import com.github.sadikovi.riff.ntree.Rule;
 import com.github.sadikovi.riff.ntree.Statistics;
 import com.github.sadikovi.riff.ntree.Tree;
+import com.github.sadikovi.riff.ntree.TypedBoundReference;
+import com.github.sadikovi.riff.ntree.TypedExpression;
 
 /**
  * [[LessThanOrEqual]] is inequality predicate for typed expression.
@@ -82,7 +82,6 @@ public class LessThanOrEqual extends TypedBoundReference {
 
   @Override
   public Tree copy() {
-    LessThanOrEqual copy = new LessThanOrEqual(name, expr.copy());
-    return copy.copyOrdinal(this);
+    return new LessThanOrEqual(name, expr.copy()).copyOrdinal(this);
   }
 }
