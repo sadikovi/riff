@@ -25,6 +25,8 @@ package com.github.sadikovi.riff.ntree;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.types.DataType;
 
+import com.github.sadikovi.riff.ColumnFilter;
+
 /**
  * Typed expression interface encapsulates all options that are used to resolve `BoundReference`
  * nodes. Subclasses are required to implement equals and hashCode methods.
@@ -67,6 +69,13 @@ public interface TypedExpression {
    * @return true if ordinal value is less than or equal to expression, false otherwise
    */
   boolean leExpr(InternalRow row, int ordinal);
+
+  /**
+   * Return true if typed expression is in column filter, false otherwise.
+   * @param filter column filter
+   * @return true if expression is in filter, false otherwise
+   */
+  boolean containsExpr(ColumnFilter filter);
 
   /**
    * Java "equals" method to compare with an object.

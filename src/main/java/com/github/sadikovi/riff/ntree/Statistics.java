@@ -255,6 +255,12 @@ public abstract class Statistics extends GenericInternalRow {
     }
 
     @Override
+    public boolean isNullAt(int ordinal) {
+      // int statistics values are never null
+      return false;
+    }
+
+    @Override
     public boolean equals(Object obj) {
       if (obj == null || !(obj instanceof IntStatistics)) return false;
       IntStatistics that = (IntStatistics) obj;
@@ -305,6 +311,12 @@ public abstract class Statistics extends GenericInternalRow {
       values[ORD_MIN] = Math.min(that.values[ORD_MIN], values[ORD_MIN]);
       values[ORD_MAX] = Math.max(that.values[ORD_MAX], values[ORD_MAX]);
       this.hasNulls = this.hasNulls || that.hasNulls;
+    }
+
+    @Override
+    public boolean isNullAt(int ordinal) {
+      // long statistics values are never null
+      return false;
     }
 
     @Override
@@ -408,6 +420,11 @@ public abstract class Statistics extends GenericInternalRow {
       }
       // update nulls
       this.hasNulls = this.hasNulls || that.hasNulls;
+    }
+
+    @Override
+    public boolean isNullAt(int ordinal) {
+      return values[ordinal] == null;
     }
 
     @Override

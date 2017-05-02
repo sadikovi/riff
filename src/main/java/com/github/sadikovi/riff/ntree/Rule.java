@@ -22,6 +22,11 @@
 
 package com.github.sadikovi.riff.ntree;
 
+import com.github.sadikovi.riff.ntree.expression.EqualTo;
+import com.github.sadikovi.riff.ntree.expression.GreaterThan;
+import com.github.sadikovi.riff.ntree.expression.LessThan;
+import com.github.sadikovi.riff.ntree.expression.GreaterThanOrEqual;
+import com.github.sadikovi.riff.ntree.expression.LessThanOrEqual;
 import com.github.sadikovi.riff.ntree.expression.IsNull;
 import com.github.sadikovi.riff.ntree.expression.Not;
 import com.github.sadikovi.riff.ntree.expression.And;
@@ -34,6 +39,11 @@ import com.github.sadikovi.riff.ntree.expression.Trivial;
  * rather than node values.
  */
 public interface Rule {
+  Tree update(EqualTo node);
+  Tree update(GreaterThan node);
+  Tree update(LessThan node);
+  Tree update(GreaterThanOrEqual node);
+  Tree update(LessThanOrEqual node);
   Tree update(IsNull node);
   Tree update(Not node);
   Tree update(And node);
