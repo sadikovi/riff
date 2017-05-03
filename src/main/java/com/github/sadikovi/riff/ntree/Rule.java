@@ -41,14 +41,24 @@ import com.github.sadikovi.riff.ntree.expression.Trivial;
  */
 public interface Rule {
   Tree update(EqualTo node);
+
   Tree update(GreaterThan node);
+
   Tree update(LessThan node);
+
   Tree update(GreaterThanOrEqual node);
+
   Tree update(LessThanOrEqual node);
+
   Tree update(In node);
+
   Tree update(IsNull node);
+
   Tree update(Not node);
+
   Tree update(And node);
+
   Tree update(Or node);
+
   Tree update(Trivial node);
 }
