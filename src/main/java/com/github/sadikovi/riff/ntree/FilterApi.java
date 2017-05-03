@@ -60,7 +60,7 @@ public class FilterApi {
    * @param obj object to convert, must never be null
    * @return typed expression for this object
    */
-  private static TypedExpression objToExpression(Object obj) {
+  protected static TypedExpression objToExpression(Object obj) {
     if (obj == null) {
       throw new NullPointerException("Cannot convert null into typed expression");
     }
@@ -74,7 +74,7 @@ public class FilterApi {
     } else if (obj instanceof UTF8String) {
       return new UTF8StringExpression((UTF8String) obj);
     } else {
-      throw new UnsupportedOperationException("Object " + obj + " of class " + obj.getClass());
+      throw new UnsupportedOperationException("Object " + obj + " of " + obj.getClass());
     }
   }
 

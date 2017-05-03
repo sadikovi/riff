@@ -87,6 +87,18 @@ public class Trivial implements Tree {
   }
 
   @Override
+  public boolean equals(Object obj) {
+    if (obj == null || !(obj instanceof Trivial)) return false;
+    Trivial that = (Trivial) obj;
+    return that.result() == result();
+  }
+
+  @Override
+  public int hashCode() {
+    return 31 * getClass().hashCode() + (result ? 1 : 0);
+  }
+
+  @Override
   public String toString() {
     return "" + result;
   }

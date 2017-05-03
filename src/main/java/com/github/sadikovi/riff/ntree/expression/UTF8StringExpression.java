@@ -80,6 +80,8 @@ public class UTF8StringExpression implements TypedExpression<UTF8StringExpressio
 
   @Override
   public int compareTo(UTF8StringExpression obj) {
+    // compareTo method for UTF8String returns either positive, 0, or negative
+    // non-zero values are not necessarily 1 and -1
     return value.compareTo(obj.value);
   }
 

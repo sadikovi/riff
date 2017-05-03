@@ -216,7 +216,7 @@ public abstract class Statistics extends GenericInternalRow {
    */
   static class IntStatistics extends Statistics {
     public static final byte ID = 2;
-    protected int[] values = new int[2];
+    protected int[] values = new int[] { Integer.MAX_VALUE, Integer.MIN_VALUE };
 
     IntStatistics() {
       super(ID);
@@ -280,7 +280,7 @@ public abstract class Statistics extends GenericInternalRow {
    */
   static class LongStatistics extends Statistics {
     public static final byte ID = 4;
-    protected long[] values = new long[2];
+    protected long[] values = new long[] { Long.MAX_VALUE, Long.MIN_VALUE };
 
     LongStatistics() {
       super(ID);

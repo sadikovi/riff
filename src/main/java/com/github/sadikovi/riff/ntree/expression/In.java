@@ -23,6 +23,7 @@
 package com.github.sadikovi.riff.ntree.expression;
 
 import java.util.Arrays;
+import java.util.HashSet;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.types.DataType;
@@ -44,12 +45,16 @@ public class In extends TypedBoundReference {
   // protected for equals and hashCode methods
   protected final TypedExpression[] list;
 
-  public In(String name, TypedExpression[] values) {
+  /**
+   * Clean up typed expressions in array, check duplicate types and sort array in
+   * ascending order to ensure search property.
+   */
+  private static TypedExpression[] cleanUp(TypedExpression[] values) {
     if (values == null || values.length == 0) {
       throw new IllegalArgumentException("Empty list of expressions for In predicate");
     }
-    this.name = name;
-    this.list = new TypedExpression[values.length];
+    // temporary set to remove duplicate values
+    HashSet<TypedExpression> tmp = new HashSet<TypedExpression>();
     // copy and sort expressions, check that all expressions are of the same type
     DataType dtype = null;
     for (int i = 0; i < values.length; i++) {
@@ -58,9 +63,30 @@ public class In extends TypedBoundReference {
           values[i].dataType());
       }
       dtype = values[i].dataType();
+      tmp.add(values[i]);
+    }
+    TypedExpression[] unique = new TypedExpression[tmp.size()];
+    int i = 0;
+    for (TypedExpression expr : tmp) {
+      unique[i++] = expr;
+    }
+    Arrays.sort(unique);
+    return unique;
+  }
+
+  public In(String name, TypedExpression[] values) {
+    this(name, values, false);
+  }
+
+  private In(String name, TypedExpression[] values, boolean resolved) {
+    if (!resolved) {
+      values = cleanUp(values);
+    }
+    this.name = name;
+    this.list = new TypedExpression[values.length];
+    for (int i = 0; i < values.length; i++) {
       this.list[i] = values[i].copy();
     }
-    Arrays.sort(this.list);
   }
 
   @Override
@@ -132,7 +158,7 @@ public class In extends TypedBoundReference {
 
   @Override
   public Tree copy() {
-    return new In(name, list).copyOrdinal(this);
+    return new In(name, list, true).copyOrdinal(this);
   }
 
   @Override

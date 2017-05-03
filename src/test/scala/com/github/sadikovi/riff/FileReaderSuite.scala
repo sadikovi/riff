@@ -30,6 +30,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
+import com.github.sadikovi.riff.RiffTestUtils._
 import com.github.sadikovi.riff.tree.FilterApi._
 import com.github.sadikovi.testutil.implicits._
 import com.github.sadikovi.testutil.UnitTestSuite
@@ -41,48 +42,6 @@ class FileReaderSuite extends UnitTestSuite {
     StructField("col3", LongType) :: Nil)
 
   val td = new TypeDescription(schema, Array("col2"))
-
-  private def statistics(min: Int, max: Int, nulls: Boolean): Statistics = {
-    val stats = Statistics.sqlTypeToStatistics(IntegerType)
-    if (nulls) stats.update(InternalRow(null), 0)
-    stats.update(InternalRow(min), 0)
-    stats.update(InternalRow(max), 0)
-    stats
-  }
-
-  private def statistics(min: Long, max: Long, nulls: Boolean): Statistics = {
-    val stats = Statistics.sqlTypeToStatistics(LongType)
-    if (nulls) stats.update(InternalRow(null), 0)
-    stats.update(InternalRow(min), 0)
-    stats.update(InternalRow(max), 0)
-    stats
-  }
-
-  private def statistics(min: String, max: String, nulls: Boolean): Statistics = {
-    val stats = Statistics.sqlTypeToStatistics(StringType)
-    if (nulls) stats.update(InternalRow(null), 0)
-    stats.update(InternalRow(UTF8String.fromString(min)), 0)
-    stats.update(InternalRow(UTF8String.fromString(max)), 0)
-    stats
-  }
-
-  private def filter(value: Int): ColumnFilter = {
-    val filter = ColumnFilter.sqlTypeToColumnFilter(IntegerType, 10)
-    filter.update(InternalRow(value), 0)
-    filter
-  }
-
-  private def filter(value: Long): ColumnFilter = {
-    val filter = ColumnFilter.sqlTypeToColumnFilter(LongType, 10)
-    filter.update(InternalRow(value), 0)
-    filter
-  }
-
-  private def filter(value: String): ColumnFilter = {
-    val filter = ColumnFilter.sqlTypeToColumnFilter(StringType, 10)
-    filter.update(InternalRow(UTF8String.fromString(value)), 0)
-    filter
-  }
 
   test("initialize file reader for non-existent path") {
     withTempDir { dir =>
