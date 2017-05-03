@@ -24,7 +24,6 @@ package com.github.sadikovi.riff.ntree;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.types.DataType;
@@ -37,7 +36,7 @@ import com.github.sadikovi.riff.GenericInternalRow;
 import com.github.sadikovi.riff.io.OutputBuffer;
 
 /**
- * Stripe min/max statistics based on internal row.
+ * Stripe min/max statistics.
  * Keeps information about min and max values and nulls.
  */
 public abstract class Statistics extends GenericInternalRow {
@@ -216,7 +215,9 @@ public abstract class Statistics extends GenericInternalRow {
    */
   static class IntStatistics extends Statistics {
     public static final byte ID = 2;
-    protected int[] values = new int[] { Integer.MAX_VALUE, Integer.MIN_VALUE };
+
+    protected int min = Integer.MAX_VALUE;
+    protected int max = Integer.MIN_VALUE;
 
     IntStatistics() {
       super(ID);
@@ -225,33 +226,35 @@ public abstract class Statistics extends GenericInternalRow {
     @Override
     protected void updateState(InternalRow row, int ordinal) {
       int value = row.getInt(ordinal);
-      values[ORD_MIN] = Math.min(values[ORD_MIN], value);
-      values[ORD_MAX] = Math.max(values[ORD_MAX], value);
+      min = Math.min(min, value);
+      max = Math.max(max, value);
     }
 
     @Override
     protected void writeState(OutputBuffer buf) throws IOException {
-      buf.writeInt(values[ORD_MIN]);
-      buf.writeInt(values[ORD_MAX]);
+      buf.writeInt(min);
+      buf.writeInt(max);
     }
 
     @Override
     protected void readState(ByteBuffer buf) throws IOException {
-      values[ORD_MIN] = buf.getInt();
-      values[ORD_MAX] = buf.getInt();
+      min = buf.getInt();
+      max = buf.getInt();
     }
 
     @Override
     protected void merge(Statistics obj) {
       IntStatistics that = (IntStatistics) obj;
-      values[ORD_MIN] = Math.min(that.values[ORD_MIN], values[ORD_MIN]);
-      values[ORD_MAX] = Math.max(that.values[ORD_MAX], values[ORD_MAX]);
+      this.min = Math.min(that.min, this.min);
+      this.max = Math.max(that.max, this.max);
       this.hasNulls = this.hasNulls || that.hasNulls;
     }
 
     @Override
     public int getInt(int ordinal) {
-      return values[ordinal];
+      if (ordinal == ORD_MIN) return min;
+      if (ordinal == ORD_MAX) return max;
+      throw new UnsupportedOperationException("Invalid ordinal " + ordinal);
     }
 
     @Override
@@ -265,13 +268,12 @@ public abstract class Statistics extends GenericInternalRow {
       if (obj == null || !(obj instanceof IntStatistics)) return false;
       IntStatistics that = (IntStatistics) obj;
       if (that == this) return true;
-      return Arrays.equals(values, that.values) && that.hasNulls == this.hasNulls;
+      return that.min == this.min && that.max == this.max && that.hasNulls == this.hasNulls;
     }
 
     @Override
     public String toString() {
-      return "INT[hasNulls=" + hasNulls() + ", min=" + values[ORD_MIN] + ", max=" +
-        values[ORD_MAX] + "]";
+      return "INT[hasNulls=" + hasNulls() + ", min=" + min + ", max=" + max + "]";
     }
   }
 
@@ -280,7 +282,9 @@ public abstract class Statistics extends GenericInternalRow {
    */
   static class LongStatistics extends Statistics {
     public static final byte ID = 4;
-    protected long[] values = new long[] { Long.MAX_VALUE, Long.MIN_VALUE };
+
+    protected long min = Long.MAX_VALUE;
+    protected long max = Long.MIN_VALUE;
 
     LongStatistics() {
       super(ID);
@@ -289,28 +293,36 @@ public abstract class Statistics extends GenericInternalRow {
     @Override
     protected void updateState(InternalRow row, int ordinal) {
       long value = row.getLong(ordinal);
-      values[ORD_MIN] = Math.min(values[ORD_MIN], value);
-      values[ORD_MAX] = Math.max(values[ORD_MAX], value);
+      min = Math.min(min, value);
+      max = Math.max(max, value);
     }
 
     @Override
     protected void writeState(OutputBuffer buf) throws IOException {
-      buf.writeLong(values[ORD_MIN]);
-      buf.writeLong(values[ORD_MAX]);
+      buf.writeLong(min);
+      buf.writeLong(max);
     }
 
     @Override
     protected void readState(ByteBuffer buf) throws IOException {
-      values[ORD_MIN] = buf.getLong();
-      values[ORD_MAX] = buf.getLong();
+      min = buf.getLong();
+      max = buf.getLong();
     }
 
     @Override
     protected void merge(Statistics obj) {
       LongStatistics that = (LongStatistics) obj;
-      values[ORD_MIN] = Math.min(that.values[ORD_MIN], values[ORD_MIN]);
-      values[ORD_MAX] = Math.max(that.values[ORD_MAX], values[ORD_MAX]);
+      LongStatistics res = new LongStatistics();
+      this.min = Math.min(that.min, this.min);
+      this.max = Math.max(that.max, this.max);
       this.hasNulls = this.hasNulls || that.hasNulls;
+    }
+
+    @Override
+    public long getLong(int ordinal) {
+      if (ordinal == ORD_MIN) return min;
+      if (ordinal == ORD_MAX) return max;
+      throw new UnsupportedOperationException("Invalid ordinal " + ordinal);
     }
 
     @Override
@@ -320,22 +332,16 @@ public abstract class Statistics extends GenericInternalRow {
     }
 
     @Override
-    public long getLong(int ordinal) {
-      return values[ordinal];
-    }
-
-    @Override
     public boolean equals(Object obj) {
       if (obj == null || !(obj instanceof LongStatistics)) return false;
       LongStatistics that = (LongStatistics) obj;
       if (that == this) return true;
-      return Arrays.equals(values, that.values) && that.hasNulls == this.hasNulls;
+      return that.min == this.min && that.max == this.max && that.hasNulls == this.hasNulls;
     }
 
     @Override
     public String toString() {
-      return "LONG[hasNulls=" + hasNulls() + ", min=" + values[ORD_MIN] + ", max=" +
-        values[ORD_MAX] + "]";
+      return "LONG[hasNulls=" + hasNulls() + ", min=" + min + ", max=" + max + "]";
     }
   }
 
@@ -344,7 +350,9 @@ public abstract class Statistics extends GenericInternalRow {
    */
   static class UTF8StringStatistics extends Statistics {
     public static final byte ID = 8;
-    protected UTF8String[] values = new UTF8String[2];
+
+    protected UTF8String min = null;
+    protected UTF8String max = null;
 
     UTF8StringStatistics() {
       super(ID);
@@ -353,30 +361,22 @@ public abstract class Statistics extends GenericInternalRow {
     @Override
     protected void updateState(InternalRow row, int ordinal) {
       UTF8String value = row.getUTF8String(ordinal);
-      if (values[ORD_MIN] == null) {
-        values[ORD_MIN] = value;
-      } else if (values[ORD_MIN].compareTo(value) > 0) {
-        values[ORD_MIN] = value;
-      }
-      if (values[ORD_MAX] == null) {
-        values[ORD_MAX] = value;
-      } else if (values[ORD_MAX].compareTo(value) < 0) {
-        values[ORD_MAX] = value;
-      }
+      min = (min == null) ? value : (min.compareTo(value) > 0 ? value : min);
+      max = (max == null) ? value : (max.compareTo(value) < 0 ? value : max);
     }
 
     @Override
     protected void writeState(OutputBuffer buf) throws IOException {
       // write byte of indication if any data has been collected
-      buf.writeByte(values[ORD_MIN] != null ? 1 : 0);
+      buf.writeByte(min != null ? 1 : 0);
       // min and max are either both set or none
-      if (values[ORD_MIN] != null) {
+      if (min != null) {
         // write min value
-        byte[] bytes = values[ORD_MIN].getBytes();
+        byte[] bytes = min.getBytes();
         buf.writeInt(bytes.length);
         buf.write(bytes);
         // write max value
-        bytes = values[ORD_MAX].getBytes();
+        bytes = max.getBytes();
         buf.writeInt(bytes.length);
         buf.write(bytes);
       }
@@ -386,18 +386,18 @@ public abstract class Statistics extends GenericInternalRow {
     protected void readState(ByteBuffer buf) throws IOException {
       boolean isNull = buf.get() == 0;
       if (isNull) {
-        values[ORD_MIN] = null;
-        values[ORD_MAX] = null;
+        min = null;
+        max = null;
       } else {
         int len = buf.getInt();
         byte[] bytes = new byte[len];
         buf.get(bytes);
-        values[ORD_MIN] = UTF8String.fromBytes(bytes);
+        min = UTF8String.fromBytes(bytes);
 
         len = buf.getInt();
         bytes = new byte[len];
         buf.get(bytes);
-        values[ORD_MAX] = UTF8String.fromBytes(bytes);
+        max = UTF8String.fromBytes(bytes);
       }
     }
 
@@ -405,31 +405,33 @@ public abstract class Statistics extends GenericInternalRow {
     protected void merge(Statistics obj) {
       UTF8StringStatistics that = (UTF8StringStatistics) obj;
       // update min
-      if (values[ORD_MIN] == null || that.values[ORD_MIN] == null) {
-        values[ORD_MIN] = values[ORD_MIN] == null ? that.values[ORD_MIN] : values[ORD_MIN];
+      if (this.min == null || that.min == null) {
+        this.min = this.min == null ? that.min : this.min;
       } else {
-        values[ORD_MIN] = values[ORD_MIN].compareTo(that.values[ORD_MIN]) > 0 ?
-          that.values[ORD_MIN] : values[ORD_MIN];
+        this.min = this.min.compareTo(that.min) > 0 ? that.min : this.min;
       }
       // update max
-      if (values[ORD_MAX] == null || that.values[ORD_MAX] == null) {
-        values[ORD_MAX] = values[ORD_MAX] == null ? that.values[ORD_MAX] : values[ORD_MAX];
+      if (this.max == null || that.max == null) {
+        this.max = this.max == null ? that.max : this.max;
       } else {
-        values[ORD_MAX] = values[ORD_MAX].compareTo(that.values[ORD_MAX]) < 0 ?
-          that.values[ORD_MAX] : values[ORD_MAX];
+        this.max = this.max.compareTo(that.max) < 0 ? that.max : this.max;
       }
       // update nulls
       this.hasNulls = this.hasNulls || that.hasNulls;
     }
 
     @Override
-    public boolean isNullAt(int ordinal) {
-      return values[ordinal] == null;
+    public UTF8String getUTF8String(int ordinal) {
+      if (ordinal == ORD_MIN) return min;
+      if (ordinal == ORD_MAX) return max;
+      throw new UnsupportedOperationException("Invalid ordinal " + ordinal);
     }
 
     @Override
-    public UTF8String getUTF8String(int ordinal) {
-      return values[ordinal];
+    public boolean isNullAt(int ordinal) {
+      if (ordinal == ORD_MIN) return min == null;
+      if (ordinal == ORD_MAX) return max == null;
+      return false;
     }
 
     @Override
@@ -437,13 +439,17 @@ public abstract class Statistics extends GenericInternalRow {
       if (obj == null || !(obj instanceof UTF8StringStatistics)) return false;
       UTF8StringStatistics that = (UTF8StringStatistics) obj;
       if (that == this) return true;
-      return Arrays.equals(values, that.values) && that.hasNulls == this.hasNulls;
+      if (that.hasNulls() != this.hasNulls()) return false;
+      boolean compareMin = (that.min == null && this.min == null) ||
+        (that.min != null && this.min != null && that.min.equals(this.min));
+      boolean compareMax = (that.max == null && this.max == null) ||
+        (that.max != null && this.max != null && that.max.equals(this.max));
+      return compareMin && compareMax;
     }
 
     @Override
     public String toString() {
-      return "UTF8[hasNulls=" + hasNulls() + ", min=" + values[ORD_MIN] + ", max=" +
-        values[ORD_MAX] + "]";
+      return "UTF8[hasNulls=" + hasNulls() + ", min=" + min + ", max=" + max + "]";
     }
   }
 }
