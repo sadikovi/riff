@@ -22,9 +22,13 @@
 
 package com.github.sadikovi.riff.ntree
 
+import java.util.NoSuchElementException
+
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
+import com.github.sadikovi.riff.TypeDescription
 import com.github.sadikovi.riff.RiffTestUtils._
 import com.github.sadikovi.riff.ntree.expression._
 import com.github.sadikovi.testutil.UnitTestSuite
@@ -325,5 +329,212 @@ class FilterSuite extends UnitTestSuite {
     or(TRUE, FALSE).evaluateState(Array(filter(1))) should be (true)
     or(FALSE, TRUE).evaluateState(Array(filter(1))) should be (true)
     or(FALSE, FALSE).evaluateState(Array(filter(1))) should be (false)
+  }
+
+  test("FilterApi - analyze full tree") {
+    val schema = StructType(
+      StructField("a", IntegerType) ::
+      StructField("b", IntegerType) ::
+      StructField("c", IntegerType) ::
+      StructField("d", IntegerType) :: Nil)
+    val td = new TypeDescription(schema)
+    val tree = or(
+      and(
+        eqt("a", 1),
+        eqt("b", 8)
+      ),
+      or(
+        FilterApi.not(
+          gt("c", 7)
+        ),
+        le("d", 3)
+      )
+    )
+
+    tree.analyzed should be (false)
+    tree.analyze(td)
+    tree.analyzed should be (true)
+    tree.toString should be ("((a[0] = 1) && (b[1] = 8)) || ((!(c[2] > 7)) || (d[3] <= 3))")
+    // second analysis is no-op and should not change tree
+    tree.analyze(td)
+    tree.analyzed should be (true)
+    tree.toString should be ("((a[0] = 1) && (b[1] = 8)) || ((!(c[2] > 7)) || (d[3] <= 3))")
+  }
+
+  test("FilterApi - fail to analyze tree when no such column exist") {
+    val schema = StructType(
+      StructField("a", IntegerType) ::
+      StructField("b", LongType) ::
+      StructField("c", IntegerType) :: Nil)
+    val td = new TypeDescription(schema)
+
+    val tree = or(
+      and(
+        eqt("a", 1),
+        le("b", 8L)
+      ),
+      and(
+        gt("c", 3),
+        gt("d", 5)
+      )
+    )
+    tree.analyzed should be (false)
+    val err = intercept[NoSuchElementException] { tree.analyze(td) }
+    err.getMessage should be ("No such field d")
+  }
+
+  test("FilterApi - fail to analyze tree when there is a type mismatch") {
+    val schema = StructType(
+      StructField("a", IntegerType) ::
+      StructField("b", StringType) ::
+      StructField("c", IntegerType) :: Nil)
+    val td = new TypeDescription(schema)
+
+    val tree = or(
+      and(
+        eqt("a", 1),
+        le("b", 8)
+      ),
+      gt("c", 3)
+    )
+    tree.analyzed should be (false)
+    val err = intercept[IllegalStateException] {
+      tree.analyze(td)
+    }
+    err.getMessage should be ("Type mismatch: StringType != IntegerType, " +
+      "spec=TypeSpec(b: string, indexed=false, position=1, origPos=1), tree={b[1] <= 8}")
+  }
+
+  test("FilterApi - analyze tree with In predicate") {
+    val schema = StructType(
+      StructField("a", StringType) ::
+      StructField("b", IntegerType) :: Nil)
+    val td = new TypeDescription(schema)
+    val tree = or(
+      in("a", "v1", "v2", "v3", "v4"),
+      eqt("b", 12)
+    )
+
+    tree.analyzed should be (false)
+    tree.analyze(td)
+    tree.analyzed should be (true)
+    tree.toString should be ("(a[0] in ['v1', 'v2', 'v3', 'v4']) || (b[1] = 12)")
+  }
+
+  test("FilterApi - fail to analyze tree with In predicate type mismatch") {
+    val schema = StructType(
+      StructField("a", IntegerType) ::
+      StructField("b", IntegerType) :: Nil)
+    val td = new TypeDescription(schema)
+    val tree = or(
+      in("a", "v1", "v2", "v3", "v4"),
+      eqt("b", 12)
+    )
+
+    tree.analyzed should be (false)
+    val err = intercept[IllegalStateException] {
+      tree.analyze(td)
+    }
+    err.getMessage should be ("Type mismatch: IntegerType != StringType, spec=TypeSpec(a: int, " +
+      "indexed=false, position=0, origPos=0), tree={a[0] in ['v1', 'v2', 'v3', 'v4']}")
+  }
+
+  test("FilterApi - analyze tree with trivial predicates") {
+    val schema = StructType(
+      StructField("a", IntegerType) ::
+      StructField("b", IntegerType) :: Nil)
+    val td = new TypeDescription(schema)
+    val tree = or(
+      TRUE,
+      and(
+        TRUE,
+        FALSE
+      )
+    )
+
+    tree.analyzed should be (true)
+    tree.analyze(td)
+    tree.toString should be ("(true) || ((true) && (false))")
+  }
+
+  test("FilterApi - analyze tree with non-trivial and trivial predicates") {
+    val schema = StructType(
+      StructField("a", IntegerType) ::
+      StructField("b", LongType) :: Nil)
+    val td = new TypeDescription(schema)
+    val tree = and(
+      eqt("a", 1),
+      or(
+        gt("b", 2L),
+        FALSE
+      )
+    )
+
+    tree.analyzed should be (false)
+    tree.toString should be ("(*a = 1) && ((*b > 2L) || (false))")
+    tree.analyze(td)
+    tree.analyzed should be (true)
+    tree.toString should be ("(a[0] = 1) && ((b[1] > 2L) || (false))")
+  }
+
+  test("FilterApi - evaluate tree for row, stats, and filters") {
+    val schema = StructType(
+      StructField("a", IntegerType) ::
+      StructField("b", LongType) :: Nil)
+    val td = new TypeDescription(schema)
+    val tree = and(
+      eqt("a", 1),
+      or(
+        gt("b", 2L),
+        lt("a", 3)
+      )
+    )
+
+    tree.analyze(td)
+    tree.analyzed should be (true)
+
+    tree.evaluateState(InternalRow(1, 3L)) should be (true)
+    tree.evaluateState(InternalRow(5, 9L)) should be (false)
+    tree.evaluateState(InternalRow(3, 9L)) should be (false)
+    tree.evaluateState(InternalRow(1, 1L)) should be (true)
+
+    tree.evaluateState(Array(stats(4, 5, false), stats(1L, 1L, true))) should be (false)
+    tree.evaluateState(Array(stats(1, 2, false), stats(1L, 1L, true))) should be (true)
+
+    tree.evaluateState(Array(filter(1), filter(3L))) should be (true)
+    tree.evaluateState(Array(filter(1), filter(4L))) should be (true)
+    tree.evaluateState(Array(filter(2), filter(4L))) should be (false)
+  }
+
+  test("FilterApi - evaluate tree with In predicate for row, stats, filters") {
+    val schema = StructType(
+      StructField("a", StringType) ::
+      StructField("b", IntegerType) :: Nil)
+    val td = new TypeDescription(schema)
+    val tree = and(
+      in("a", "v1", "v2", "v3"),
+      eqt("b", 1)
+    )
+
+    tree.analyze(td)
+    tree.analyzed should be (true)
+
+    tree.evaluateState(InternalRow(UTF8String.fromString("v1"), 1)) should be (true)
+    tree.evaluateState(InternalRow(UTF8String.fromString("v2"), 1)) should be (true)
+    tree.evaluateState(InternalRow(UTF8String.fromString("v3"), 1)) should be (true)
+    tree.evaluateState(InternalRow(UTF8String.fromString("v1"), 2)) should be (false)
+    tree.evaluateState(InternalRow(UTF8String.fromString("v2"), 5)) should be (false)
+    tree.evaluateState(InternalRow(UTF8String.fromString("va"), 1)) should be (false)
+
+    tree.evaluateState(Array(stats("a", "z", false), stats(1, 2, true))) should be (true)
+    tree.evaluateState(Array(stats("v1", "v1", false), stats(1, 1, true))) should be (true)
+    tree.evaluateState(Array(stats("x", "z", false), stats(1, 2, true))) should be (false)
+    tree.evaluateState(Array(stats("a", "z", false), stats(2, 3, true))) should be (false)
+
+    tree.evaluateState(Array(filter("v1"), filter(1))) should be (true)
+    tree.evaluateState(Array(filter("v2"), filter(1))) should be (true)
+    tree.evaluateState(Array(filter("v3"), filter(1))) should be (true)
+    tree.evaluateState(Array(filter("aa"), filter(1))) should be (false)
+    tree.evaluateState(Array(filter("v1"), filter(2))) should be (false)
   }
 }

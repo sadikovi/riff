@@ -24,6 +24,8 @@ package com.github.sadikovi.riff.ntree;
 
 import org.apache.spark.sql.types.DataType;
 
+import com.github.sadikovi.riff.TypeSpec;
+
 /**
  * Bound reference that has type information and value expression.
  */
@@ -47,6 +49,14 @@ public abstract class TypedBoundReference extends BoundReference {
    */
   public DataType dataType() {
     return expression().dataType();
+  }
+
+  @Override
+  public void update(TypeSpec spec) {
+    if (!spec.dataType().equals(dataType())) {
+      throw new IllegalStateException("Type mismatch: " + spec.dataType() + " != " + dataType() +
+      ", spec=" + spec + ", tree={" + this + "}");
+    }
   }
 
   @Override

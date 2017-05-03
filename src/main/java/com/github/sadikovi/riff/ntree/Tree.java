@@ -46,7 +46,7 @@ public interface Tree {
    * ordinal of statistics instance corresponds to the ordinal of type spec - and matches ordinal
    * stored for each leaf node.
    * @param stats array of statistics
-   * @return true if predicate is unknown or evaluated, false if it does not pass statistics
+   * @return true if statistics pass predicate, false otherwise
    */
   boolean evaluateState(Statistics[] stats);
 
@@ -55,7 +55,7 @@ public interface Tree {
    * information, and each ordinal of filter instance corresponds to the ordinal of type spec - and
    * matches ordinal stored for each leaf node. Each filter is guaranteed to be non-null.
    * @param filters array of column filters
-   * @return true if predicate is unknown or evaluated, false if it does not pass filter
+   * @return true if filters pass predicate, false otherwise
    */
   boolean evaluateState(ColumnFilter[] filters);
 
