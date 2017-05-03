@@ -211,4 +211,119 @@ class FilterSuite extends UnitTestSuite {
     pre.evaluateState(filter("y")) should be (false)
     pre.evaluateState(filter("z")) should be (false)
   }
+
+  test("IsNull predicate") {
+    val pre = nvl("col")
+    pre.equals(pre) should be (true)
+    pre.equals(nvl("col")) should be (true)
+    pre.equals(nvl("abc")) should be (false)
+    pre.analyzed() should be (false)
+    pre.copy() should be (nvl("col"))
+    pre.toString should be ("*col is null")
+
+    pre.evaluateState(InternalRow(1), 0) should be (false)
+    pre.evaluateState(InternalRow(null), 0) should be (true)
+
+    pre.evaluateState(stats("a", "z", false)) should be (false)
+    pre.evaluateState(stats("a", "z", true)) should be (true)
+
+    pre.evaluateState(filter("a")) should be (true)
+    pre.evaluateState(filter(1)) should be (true)
+    pre.evaluateState(filter(1L)) should be (true)
+  }
+
+  test("Not predicate") {
+    // using filter api because of the conflicts with scalatest
+    val pre = FilterApi.not(eqt("col", 1))
+    pre.equals(pre) should be (true)
+    pre.equals(FilterApi.not(eqt("col", 1))) should be (true)
+    pre.equals(FilterApi.not(gt("col", 1))) should be (false)
+    pre.equals(FilterApi.not(eqt("col", 2))) should be (false)
+    pre.equals(eqt("col", 1)) should be (false)
+    pre.analyzed() should be (false)
+    FilterApi.not(FALSE).analyzed() should be (true)
+    FilterApi.not(TRUE).analyzed() should be (true)
+    pre.copy() should be (pre)
+    pre.toString should be ("!(*col = 1)")
+
+
+    FilterApi.not(TRUE).evaluateState(InternalRow(1)) should be (false)
+    FilterApi.not(FALSE).evaluateState(InternalRow(2)) should be (true)
+
+    // we do not apply statistics to the "not" predicate
+    FilterApi.not(TRUE).evaluateState(Array(stats("a", "b", false))) should be (true)
+    FilterApi.not(TRUE).evaluateState(Array(stats("a", "b", true))) should be (true)
+    FilterApi.not(TRUE).evaluateState(Array(stats(1, 4, false))) should be (true)
+    FilterApi.not(FALSE).evaluateState(Array(stats(1, 4, true))) should be (true)
+    FilterApi.not(FALSE).evaluateState(Array(stats(1L, 4L, false))) should be (true)
+    FilterApi.not(FALSE).evaluateState(Array(stats(1L, 4L, true))) should be (true)
+
+    // we do not apply filters to the not predicate
+    FilterApi.not(TRUE).evaluateState(Array(filter("a"))) should be (true)
+    FilterApi.not(TRUE).evaluateState(Array(filter(2))) should be (true)
+    FilterApi.not(FALSE).evaluateState(Array(filter(2))) should be (true)
+    FilterApi.not(FALSE).evaluateState(Array(filter(2L))) should be (true)
+  }
+
+  test("And predicate") {
+    var pre = and(eqt("a", 2), gt("b", 8))
+    pre.equals(pre) should be (true)
+    pre.equals(and(eqt("a", 2), gt("b", 8))) should be (true)
+    pre.equals(and(TRUE, FALSE)) should be (false)
+    pre.equals(and(eqt("a", 2), TRUE)) should be (false)
+    pre.analyzed() should be (false)
+    and(FALSE, FALSE).analyzed() should be (true)
+    and(TRUE, FALSE).analyzed() should be (true)
+    and(FALSE, TRUE).analyzed() should be (true)
+    and(TRUE, TRUE).analyzed() should be (true)
+    pre.copy() should be (pre)
+    pre.toString should be ("(*a = 2) && (*b > 8)")
+
+    // we need to deal with resolved children here
+    and(TRUE, TRUE).evaluateState(InternalRow()) should be (true)
+    and(TRUE, FALSE).evaluateState(InternalRow()) should be (false)
+    and(FALSE, TRUE).evaluateState(InternalRow()) should be (false)
+    and(FALSE, FALSE).evaluateState(InternalRow()) should be (false)
+
+    and(TRUE, TRUE).evaluateState(Array(stats(1, 2, false))) should be (true)
+    and(TRUE, FALSE).evaluateState(Array(stats(1, 2, false))) should be (false)
+    and(FALSE, TRUE).evaluateState(Array(stats(1, 2, false))) should be (false)
+    and(FALSE, FALSE).evaluateState(Array(stats(1, 2, false))) should be (false)
+
+    and(TRUE, TRUE).evaluateState(Array(filter(1))) should be (true)
+    and(TRUE, FALSE).evaluateState(Array(filter(1))) should be (false)
+    and(FALSE, TRUE).evaluateState(Array(filter(1))) should be (false)
+    and(FALSE, FALSE).evaluateState(Array(filter(1))) should be (false)
+  }
+
+  test("Or predicate") {
+    var pre = or(eqt("a", 2), gt("b", 8))
+    pre.equals(pre) should be (true)
+    pre.equals(or(eqt("a", 2), gt("b", 8))) should be (true)
+    pre.equals(or(TRUE, FALSE)) should be (false)
+    pre.equals(or(eqt("a", 2), TRUE)) should be (false)
+    pre.analyzed() should be (false)
+    or(FALSE, FALSE).analyzed() should be (true)
+    or(TRUE, FALSE).analyzed() should be (true)
+    or(FALSE, TRUE).analyzed() should be (true)
+    or(TRUE, TRUE).analyzed() should be (true)
+    pre.copy() should be (pre)
+    pre.toString should be ("(*a = 2) || (*b > 8)")
+
+    // we need to deal with resolved children here
+    or(TRUE, TRUE).evaluateState(InternalRow()) should be (true)
+    or(TRUE, FALSE).evaluateState(InternalRow()) should be (true)
+    or(FALSE, TRUE).evaluateState(InternalRow()) should be (true)
+    or(FALSE, FALSE).evaluateState(InternalRow()) should be (false)
+
+    or(TRUE, TRUE).evaluateState(Array(stats(1, 2, false))) should be (true)
+    or(TRUE, FALSE).evaluateState(Array(stats(1, 2, false))) should be (true)
+    or(FALSE, TRUE).evaluateState(Array(stats(1, 2, false))) should be (true)
+    or(FALSE, FALSE).evaluateState(Array(stats(1, 2, false))) should be (false)
+
+    or(TRUE, TRUE).evaluateState(Array(filter(1))) should be (true)
+    or(TRUE, FALSE).evaluateState(Array(filter(1))) should be (true)
+    or(FALSE, TRUE).evaluateState(Array(filter(1))) should be (true)
+    or(FALSE, FALSE).evaluateState(Array(filter(1))) should be (false)
+  }
 }
