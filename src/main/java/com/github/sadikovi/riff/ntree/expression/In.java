@@ -25,6 +25,7 @@ package com.github.sadikovi.riff.ntree.expression;
 import java.util.Arrays;
 
 import org.apache.spark.sql.catalyst.InternalRow;
+import org.apache.spark.sql.types.DataType;
 
 import com.github.sadikovi.riff.ColumnFilter;
 import com.github.sadikovi.riff.ntree.Rule;
@@ -49,8 +50,14 @@ public class In extends TypedBoundReference {
     }
     this.name = name;
     this.list = new TypedExpression[values.length];
-    // copy and sort expressions
+    // copy and sort expressions, check that all expressions are of the same type
+    DataType dtype = null;
     for (int i = 0; i < values.length; i++) {
+      if (dtype != null && !dtype.equals(values[i].dataType())) {
+        throw new IllegalArgumentException("Invalid data type, expected " + dtype + ", found " +
+          values[i].dataType());
+      }
+      dtype = values[i].dataType();
       this.list[i] = values[i].copy();
     }
     Arrays.sort(this.list);
@@ -132,7 +139,7 @@ public class In extends TypedBoundReference {
   public boolean equals(Object obj) {
     // equals method is used only for testing to compare trees, it should never be used for
     // evaluating predicate
-    if (obj == null || obj.getClass() != this.getClass()) return false;
+    if (obj == null || !(obj instanceof In)) return false;
     In that = (In) obj;
     return name().equals(that.name()) && ordinal() == that.ordinal() &&
       Arrays.equals(list, that.list);

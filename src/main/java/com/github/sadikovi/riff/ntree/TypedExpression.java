@@ -33,7 +33,7 @@ import com.github.sadikovi.riff.ColumnFilter;
  * All predicate related methods should be implement following this rule:
  * {value at ordinal <action> this expression}.
  */
-public interface TypedExpression {
+public interface TypedExpression<E> extends Comparable<E> {
   /**
    * Associated Spark SQL data type for this expression.
    * @return data type
@@ -76,6 +76,14 @@ public interface TypedExpression {
    * @return true if expression is in filter, false otherwise
    */
   boolean containsExpr(ColumnFilter filter);
+
+  /**
+   * Compare this typed expression with provided object.
+   * Should return -1, 0, 1 as a result for less than, equals, and greater than.
+   * @param obj object to compare
+   * @return comparison value
+   */
+  int compareTo(E obj);
 
   /**
    * Java "equals" method to compare with an object.
