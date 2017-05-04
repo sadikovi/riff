@@ -130,7 +130,7 @@ public class IndexedRowReader {
     // read data region, similarly we do not initialize data region, if no bytes were written
     int dataBytes = in.readInt();
     // if index tree does not accept current row, return it and skip data region
-    if (!state.indexTree().evaluate(row)) {
+    if (!state.indexTree().evaluateState(row)) {
       in.skip(dataBytes);
       return null;
     }
@@ -145,7 +145,7 @@ public class IndexedRowReader {
     // we would have evaluated index tree in previous step
     if (state.hasIndexedTreeOnly()) return row;
     // row passes predicate state
-    if (state.tree().evaluate(row)) return row;
+    if (state.tree().evaluateState(row)) return row;
     return null;
   }
 

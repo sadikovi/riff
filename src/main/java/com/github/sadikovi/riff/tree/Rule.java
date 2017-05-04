@@ -22,17 +22,17 @@
 
 package com.github.sadikovi.riff.tree;
 
-import com.github.sadikovi.riff.tree.Tree.And;
-import com.github.sadikovi.riff.tree.Tree.GreaterThan;
-import com.github.sadikovi.riff.tree.Tree.GreaterThanOrEqual;
-import com.github.sadikovi.riff.tree.Tree.EqualTo;
-import com.github.sadikovi.riff.tree.Tree.In;
-import com.github.sadikovi.riff.tree.Tree.IsNull;
-import com.github.sadikovi.riff.tree.Tree.LessThan;
-import com.github.sadikovi.riff.tree.Tree.LessThanOrEqual;
-import com.github.sadikovi.riff.tree.Tree.Not;
-import com.github.sadikovi.riff.tree.Tree.Or;
-import com.github.sadikovi.riff.tree.Tree.Trivial;
+import com.github.sadikovi.riff.tree.expression.EqualTo;
+import com.github.sadikovi.riff.tree.expression.GreaterThan;
+import com.github.sadikovi.riff.tree.expression.LessThan;
+import com.github.sadikovi.riff.tree.expression.GreaterThanOrEqual;
+import com.github.sadikovi.riff.tree.expression.LessThanOrEqual;
+import com.github.sadikovi.riff.tree.expression.In;
+import com.github.sadikovi.riff.tree.expression.IsNull;
+import com.github.sadikovi.riff.tree.expression.Not;
+import com.github.sadikovi.riff.tree.expression.And;
+import com.github.sadikovi.riff.tree.expression.Or;
+import com.github.sadikovi.riff.tree.expression.Trivial;
 
 /**
  * Rule allows to traverse tree and return updated/modified tree which contains either copies of
@@ -40,25 +40,25 @@ import com.github.sadikovi.riff.tree.Tree.Trivial;
  * rather than node values.
  */
 public interface Rule {
-  TreeNode update(EqualTo node);
+  Tree update(EqualTo node);
 
-  TreeNode update(GreaterThan node);
+  Tree update(GreaterThan node);
 
-  TreeNode update(LessThan node);
+  Tree update(LessThan node);
 
-  TreeNode update(GreaterThanOrEqual node);
+  Tree update(GreaterThanOrEqual node);
 
-  TreeNode update(LessThanOrEqual node);
+  Tree update(LessThanOrEqual node);
 
-  TreeNode update(In node);
+  Tree update(In node);
 
-  TreeNode update(IsNull node);
+  Tree update(IsNull node);
 
-  TreeNode update(And node);
+  Tree update(Not node);
 
-  TreeNode update(Or node);
+  Tree update(And node);
 
-  TreeNode update(Not node);
+  Tree update(Or node);
 
-  TreeNode update(Trivial node);
+  Tree update(Trivial node);
 }

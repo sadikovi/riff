@@ -22,28 +22,23 @@
 
 package com.github.sadikovi.riff.tree;
 
-import java.util.Arrays;
-
-import org.apache.spark.sql.catalyst.InternalRow;
-import org.apache.spark.sql.types.DataType;
-import org.apache.spark.sql.types.DataTypes;
-import org.apache.spark.sql.types.IntegerType;
-import org.apache.spark.sql.types.LongType;
-import org.apache.spark.sql.types.StringType;
 import org.apache.spark.unsafe.types.UTF8String;
 
-import com.github.sadikovi.riff.ColumnFilter;
-import com.github.sadikovi.riff.tree.Tree.And;
-import com.github.sadikovi.riff.tree.Tree.GreaterThan;
-import com.github.sadikovi.riff.tree.Tree.GreaterThanOrEqual;
-import com.github.sadikovi.riff.tree.Tree.EqualTo;
-import com.github.sadikovi.riff.tree.Tree.In;
-import com.github.sadikovi.riff.tree.Tree.IsNull;
-import com.github.sadikovi.riff.tree.Tree.LessThan;
-import com.github.sadikovi.riff.tree.Tree.LessThanOrEqual;
-import com.github.sadikovi.riff.tree.Tree.Not;
-import com.github.sadikovi.riff.tree.Tree.Or;
-import com.github.sadikovi.riff.tree.Tree.Trivial;
+import com.github.sadikovi.riff.tree.expression.IntegerExpression;
+import com.github.sadikovi.riff.tree.expression.LongExpression;
+import com.github.sadikovi.riff.tree.expression.UTF8StringExpression;
+
+import com.github.sadikovi.riff.tree.expression.EqualTo;
+import com.github.sadikovi.riff.tree.expression.GreaterThan;
+import com.github.sadikovi.riff.tree.expression.LessThan;
+import com.github.sadikovi.riff.tree.expression.GreaterThanOrEqual;
+import com.github.sadikovi.riff.tree.expression.LessThanOrEqual;
+import com.github.sadikovi.riff.tree.expression.In;
+import com.github.sadikovi.riff.tree.expression.IsNull;
+import com.github.sadikovi.riff.tree.expression.Not;
+import com.github.sadikovi.riff.tree.expression.And;
+import com.github.sadikovi.riff.tree.expression.Or;
+import com.github.sadikovi.riff.tree.expression.Trivial;
 
 /**
  * [[FilterApi]] is used to construct predicate tree. It is recommended to use this set of methods
@@ -51,8 +46,8 @@ import com.github.sadikovi.riff.tree.Tree.Trivial;
  * Usage:
  * {{{
  * > import FilterApi.*;
- * > TreeNode tree = or(and(eqt("a", 1), eqt("b", 10L)), not(nvl("c")));
- * t: com.github.sadikovi.riff.tree.TreeNode = ((*a = 1) && (*b = 10)) || (!(*c is null))
+ * > Tree tree = or(and(eqt("a", 1), eqt("b", 10L)), not(nvl("c")));
+ * t: com.github.sadikovi.riff.tree.Tree = ((*a = 1) && (*b = 10)) || (!(*c is null))
  * }}}
  * It is assumed that all nodes are non-null, but checks are in place for assertion. If value is
  * null, use `nvl` method instead of passing null reference.
@@ -60,737 +55,136 @@ import com.github.sadikovi.riff.tree.Tree.Trivial;
 public class FilterApi {
   private FilterApi() { }
 
-  // default unresolved ordinal
-  public static final int UNRESOLVED_ORDINAL = -1;
-
   /**
-   * Create equality filter.
-   * @param name field name
-   * @param value filter value
-   * @return EQT(field, value)
+   * Method to convert object into typed expression, throws exception if no match is found
+   * @param obj object to convert, must never be null
+   * @return typed expression for this object
    */
-  public static EqualTo eqt(String name, Object value) {
-    if (value == null) {
-      throw new IllegalArgumentException("Value is null. Use `IsNull` instead");
-    } else if (value instanceof Integer) {
-      return eqt(name, UNRESOLVED_ORDINAL, ((Integer) value).intValue());
-    } else if (value instanceof Long) {
-      return eqt(name, UNRESOLVED_ORDINAL, ((Long) value).longValue());
-    } else if (value instanceof UTF8String) {
-      return eqt(name, UNRESOLVED_ORDINAL, (UTF8String) value);
-    } else if (value instanceof String) {
-      return eqt(name, UNRESOLVED_ORDINAL, UTF8String.fromString((String) value));
+  protected static TypedExpression objToExpression(Object obj) {
+    if (obj == null) {
+      throw new NullPointerException("Cannot convert null into typed expression");
+    }
+
+    if (obj instanceof Integer) {
+      return new IntegerExpression((Integer) obj);
+    } else if (obj instanceof Long) {
+      return new LongExpression((Long) obj);
+    } else if (obj instanceof String) {
+      return new UTF8StringExpression(UTF8String.fromString((String) obj));
+    } else if (obj instanceof UTF8String) {
+      return new UTF8StringExpression((UTF8String) obj);
     } else {
-      throw new UnsupportedOperationException("No filter registered for value " + value +
-        " of type " + value.getClass());
+      throw new UnsupportedOperationException("Object " + obj + " of " + obj.getClass());
     }
   }
 
+  // `true` predicate
+  public static final Trivial TRUE = new Trivial(true);
+
+  // `false` predicate
+  public static final Trivial FALSE = new Trivial(false);
+
   /**
-   * Create '>' filter.
-   * @param name field name
-   * @param value filter value
-   * @return GT(field, value)
+   * Create "equal to" filter.
+   * @param columnName column name
+   * @param value value
+   * @return EqualTo(column, value)
    */
-  public static GreaterThan gt(String name, Object value) {
-    if (value == null) {
-      throw new IllegalArgumentException("Value is null. Use `IsNull` instead");
-    } else if (value instanceof Integer) {
-      return gt(name, UNRESOLVED_ORDINAL, ((Integer) value).intValue());
-    } else if (value instanceof Long) {
-      return gt(name, UNRESOLVED_ORDINAL, ((Long) value).longValue());
-    } else if (value instanceof UTF8String) {
-      return gt(name, UNRESOLVED_ORDINAL, (UTF8String) value);
-    } else if (value instanceof String) {
-      return gt(name, UNRESOLVED_ORDINAL, UTF8String.fromString((String) value));
-    } else {
-      throw new UnsupportedOperationException("No filter registered for value " + value +
-        " of type " + value.getClass());
+  public static EqualTo eqt(String columnName, Object value) {
+    return new EqualTo(columnName, objToExpression(value));
+  }
+
+  /**
+   * Create "greater than" filter.
+   * @param columnName column name
+   * @param value value
+   * @return GreaterThan(column, value)
+   */
+  public static GreaterThan gt(String columnName, Object value) {
+    return new GreaterThan(columnName, objToExpression(value));
+  }
+
+  /**
+   * Create "less than" filter.
+   * @param columnName column name
+   * @param value value
+   * @return LessThan(column, value)
+   */
+  public static LessThan lt(String columnName, Object value) {
+    return new LessThan(columnName, objToExpression(value));
+  }
+
+  /**
+   * Create greater than or equalt o filter.
+   * @param columnName column name
+   * @param value value
+   * @return GreaterThanOrEqual(column, value)
+   */
+  public static GreaterThanOrEqual ge(String columnName, Object value) {
+    return new GreaterThanOrEqual(columnName, objToExpression(value));
+  }
+
+  /**
+   * Create "less than or equal to" filter.
+   * @param columnName column name
+   * @param value value
+   * @return LessThanOrEqual(column, value)
+   */
+  public static LessThanOrEqual le(String columnName, Object value) {
+    return new LessThanOrEqual(columnName, objToExpression(value));
+  }
+
+  /**
+   * Create "in" filter.
+   * @param columnName column name
+   * @param value value
+   * @return In(column, value)
+   */
+  public static In in(String columnName, Object... values) {
+    TypedExpression[] expressions = new TypedExpression[values.length];
+    for (int i = 0; i < values.length; i++) {
+      expressions[i] = objToExpression(values[i]);
     }
+    return new In(columnName, expressions);
   }
 
   /**
-   * Create '<' filter.
-   * @param name field name
-   * @param value filter value
-   * @return LT(field, value)
+   * Create "is null" filter.
+   * @param columnName column name
+   * @param value value
+   * @return EqualTo(column, value)
    */
-  public static LessThan lt(String name, Object value) {
-    if (value == null) {
-      throw new IllegalArgumentException("Value is null. Use `IsNull` instead");
-    } else if (value instanceof Integer) {
-      return lt(name, UNRESOLVED_ORDINAL, ((Integer) value).intValue());
-    } else if (value instanceof Long) {
-      return lt(name, UNRESOLVED_ORDINAL, ((Long) value).longValue());
-    } else if (value instanceof UTF8String) {
-      return lt(name, UNRESOLVED_ORDINAL, (UTF8String) value);
-    } else if (value instanceof String) {
-      return lt(name, UNRESOLVED_ORDINAL, UTF8String.fromString((String) value));
-    } else {
-      throw new UnsupportedOperationException("No filter registered for value " + value +
-        " of type " + value.getClass());
-    }
+  public static IsNull nvl(String columnName) {
+    return new IsNull(columnName);
   }
 
   /**
-   * Create '>=' filter.
-   * @param name field name
-   * @param value filter value
-   * @return GE(field, value)
+   * Create "not" filter.
+   * @param columnName column name
+   * @param value value
+   * @return Not(child tree)
    */
-  public static GreaterThanOrEqual ge(String name, Object value) {
-    if (value == null) {
-      throw new IllegalArgumentException("Value is null. Use `IsNull` instead");
-    } else if (value instanceof Integer) {
-      return ge(name, UNRESOLVED_ORDINAL, ((Integer) value).intValue());
-    } else if (value instanceof Long) {
-      return ge(name, UNRESOLVED_ORDINAL, ((Long) value).longValue());
-    } else if (value instanceof UTF8String) {
-      return ge(name, UNRESOLVED_ORDINAL, (UTF8String) value);
-    } else if (value instanceof String) {
-      return ge(name, UNRESOLVED_ORDINAL, UTF8String.fromString((String) value));
-    } else {
-      throw new UnsupportedOperationException("No filter registered for value " + value +
-        " of type " + value.getClass());
-    }
+  public static Not not(Tree child) {
+    return new Not(child);
   }
 
   /**
-   * Create '<=' filter.
-   * @param name field name
-   * @param value filter value
-   * @return LE(field, value)
+   * Create "and" filter.
+   * @param columnName column name
+   * @param value value
+   * @return And(left subtree, right subtree)
    */
-  public static LessThanOrEqual le(String name, Object value) {
-    if (value == null) {
-      throw new IllegalArgumentException("Value is null. Use `IsNull` instead");
-    } else if (value instanceof Integer) {
-      return le(name, UNRESOLVED_ORDINAL, ((Integer) value).intValue());
-    } else if (value instanceof Long) {
-      return le(name, UNRESOLVED_ORDINAL, ((Long) value).longValue());
-    } else if (value instanceof UTF8String) {
-      return le(name, UNRESOLVED_ORDINAL, (UTF8String) value);
-    } else if (value instanceof String) {
-      return le(name, UNRESOLVED_ORDINAL, UTF8String.fromString((String) value));
-    } else {
-      throw new UnsupportedOperationException("No filter registered for value " + value +
-        " of type " + value.getClass());
-    }
-  }
-
-  /**
-   * Create 'isin' filter.
-   * @param name field name
-   * @param value filter value
-   * @return IN(field, value)
-   */
-  public static In in(String name, Object value) {
-    if (value == null) {
-      throw new IllegalArgumentException("Value is null. Use `IsNull` instead");
-    } else if (value instanceof int[]) {
-      return in(name, UNRESOLVED_ORDINAL, (int[]) value);
-    } else if (value instanceof long[]) {
-      return in(name, UNRESOLVED_ORDINAL, (long[]) value);
-    } else if (value instanceof UTF8String[]) {
-      return in(name, UNRESOLVED_ORDINAL, (UTF8String[]) value);
-    } else if (value instanceof String[]) {
-      String[] arr0 = (String[]) value;
-      UTF8String[] arr1 = new UTF8String[arr0.length];
-      for (int i = 0; i < arr0.length; i++) {
-        arr1[i] = UTF8String.fromString(arr0[i]);
-      }
-      return in(name, UNRESOLVED_ORDINAL, arr1);
-    } else {
-      throw new UnsupportedOperationException("No filter registered for value " + value +
-        " of type " + value.getClass());
-    }
-  }
-
-  //////////////////////////////////////////////////////////////
-  // EqualTo
-  //////////////////////////////////////////////////////////////
-
-  private static EqualTo eqt(String name, int ordinal, final int value) {
-    return new EqualTo(name, ordinal) {
-      @Override public int getInt() {
-        return value;
-      }
-
-      @Override public DataType dataType() {
-        return DataTypes.IntegerType;
-      }
-
-      @Override public boolean evaluate(InternalRow row) {
-        return !row.isNullAt(ordinal) && row.getInt(ordinal) == value;
-      }
-
-      @Override public EqualTo withOrdinal(int newOrdinal) {
-        return eqt(name, newOrdinal, value);
-      }
-
-      @Override public boolean statUpdate(int min, int max) {
-        return min <= value && value <= max;
-      }
-
-      @Override protected boolean evaluateFilter(ColumnFilter filter) {
-        return filter.mightContain(value);
-      }
-    };
-  }
-
-  private static EqualTo eqt(String name, int ordinal, final long value) {
-    return new EqualTo(name, ordinal) {
-      @Override public long getLong() {
-        return value;
-      }
-
-      @Override public DataType dataType() {
-        return DataTypes.LongType;
-      }
-
-      @Override public boolean evaluate(InternalRow row) {
-        return !row.isNullAt(ordinal) && row.getLong(ordinal) == value;
-      }
-
-      @Override public EqualTo withOrdinal(int newOrdinal) {
-        return eqt(name, newOrdinal, value);
-      }
-
-      @Override public boolean statUpdate(long min, long max) {
-        return min <= value && value <= max;
-      }
-
-      @Override protected boolean evaluateFilter(ColumnFilter filter) {
-        return filter.mightContain(value);
-      }
-    };
-  }
-
-  private static EqualTo eqt(String name, int ordinal, final UTF8String value) {
-    return new EqualTo(name, ordinal) {
-      @Override public UTF8String getUTF8String() {
-        return value;
-      }
-
-      @Override public DataType dataType() {
-        return DataTypes.StringType;
-      }
-
-      @Override public boolean evaluate(InternalRow row) {
-        return !row.isNullAt(ordinal) && row.getUTF8String(ordinal).equals(value);
-      }
-
-      @Override public EqualTo withOrdinal(int newOrdinal) {
-        return eqt(name, newOrdinal, value);
-      }
-
-      @Override public boolean statUpdate(UTF8String min, UTF8String max) {
-        if (min == null && max == null) return false;
-        return min.compareTo(value) <= 0 && value.compareTo(max) <= 0;
-      }
-
-      @Override protected boolean evaluateFilter(ColumnFilter filter) {
-        return filter.mightContain(value);
-      }
-    };
-  }
-
-  //////////////////////////////////////////////////////////////
-  // GreaterThan
-  //////////////////////////////////////////////////////////////
-
-  private static GreaterThan gt(String name, int ordinal, final int value) {
-    return new GreaterThan(name, ordinal) {
-      @Override public int getInt() {
-        return value;
-      }
-
-      @Override public DataType dataType() {
-        return DataTypes.IntegerType;
-      }
-
-      @Override public boolean evaluate(InternalRow row) {
-        return !row.isNullAt(ordinal) && row.getInt(ordinal) > value;
-      }
-
-      @Override public GreaterThan withOrdinal(int newOrdinal) {
-        return gt(name, newOrdinal, value);
-      }
-
-      @Override public boolean statUpdate(int min, int max) {
-        return value < max;
-      }
-    };
-  }
-
-  private static GreaterThan gt(String name, int ordinal, final long value) {
-    return new GreaterThan(name, ordinal) {
-      @Override public long getLong() {
-        return value;
-      }
-
-      @Override public DataType dataType() {
-        return DataTypes.LongType;
-      }
-
-      @Override public boolean evaluate(InternalRow row) {
-        return !row.isNullAt(ordinal) && row.getLong(ordinal) > value;
-      }
-
-      @Override public GreaterThan withOrdinal(int newOrdinal) {
-        return gt(name, newOrdinal, value);
-      }
-
-      @Override public boolean statUpdate(long min, long max) {
-        return value < max;
-      }
-    };
-  }
-
-  private static GreaterThan gt(String name, int ordinal, final UTF8String value) {
-    return new GreaterThan(name, ordinal) {
-      @Override public UTF8String getUTF8String() {
-        return value;
-      }
-
-      @Override public DataType dataType() {
-        return DataTypes.StringType;
-      }
-
-      @Override public boolean evaluate(InternalRow row) {
-        return !row.isNullAt(ordinal) && row.getUTF8String(ordinal).compareTo(value) > 0;
-      }
-
-      @Override public GreaterThan withOrdinal(int newOrdinal) {
-        return gt(name, newOrdinal, value);
-      }
-
-      @Override public boolean statUpdate(UTF8String min, UTF8String max) {
-        if (min == null && max == null) return false;
-        return value.compareTo(max) < 0;
-      }
-    };
-  }
-
-  //////////////////////////////////////////////////////////////
-  // LessThan
-  //////////////////////////////////////////////////////////////
-
-  private static LessThan lt(String name, int ordinal, final int value) {
-    return new LessThan(name, ordinal) {
-      @Override public int getInt() {
-        return value;
-      }
-
-      @Override public DataType dataType() {
-        return DataTypes.IntegerType;
-      }
-
-      @Override public boolean evaluate(InternalRow row) {
-        return !row.isNullAt(ordinal) && row.getInt(ordinal) < value;
-      }
-
-      @Override public LessThan withOrdinal(int newOrdinal) {
-        return lt(name, newOrdinal, value);
-      }
-
-      @Override public boolean statUpdate(int min, int max) {
-        return value > min;
-      }
-    };
-  }
-
-  private static LessThan lt(String name, int ordinal, final long value) {
-    return new LessThan(name, ordinal) {
-      @Override public long getLong() {
-        return value;
-      }
-
-      @Override public DataType dataType() {
-        return DataTypes.LongType;
-      }
-
-      @Override public boolean evaluate(InternalRow row) {
-        return !row.isNullAt(ordinal) && row.getLong(ordinal) < value;
-      }
-
-      @Override public LessThan withOrdinal(int newOrdinal) {
-        return lt(name, newOrdinal, value);
-      }
-
-      @Override public boolean statUpdate(long min, long max) {
-        return value > min;
-      }
-    };
-  }
-
-  private static LessThan lt(String name, int ordinal, final UTF8String value) {
-    return new LessThan(name, ordinal) {
-      @Override public UTF8String getUTF8String() {
-        return value;
-      }
-
-      @Override public DataType dataType() {
-        return DataTypes.StringType;
-      }
-
-      @Override public boolean evaluate(InternalRow row) {
-        return !row.isNullAt(ordinal) && row.getUTF8String(ordinal).compareTo(value) < 0;
-      }
-
-      @Override public LessThan withOrdinal(int newOrdinal) {
-        return lt(name, newOrdinal, value);
-      }
-
-      @Override public boolean statUpdate(UTF8String min, UTF8String max) {
-        if (min == null && max == null) return false;
-        return value.compareTo(min) > 0;
-      }
-    };
-  }
-
-  //////////////////////////////////////////////////////////////
-  // GreaterThanOrEqual
-  //////////////////////////////////////////////////////////////
-
-  private static GreaterThanOrEqual ge(String name, int ordinal, final int value) {
-    return new GreaterThanOrEqual(name, ordinal) {
-      @Override public int getInt() {
-        return value;
-      }
-
-      @Override public DataType dataType() {
-        return DataTypes.IntegerType;
-      }
-
-      @Override public boolean evaluate(InternalRow row) {
-        return !row.isNullAt(ordinal) && row.getInt(ordinal) >= value;
-      }
-
-      @Override public GreaterThanOrEqual withOrdinal(int newOrdinal) {
-        return ge(name, newOrdinal, value);
-      }
-
-      @Override public boolean statUpdate(int min, int max) {
-        return value <= max;
-      }
-    };
-  }
-
-  private static GreaterThanOrEqual ge(String name, int ordinal, final long value) {
-    return new GreaterThanOrEqual(name, ordinal) {
-      @Override public long getLong() {
-        return value;
-      }
-
-      @Override public DataType dataType() {
-        return DataTypes.LongType;
-      }
-
-      @Override public boolean evaluate(InternalRow row) {
-        return !row.isNullAt(ordinal) && row.getLong(ordinal) >= value;
-      }
-
-      @Override public GreaterThanOrEqual withOrdinal(int newOrdinal) {
-        return ge(name, newOrdinal, value);
-      }
-
-      @Override public boolean statUpdate(long min, long max) {
-        return value <= max;
-      }
-    };
-  }
-
-  private static GreaterThanOrEqual ge(String name, int ordinal, final UTF8String value) {
-    return new GreaterThanOrEqual(name, ordinal) {
-      @Override public UTF8String getUTF8String() {
-        return value;
-      }
-
-      @Override public DataType dataType() {
-        return DataTypes.StringType;
-      }
-
-      @Override public boolean evaluate(InternalRow row) {
-        return !row.isNullAt(ordinal) && row.getUTF8String(ordinal).compareTo(value) >= 0;
-      }
-
-      @Override public GreaterThanOrEqual withOrdinal(int newOrdinal) {
-        return ge(name, newOrdinal, value);
-      }
-
-      @Override public boolean statUpdate(UTF8String min, UTF8String max) {
-        if (min == null && max == null) return false;
-        return value.compareTo(max) <= 0;
-      }
-    };
-  }
-
-  //////////////////////////////////////////////////////////////
-  // LessThanOrEqual
-  //////////////////////////////////////////////////////////////
-
-  private static LessThanOrEqual le(String name, int ordinal, final int value) {
-    return new LessThanOrEqual(name, ordinal) {
-      @Override public int getInt() {
-        return value;
-      }
-
-      @Override public DataType dataType() {
-        return DataTypes.IntegerType;
-      }
-
-      @Override public boolean evaluate(InternalRow row) {
-        return !row.isNullAt(ordinal) && row.getInt(ordinal) <= value;
-      }
-
-      @Override public LessThanOrEqual withOrdinal(int newOrdinal) {
-        return le(name, newOrdinal, value);
-      }
-
-      @Override public boolean statUpdate(int min, int max) {
-        return value >= min;
-      }
-    };
-  }
-
-  private static LessThanOrEqual le(String name, int ordinal, final long value) {
-    return new LessThanOrEqual(name, ordinal) {
-      @Override public long getLong() {
-        return value;
-      }
-
-      @Override public DataType dataType() {
-        return DataTypes.LongType;
-      }
-
-      @Override public boolean evaluate(InternalRow row) {
-        return !row.isNullAt(ordinal) && row.getLong(ordinal) <= value;
-      }
-
-      @Override public LessThanOrEqual withOrdinal(int newOrdinal) {
-        return le(name, newOrdinal, value);
-      }
-
-      @Override public boolean statUpdate(long min, long max) {
-        return value >= min;
-      }
-    };
-  }
-
-  private static LessThanOrEqual le(String name, int ordinal, final UTF8String value) {
-    return new LessThanOrEqual(name, ordinal) {
-      @Override public UTF8String getUTF8String() {
-        return value;
-      }
-
-      @Override public DataType dataType() {
-        return DataTypes.StringType;
-      }
-
-      @Override public boolean evaluate(InternalRow row) {
-        return !row.isNullAt(ordinal) && row.getUTF8String(ordinal).compareTo(value) <= 0;
-      }
-
-      @Override public LessThanOrEqual withOrdinal(int newOrdinal) {
-        return le(name, newOrdinal, value);
-      }
-
-      @Override public boolean statUpdate(UTF8String min, UTF8String max) {
-        if (min == null && max == null) return false;
-        return value.compareTo(min) >= 0;
-      }
-    };
-  }
-
-  //////////////////////////////////////////////////////////////
-  // In
-  //////////////////////////////////////////////////////////////
-
-  private static In in(String name, int ordinal, int[] value) {
-    final int[] arr = new int[value.length];
-    System.arraycopy(value, 0, arr, 0, value.length);
-    // sort in ascending order
-    Arrays.sort(arr);
-
-    return new In(name, ordinal) {
-      @Override public int[] getIntArray() {
-        return arr;
-      }
-
-      @Override public DataType dataType() {
-        return DataTypes.IntegerType;
-      }
-
-      @Override public boolean evaluate(InternalRow row) {
-        return !row.isNullAt(ordinal) && Arrays.binarySearch(arr, row.getInt(ordinal)) >= 0;
-      }
-
-      @Override public In withOrdinal(int newOrdinal) {
-        return in(name, newOrdinal, arr);
-      }
-
-      @Override public boolean statUpdate(int min, int max) {
-        for (int i = 0; i < arr.length; i++) {
-          if (arr[i] >= min && arr[i] <= max) return true;
-        }
-        return false;
-      }
-
-      @Override protected boolean evaluateFilter(ColumnFilter filter) {
-        for (int i = 0; i < arr.length; i++) {
-          if (filter.mightContain(arr[i])) return true;
-        }
-        return false;
-      }
-    };
-  }
-
-  private static In in(String name, int ordinal, long[] value) {
-    final long[] arr = new long[value.length];
-    System.arraycopy(value, 0, arr, 0, value.length);
-    // sort in ascending order
-    Arrays.sort(arr);
-
-    return new In(name, ordinal) {
-      @Override public long[] getLongArray() {
-        return arr;
-      }
-
-      @Override public DataType dataType() {
-        return DataTypes.LongType;
-      }
-
-      @Override public boolean evaluate(InternalRow row) {
-        return !row.isNullAt(ordinal) && Arrays.binarySearch(arr, row.getLong(ordinal)) >= 0;
-      }
-
-      @Override public In withOrdinal(int newOrdinal) {
-        return in(name, newOrdinal, arr);
-      }
-
-      @Override public boolean statUpdate(long min, long max) {
-        for (int i = 0; i < arr.length; i++) {
-          if (arr[i] >= min && arr[i] <= max) return true;
-        }
-        return false;
-      }
-
-      @Override protected boolean evaluateFilter(ColumnFilter filter) {
-        for (int i = 0; i < arr.length; i++) {
-          if (filter.mightContain(arr[i])) return true;
-        }
-        return false;
-      }
-    };
-  }
-
-  private static In in(String name, int ordinal, UTF8String[] value) {
-    final UTF8String[] arr = new UTF8String[value.length];
-    System.arraycopy(value, 0, arr, 0, value.length);
-    // sort in ascending order
-    Arrays.sort(arr);
-
-    return new In(name, ordinal) {
-      @Override public UTF8String[] getUTF8StringArray() {
-        return arr;
-      }
-
-      @Override public DataType dataType() {
-        return DataTypes.StringType;
-      }
-
-      @Override public boolean evaluate(InternalRow row) {
-        return !row.isNullAt(ordinal) && Arrays.binarySearch(arr, row.getUTF8String(ordinal)) >= 0;
-      }
-
-      @Override public In withOrdinal(int newOrdinal) {
-        return in(name, newOrdinal, arr);
-      }
-
-      @Override public boolean statUpdate(UTF8String min, UTF8String max) {
-        if (min == null && max == null) return false;
-        for (int i = 0; i < arr.length; i++) {
-          if (arr[i].compareTo(min) >= 0 && arr[i].compareTo(max) <= 0) return true;
-        }
-        return false;
-      }
-
-      @Override protected boolean evaluateFilter(ColumnFilter filter) {
-        for (int i = 0; i < arr.length; i++) {
-          if (filter.mightContain(arr[i])) return true;
-        }
-        return false;
-      }
-    };
-  }
-
-  //////////////////////////////////////////////////////////////
-  // IsNull
-  //////////////////////////////////////////////////////////////
-
-  /**
-   * Create `IsNull` filter for a field, where filter value is null
-   * @param name field name
-   * @return IS_NULL(field)
-   */
-  public static IsNull nvl(String name) {
-    return new IsNull(name, UNRESOLVED_ORDINAL);
-  }
-
-  //////////////////////////////////////////////////////////////
-  // Logical filters
-  //////////////////////////////////////////////////////////////
-
-  /**
-   * Create logical AND between 2 child filters.
-   * @param left left filter
-   * @param right right filter
-   * @return AND(left, right)
-   */
-  public static And and(TreeNode left, TreeNode right) {
-    if (left == null || right == null) throw new IllegalArgumentException("Child node is null");
+  public static And and(Tree left, Tree right) {
     return new And(left, right);
   }
 
   /**
-   * Create logical OR between 2 child filters.
-   * @param left left filter
-   * @param right right filter
-   * @return OR(left, right)
+   * Create "or" filter.
+   * @param columnName column name
+   * @param value value
+   * @return Or(left subtree, right subtree)
    */
-  public static Or or(TreeNode left, TreeNode right) {
-    if (left == null || right == null) throw new IllegalArgumentException("Child node is null");
+  public static Or or(Tree left, Tree right) {
     return new Or(left, right);
-  }
-
-  /**
-   * Create negation of the child filter.
-   * @param child child filter
-   * @return NOT(child)
-   */
-  public static Not not(TreeNode child) {
-    if (child == null) throw new IllegalArgumentException("Child node is null");
-    return new Not(child);
-  }
-
-  //////////////////////////////////////////////////////////////
-  // Literals
-  //////////////////////////////////////////////////////////////
-
-  /**
-   * Create trivial `true` filter.
-   * @return TRUE
-   */
-  public static Trivial TRUE() {
-    return new Trivial(true);
-  }
-
-  /**
-   * Create trivial `false` filter.
-   * @return FALSE
-   */
-  public static Trivial FALSE() {
-    return new Trivial(false);
   }
 }

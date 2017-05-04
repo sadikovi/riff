@@ -27,18 +27,19 @@ import org.slf4j.LoggerFactory;
 
 import com.github.sadikovi.riff.tree.BoundReference;
 import com.github.sadikovi.riff.tree.Rule;
-import com.github.sadikovi.riff.tree.TreeNode;
-import com.github.sadikovi.riff.tree.Tree.And;
-import com.github.sadikovi.riff.tree.Tree.GreaterThan;
-import com.github.sadikovi.riff.tree.Tree.GreaterThanOrEqual;
-import com.github.sadikovi.riff.tree.Tree.EqualTo;
-import com.github.sadikovi.riff.tree.Tree.In;
-import com.github.sadikovi.riff.tree.Tree.IsNull;
-import com.github.sadikovi.riff.tree.Tree.LessThan;
-import com.github.sadikovi.riff.tree.Tree.LessThanOrEqual;
-import com.github.sadikovi.riff.tree.Tree.Not;
-import com.github.sadikovi.riff.tree.Tree.Or;
-import com.github.sadikovi.riff.tree.Tree.Trivial;
+import com.github.sadikovi.riff.tree.Tree;
+
+import com.github.sadikovi.riff.tree.expression.And;
+import com.github.sadikovi.riff.tree.expression.GreaterThan;
+import com.github.sadikovi.riff.tree.expression.GreaterThanOrEqual;
+import com.github.sadikovi.riff.tree.expression.EqualTo;
+import com.github.sadikovi.riff.tree.expression.In;
+import com.github.sadikovi.riff.tree.expression.IsNull;
+import com.github.sadikovi.riff.tree.expression.LessThan;
+import com.github.sadikovi.riff.tree.expression.LessThanOrEqual;
+import com.github.sadikovi.riff.tree.expression.Not;
+import com.github.sadikovi.riff.tree.expression.Or;
+import com.github.sadikovi.riff.tree.expression.Trivial;
 
 /**
  * [[PredicateState]] keeps track of predicate tree and provides methods to resolve, update and
@@ -48,37 +49,36 @@ public class PredicateState {
   private static final Logger LOG = LoggerFactory.getLogger(PredicateState.class);
 
   // full resolved predicate tree
-  private TreeNode tree;
+  private Tree tree;
   // resolved tree containing only index fields
-  private final TreeNode indexTree;
+  private final Tree indexTree;
   // whether or not state has only index tree
   private final boolean indexedOnly;
 
   /**
-   * Given raw unresolved tree and type description, perform resolution if possible and extract
+   * Given resolved/unresolved tree and type description, perform resolution if possible and extract
    * index tree, if any available.
    */
-  public PredicateState(TreeNode unresolvedTree, TypeDescription td) {
+  public PredicateState(Tree unresolvedTree, TypeDescription td) {
     if (unresolvedTree == null) throw new IllegalArgumentException("Tree is null");
     if (td == null) throw new IllegalArgumentException("Type description is null");
-    if (unresolvedTree.resolved()) {
-      throw new IllegalArgumentException(
-        "Expected unresolved tree, found {" + unresolvedTree + "}");
-    }
+    // copy tree - analysis is done in place
+    unresolvedTree = unresolvedTree.copy();
+    // will be no-op if tree is already analyzed and resolved
+    unresolvedTree.analyze(td);
+
     this.tree = unresolvedTree
-      /* rule to resolve all nodes */
-      .transform(new TreeResolve(td))
       /* rule modifies existing tree to simplify */
       .transform(new IndexTreeBooleanSimplification());
     // this should never happen, tree should be resolved after applying rule, or exception will be
     // thrown during updates; but just in case changes are made to traversal or default behaviour.
-    if (!this.tree.resolved()) {
+    if (!this.tree.analyzed()) {
       throw new IllegalStateException("Tree " + this.tree + " is unresolved");
     }
     this.indexTree = this.tree
       /* rule returns copy of tree */
       .transform(new IndexFieldsExtract(td))
-      /* rule modifies tree, does not return copy */
+      /* rule copies and modifies tree by removing trivial branches */
       .transform(new IndexTreeBooleanSimplification());
     this.indexedOnly = this.indexTree.equals(this.tree);
     if (this.indexedOnly) {
@@ -95,7 +95,7 @@ public class PredicateState {
    * Return full resolved tree.
    * @return tree
    */
-  public TreeNode tree() {
+  public Tree tree() {
     return tree;
   }
 
@@ -103,14 +103,14 @@ public class PredicateState {
    * Return resolved index tree.
    * @return index tree
    */
-  public TreeNode indexTree() {
+  public Tree indexTree() {
     return indexTree;
   }
 
   /**
    * Whether or not this state has only valid index tree. This allows us to skip second tree
    * evaluation when reading record with predicate.
-   * @return true if state has only index tree (all fields are index fields), false otherwise
+   * @return true if state has only index tree (fields in that tree are indexed), false otherwise
    */
   public boolean hasIndexedTreeOnly() {
     return indexedOnly;
@@ -118,7 +118,7 @@ public class PredicateState {
 
   /**
    * Whether or not state is trivial and result is already known before evaluation.
-   * TODO: Move this functionality into TreeNode and extend it to return result.
+   * TODO: Move this functionality into Tree and extend it to return result.
    * @return true if state is trivial, false otherwise
    */
   public boolean isResultKnown() {
@@ -128,7 +128,7 @@ public class PredicateState {
   /**
    * If state is trivial, returns boolean flag, main predicate tree (index or full) is a Trivial
    * node, otherwise throws Exception.
-   * TODO: Move this functionality into TreeNode and extend it to return result.
+   * TODO: Move this functionality into Tree and extend it to return result.
    * @return true if tree is positive Trivial node, false if tree is negative Trivial node
    * @throws IllegalStateException if state is not trivial
    */
@@ -139,85 +139,8 @@ public class PredicateState {
   }
 
   /**
-   * Resolve tree using type description.
-   */
-  static class TreeResolve implements Rule {
-    private final TypeDescription td;
-
-    TreeResolve(TypeDescription td) {
-      this.td = td;
-    }
-
-    /** Update ordinal for bound reference */
-    private BoundReference updateRef(BoundReference ref, boolean checkType) {
-      TypeSpec spec = td.atPosition(td.position(ref.name()));
-      if (checkType && !spec.dataType().equals(ref.dataType())) {
-        throw new IllegalStateException("Type mismatch: ref={" + ref + "}, spec=" + spec);
-      }
-      return ref.withOrdinal(spec.position());
-    }
-
-    @Override
-    public TreeNode update(EqualTo node) {
-      return updateRef(node, true);
-    }
-
-    @Override
-    public TreeNode update(GreaterThan node) {
-      return updateRef(node, true);
-    }
-
-    @Override
-    public TreeNode update(LessThan node) {
-      return updateRef(node, true);
-    }
-
-    @Override
-    public TreeNode update(GreaterThanOrEqual node) {
-      return updateRef(node, true);
-    }
-
-    @Override
-    public TreeNode update(LessThanOrEqual node) {
-      return updateRef(node, true);
-    }
-
-    @Override
-    public TreeNode update(In node) {
-      return updateRef(node, true);
-    }
-
-    @Override
-    public TreeNode update(IsNull node) {
-      // IsNull does not have value and has NullType, which is why it is handled differently
-      // without type checking
-      return updateRef(node, false);
-    }
-
-    @Override
-    public TreeNode update(And node) {
-      return new And(node.left().transform(this), node.right().transform(this));
-    }
-
-    @Override
-    public TreeNode update(Or node) {
-      return new Or(node.left().transform(this), node.right().transform(this));
-    }
-
-    @Override
-    public TreeNode update(Not node) {
-      return new Not(node.child().transform(this));
-    }
-
-    @Override
-    public TreeNode update(Trivial node) {
-      return new Trivial(node.result());
-    }
-  }
-
-  /**
    * Class is used to extract index fields and build tree, all data fields are replaced with
-   * trivial nodes. Tree should be resolved at this point.
+   * trivial nodes. Tree should be analyzed at this point.
    */
   static class IndexFieldsExtract implements Rule {
     private final TypeDescription td;
@@ -227,64 +150,65 @@ public class PredicateState {
     }
 
     /** Return either trivial node or index field node for bound reference */
-    private TreeNode updateRef(BoundReference ref) {
+    private Tree updateRef(BoundReference ref) {
       TypeSpec spec = td.atPosition(ref.ordinal());
-      return spec.isIndexed() ? ref : new Trivial(true);
+      // all non-indexed fields are replaced with `true`, this maintains correctness of the tree
+      return spec.isIndexed() ? ref.copy() : new Trivial(true);
     }
 
     @Override
-    public TreeNode update(EqualTo node) {
+    public Tree update(EqualTo node) {
       return updateRef(node);
     }
 
     @Override
-    public TreeNode update(GreaterThan node) {
+    public Tree update(GreaterThan node) {
       return updateRef(node);
     }
 
     @Override
-    public TreeNode update(LessThan node) {
+    public Tree update(LessThan node) {
       return updateRef(node);
     }
 
     @Override
-    public TreeNode update(GreaterThanOrEqual node) {
+    public Tree update(GreaterThanOrEqual node) {
       return updateRef(node);
     }
 
     @Override
-    public TreeNode update(LessThanOrEqual node) {
+    public Tree update(LessThanOrEqual node) {
       return updateRef(node);
     }
 
     @Override
-    public TreeNode update(In node) {
+    public Tree update(In node) {
       return updateRef(node);
     }
 
     @Override
-    public TreeNode update(IsNull node) {
+    public Tree update(IsNull node) {
       return updateRef(node);
     }
 
     @Override
-    public TreeNode update(And node) {
+    public Tree update(And node) {
       return new And(node.left().transform(this), node.right().transform(this));
     }
 
     @Override
-    public TreeNode update(Or node) {
+    public Tree update(Or node) {
       return new Or(node.left().transform(this), node.right().transform(this));
     }
 
     @Override
-    public TreeNode update(Not node) {
+    public Tree update(Not node) {
       return new Not(node.child().transform(this));
     }
 
     @Override
-    public TreeNode update(Trivial node) {
-      return new Trivial(node.result());
+    public Tree update(Trivial node) {
+      return node.copy();
     }
   }
 
@@ -292,16 +216,13 @@ public class PredicateState {
    * Naive implementation of boolean simplification.
    * Right now this rule just finds logical nodes and simplifies them to bound references or
    * trivial nodes.
-   *
-   * TODO: This rule returns new tree, but with nodes from previous tree - it does not return copies
-   * of nodes. This is currently okay, because it is applied on already copied tree.
    * TODO: Introduce facility to add more such rules that can reduce predicate tree, e.g based on
    * statistics.
    */
   static class IndexTreeBooleanSimplification implements Rule {
     public IndexTreeBooleanSimplification() { }
 
-    private TreeNode updateTree(TreeNode obj) {
+    private Tree updateTree(Tree obj) {
       if (obj instanceof And) {
         And node = (And) obj;
         if (node.left() instanceof Trivial) {
@@ -331,58 +252,58 @@ public class PredicateState {
     }
 
     @Override
-    public TreeNode update(EqualTo node) {
-      return node;
+    public Tree update(EqualTo node) {
+      return node.copy();
     }
 
     @Override
-    public TreeNode update(GreaterThan node) {
-      return node;
+    public Tree update(GreaterThan node) {
+      return node.copy();
     }
 
     @Override
-    public TreeNode update(LessThan node) {
-      return node;
+    public Tree update(LessThan node) {
+      return node.copy();
     }
 
     @Override
-    public TreeNode update(GreaterThanOrEqual node) {
-      return node;
+    public Tree update(GreaterThanOrEqual node) {
+      return node.copy();
     }
 
     @Override
-    public TreeNode update(LessThanOrEqual node) {
-      return node;
+    public Tree update(LessThanOrEqual node) {
+      return node.copy();
     }
 
     @Override
-    public TreeNode update(In node) {
-      return node;
+    public Tree update(In node) {
+      return node.copy();
     }
 
     @Override
-    public TreeNode update(IsNull node) {
-      return node;
+    public Tree update(IsNull node) {
+      return node.copy();
     }
 
     @Override
-    public TreeNode update(And node) {
+    public Tree update(And node) {
       return updateTree(new And(node.left().transform(this), node.right().transform(this)));
     }
 
     @Override
-    public TreeNode update(Or node) {
+    public Tree update(Or node) {
       return updateTree(new Or(node.left().transform(this), node.right().transform(this)));
     }
 
     @Override
-    public TreeNode update(Not node) {
+    public Tree update(Not node) {
       return updateTree(new Not(node.child().transform(this)));
     }
 
     @Override
-    public TreeNode update(Trivial node) {
-      return node;
+    public Tree update(Trivial node) {
+      return node.copy();
     }
   }
 }

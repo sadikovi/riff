@@ -30,6 +30,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
+import com.github.sadikovi.riff.RiffTestUtils._
 import com.github.sadikovi.riff.tree.FilterApi._
 import com.github.sadikovi.testutil.implicits._
 import com.github.sadikovi.testutil.UnitTestSuite
@@ -41,48 +42,6 @@ class FileReaderSuite extends UnitTestSuite {
     StructField("col3", LongType) :: Nil)
 
   val td = new TypeDescription(schema, Array("col2"))
-
-  private def statistics(min: Int, max: Int, nulls: Boolean): Statistics = {
-    val stats = Statistics.sqlTypeToStatistics(IntegerType)
-    if (nulls) stats.update(InternalRow(null), 0)
-    stats.update(InternalRow(min), 0)
-    stats.update(InternalRow(max), 0)
-    stats
-  }
-
-  private def statistics(min: Long, max: Long, nulls: Boolean): Statistics = {
-    val stats = Statistics.sqlTypeToStatistics(LongType)
-    if (nulls) stats.update(InternalRow(null), 0)
-    stats.update(InternalRow(min), 0)
-    stats.update(InternalRow(max), 0)
-    stats
-  }
-
-  private def statistics(min: String, max: String, nulls: Boolean): Statistics = {
-    val stats = Statistics.sqlTypeToStatistics(StringType)
-    if (nulls) stats.update(InternalRow(null), 0)
-    stats.update(InternalRow(UTF8String.fromString(min)), 0)
-    stats.update(InternalRow(UTF8String.fromString(max)), 0)
-    stats
-  }
-
-  private def filter(value: Int): ColumnFilter = {
-    val filter = ColumnFilter.sqlTypeToColumnFilter(IntegerType, 10)
-    filter.update(InternalRow(value), 0)
-    filter
-  }
-
-  private def filter(value: Long): ColumnFilter = {
-    val filter = ColumnFilter.sqlTypeToColumnFilter(LongType, 10)
-    filter.update(InternalRow(value), 0)
-    filter
-  }
-
-  private def filter(value: String): ColumnFilter = {
-    val filter = ColumnFilter.sqlTypeToColumnFilter(StringType, 10)
-    filter.update(InternalRow(UTF8String.fromString(value)), 0)
-    filter
-  }
 
   test("initialize file reader for non-existent path") {
     withTempDir { dir =>
@@ -152,19 +111,19 @@ class FileReaderSuite extends UnitTestSuite {
   test("evaluate stripes for predicate state - remove some stripes") {
     val stripes = Array(
       new StripeInformation(2.toByte, 101L, 100, Array(
-        statistics("a", "z", false),
-        statistics(1, 3, false),
-        statistics(1L, 3L, false)
+        stats("a", "z", false),
+        stats(1, 3, false),
+        stats(1L, 3L, false)
       )),
       new StripeInformation(1.toByte, 0L, 100, Array(
-        statistics("a", "z", false),
-        statistics(4, 5, false),
-        statistics(1L, 3L, false)
+        stats("a", "z", false),
+        stats(4, 5, false),
+        stats(1L, 3L, false)
       )),
       new StripeInformation(3.toByte, 202L, 100, Array(
-        statistics("a", "z", false),
-        statistics(1, 3, false),
-        statistics(1L, 3L, false)
+        stats("a", "z", false),
+        stats(1, 3, false),
+        stats(1L, 3L, false)
       )))
     val state = new PredicateState(eqt("col1", 5), td)
     val res = FileReader.evaluateStripes(stripes, state)
@@ -175,18 +134,18 @@ class FileReaderSuite extends UnitTestSuite {
   test("evaluate stripes for predicate state with column filters") {
     val stripes = Array(
       new StripeInformation(1.toByte, 0L, 100, Array(
-        statistics("a", "z", false),
-        statistics(1, 3, false),
-        statistics(1L, 3L, false)
+        stats("a", "z", false),
+        stats(1, 3, false),
+        stats(1L, 3L, false)
       ), Array(
         filter("z"),
         filter(1),
         filter(2L)
       )),
       new StripeInformation(2.toByte, 101L, 100, Array(
-        statistics("a", "z", false),
-        statistics(1, 3, false),
-        statistics(1L, 3L, false)
+        stats("a", "z", false),
+        stats(1, 3, false),
+        stats(1L, 3L, false)
       ), Array(
         filter("b"),
         filter(1),

@@ -29,7 +29,7 @@ import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
 import com.github.sadikovi.riff.io._
-import com.github.sadikovi.riff.tree.TreeNode
+import com.github.sadikovi.riff.tree.Tree
 import com.github.sadikovi.riff.tree.FilterApi._
 import com.github.sadikovi.testutil.UnitTestSuite
 
@@ -349,7 +349,7 @@ class IndexedRowSuite extends UnitTestSuite {
   // read rows for provided filter
   // col2 - indexed field
   // col1 and col3 - data fields
-  private def readWithPredicate(tree: TreeNode): (TypeDescription, Seq[IndexedRow]) = {
+  private def readWithPredicate(tree: Tree): (TypeDescription, Seq[IndexedRow]) = {
     val schema = StructType(
       StructField("col1", IntegerType) ::
       StructField("col2", StringType) ::
@@ -395,7 +395,8 @@ class IndexedRowSuite extends UnitTestSuite {
   }
 
   test("write/read with predicate on data fields") {
-    val (td, ind) = readWithPredicate(in("col1", Array(1, 4)))
+    val (td, ind) = readWithPredicate(in("col1",
+      1.asInstanceOf[java.lang.Integer], 4.asInstanceOf[java.lang.Integer]))
     // sequence should contain following records
     ind(0).getUTF8String(td.position("col2")) should be (UTF8String.fromString("abc"))
     ind(0).getInt(td.position("col1")) should be (1)
@@ -407,7 +408,7 @@ class IndexedRowSuite extends UnitTestSuite {
   }
 
   test("write/read with predicate on index fields") {
-    val (td, ind) = readWithPredicate(in("col2", Array("def", "abc")))
+    val (td, ind) = readWithPredicate(in("col2", "def", "abc"))
     // sequence should contain following records
     ind(0).getUTF8String(td.position("col2")) should be (UTF8String.fromString("abc"))
     ind(0).getInt(td.position("col1")) should be (1)

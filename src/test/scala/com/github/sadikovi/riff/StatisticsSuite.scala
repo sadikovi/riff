@@ -29,7 +29,6 @@ import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
 import com.github.sadikovi.riff.io.OutputBuffer
-import com.github.sadikovi.riff.tree.BoundReference
 import com.github.sadikovi.testutil.UnitTestSuite
 
 class StatisticsSuite extends UnitTestSuite {
@@ -42,7 +41,6 @@ class StatisticsSuite extends UnitTestSuite {
         override def writeState(buf: OutputBuffer): Unit = ???
         override def readState(buf: ByteBuffer): Unit = ???
         override def merge(obj: Statistics): Unit = ???
-        override def evaluateState(ref: BoundReference): Boolean = ???
       }
     }
     err.getMessage should be ("Negative id: -1");
@@ -77,7 +75,6 @@ class StatisticsSuite extends UnitTestSuite {
       override def writeState(buf: OutputBuffer): Unit = ???
       override def readState(buf: ByteBuffer): Unit = ???
       override def merge(obj: Statistics): Unit = ???
-      override def evaluateState(ref: BoundReference): Boolean = ???
     }
     stats.hasNulls should be (false)
 
@@ -90,44 +87,50 @@ class StatisticsSuite extends UnitTestSuite {
 
   test("update state for int stats") {
     val intStats = Statistics.sqlTypeToStatistics(IntegerType)
-    intStats.getMin should be (Int.MaxValue)
-    intStats.getMax should be (Int.MinValue)
+    intStats.getInt(Statistics.ORD_MIN) should be (Int.MaxValue)
+    intStats.getInt(Statistics.ORD_MAX) should be (Int.MinValue)
 
     intStats.update(InternalRow(255), 0)
-    intStats.getMin should be (255)
-    intStats.getMax should be (255)
+    intStats.getInt(Statistics.ORD_MIN) should be (255)
+    intStats.getInt(Statistics.ORD_MAX) should be (255)
 
     intStats.update(InternalRow(-255), 0)
-    intStats.getMin should be (-255)
-    intStats.getMax should be (255)
+    intStats.getInt(Statistics.ORD_MIN) should be (-255)
+    intStats.getInt(Statistics.ORD_MAX) should be (255)
   }
 
   test("update state for long stats") {
     val longStats = Statistics.sqlTypeToStatistics(LongType)
-    longStats.getMin should be (Long.MaxValue)
-    longStats.getMax should be (Long.MinValue)
+    longStats.getLong(Statistics.ORD_MIN) should be (Long.MaxValue)
+    longStats.getLong(Statistics.ORD_MAX) should be (Long.MinValue)
 
     longStats.update(InternalRow(12345L), 0)
-    longStats.getMin should be (12345L)
-    longStats.getMax should be (12345L)
+    longStats.getLong(Statistics.ORD_MIN) should be (12345L)
+    longStats.getLong(Statistics.ORD_MAX) should be (12345L)
 
     longStats.update(InternalRow(-12345L), 0)
-    longStats.getMin should be (-12345L)
-    longStats.getMax should be (12345L)
+    longStats.getLong(Statistics.ORD_MIN) should be (-12345L)
+    longStats.getLong(Statistics.ORD_MAX) should be (12345L)
   }
 
   test("update state for utf8 stats") {
     val utfStats = Statistics.sqlTypeToStatistics(StringType)
-    utfStats.getMin should be (null)
-    utfStats.getMax should be (null)
+    utfStats.isNullAt(Statistics.ORD_MIN) should be (true)
+    utfStats.isNullAt(Statistics.ORD_MAX) should be (true)
+    utfStats.getUTF8String(Statistics.ORD_MIN) should be (null)
+    utfStats.getUTF8String(Statistics.ORD_MAX) should be (null)
 
     utfStats.update(InternalRow(UTF8String.fromString("abc")), 0)
-    utfStats.getMin should be (UTF8String.fromString("abc"))
-    utfStats.getMax should be (UTF8String.fromString("abc"))
+    utfStats.isNullAt(Statistics.ORD_MIN) should be (false)
+    utfStats.isNullAt(Statistics.ORD_MAX) should be (false)
+    utfStats.getUTF8String(Statistics.ORD_MIN) should be (UTF8String.fromString("abc"))
+    utfStats.getUTF8String(Statistics.ORD_MAX) should be (UTF8String.fromString("abc"))
 
     utfStats.update(InternalRow(UTF8String.fromString("123")), 0)
-    utfStats.getMin should be (UTF8String.fromString("123"))
-    utfStats.getMax should be (UTF8String.fromString("abc"))
+    utfStats.isNullAt(Statistics.ORD_MIN) should be (false)
+    utfStats.isNullAt(Statistics.ORD_MAX) should be (false)
+    utfStats.getUTF8String(Statistics.ORD_MIN) should be (UTF8String.fromString("123"))
+    utfStats.getUTF8String(Statistics.ORD_MAX) should be (UTF8String.fromString("abc"))
   }
 
   test("write/read for empty int stats") {
@@ -214,8 +217,8 @@ class StatisticsSuite extends UnitTestSuite {
 
     s1.merge(s2)
     assert(s1 != s2)
-    s1.getMin should be (-100)
-    s1.getMax should be (400)
+    s1.getInt(Statistics.ORD_MIN) should be (-100)
+    s1.getInt(Statistics.ORD_MAX) should be (400)
     s1.hasNulls should be (true)
   }
 
@@ -230,8 +233,8 @@ class StatisticsSuite extends UnitTestSuite {
 
     s1.merge(s2)
     assert(s1 != s2)
-    s1.getMin should be (-100L)
-    s1.getMax should be (700L)
+    s1.getLong(Statistics.ORD_MIN) should be (-100L)
+    s1.getLong(Statistics.ORD_MAX) should be (700L)
     s1.hasNulls should be (true)
   }
 
@@ -246,8 +249,8 @@ class StatisticsSuite extends UnitTestSuite {
 
     s1.merge(s2)
     assert(s1 != s2)
-    s1.getMin should be (UTF8String.fromString("aaa"))
-    s1.getMax should be (UTF8String.fromString("ddd"))
+    s1.getUTF8String(Statistics.ORD_MIN) should be (UTF8String.fromString("aaa"))
+    s1.getUTF8String(Statistics.ORD_MAX) should be (UTF8String.fromString("ddd"))
     s1.hasNulls should be (true)
   }
 
@@ -258,8 +261,8 @@ class StatisticsSuite extends UnitTestSuite {
     s2.update(InternalRow(UTF8String.fromString("ddd")), 0)
 
     s1.merge(s2)
-    s1.getMin should be (UTF8String.fromString("bbb"))
-    s1.getMax should be (UTF8String.fromString("ddd"))
+    s1.getUTF8String(Statistics.ORD_MIN) should be (UTF8String.fromString("bbb"))
+    s1.getUTF8String(Statistics.ORD_MAX) should be (UTF8String.fromString("ddd"))
     s1.hasNulls should be (false)
   }
 }

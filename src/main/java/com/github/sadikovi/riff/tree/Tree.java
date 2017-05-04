@@ -22,410 +22,69 @@
 
 package com.github.sadikovi.riff.tree;
 
-import java.util.Arrays;
-
 import org.apache.spark.sql.catalyst.InternalRow;
-import org.apache.spark.sql.types.DataType;
-import org.apache.spark.sql.types.DataTypes;
-import org.apache.spark.sql.types.NullType;
-import org.apache.spark.unsafe.types.UTF8String;
 
 import com.github.sadikovi.riff.ColumnFilter;
 import com.github.sadikovi.riff.Statistics;
+import com.github.sadikovi.riff.TypeDescription;
 
-public class Tree {
-  private Tree() { }
+/**
+ * [[Tree]] is a generic predicate tree node.
+ * Provides methods to evaluate this tree and all its children. Every tree node should be
+ * considered immutable when transforming. State is evaluated for internal row, considered always
+ * resolved and returns `true` when internal row passes predicate or `false` otherwise.
+ */
+public interface Tree {
+  /**
+   * Evaluate state for this tree.
+   * @param row row to evaluate
+   * @return true if row passes predicate, false otherwise
+   */
+  boolean evaluateState(InternalRow row);
 
   /**
-   * "EqualTo" leaf node, equality for row ordinal and provided value.
+   * Evaluate tree for provided statistics. Statistics array comes from stripe information, each
+   * ordinal of statistics instance corresponds to the ordinal of type spec - and matches ordinal
+   * stored for each leaf node.
+   * @param stats array of statistics
+   * @return true if statistics pass predicate, false otherwise
    */
-  public static abstract class EqualTo extends BoundReference {
-    public EqualTo(String name, int ordinal) {
-      super(name, ordinal);
-    }
-
-    @Override
-    public TreeNode transform(Rule rule) {
-      return rule.update(this);
-    }
-
-    @Override
-    public final boolean hasMultiplValues() {
-      return false;
-    }
-
-    @Override
-    public String treeOperator() {
-      return "=";
-    }
-  }
+  boolean evaluateState(Statistics[] stats);
 
   /**
-   * "GreaterThan" leaf node, ordinal row value is greater than provided value.
+   * Evaluate tree for provided non-null array of column filters. They are loaded as part of stripe
+   * information, and each ordinal of filter instance corresponds to the ordinal of type spec - and
+   * matches ordinal stored for each leaf node. Each filter is guaranteed to be non-null.
+   * @param filters array of column filters
+   * @return true if filters pass predicate, false otherwise
    */
-  public static abstract class GreaterThan extends BoundReference {
-    public GreaterThan(String name, int ordinal) {
-      super(name, ordinal);
-    }
-
-    @Override
-    public TreeNode transform(Rule rule) {
-      return rule.update(this);
-    }
-
-    @Override
-    public final boolean hasMultiplValues() {
-      return false;
-    }
-
-    @Override
-    public String treeOperator() {
-      return ">";
-    }
-  }
+  boolean evaluateState(ColumnFilter[] filters);
 
   /**
-   * "LessThan" leaf node, ordinal row value is less than provided value.
+   * Transform current tree using rule.
+   * This should always return full copy of the tree.
+   * @param rule rule to use for transform
+   * @return copy of this tree
    */
-  public static abstract class LessThan extends BoundReference {
-    public LessThan(String name, int ordinal) {
-      super(name, ordinal);
-    }
-
-    @Override
-    public TreeNode transform(Rule rule) {
-      return rule.update(this);
-    }
-
-    @Override
-    public final boolean hasMultiplValues() {
-      return false;
-    }
-
-    @Override
-    public String treeOperator() {
-      return "<";
-    }
-  }
+  Tree transform(Rule rule);
 
   /**
-   * "GreaterThanOrEqual" leaf node, ordinal row value is greater than or equal to provided value.
+   * Return a full copy of this node and all its children.
+   * @return copy of the tree
    */
-  public static abstract class GreaterThanOrEqual extends BoundReference {
-    public GreaterThanOrEqual(String name, int ordinal) {
-      super(name, ordinal);
-    }
-
-    @Override
-    public TreeNode transform(Rule rule) {
-      return rule.update(this);
-    }
-
-    @Override
-    public final boolean hasMultiplValues() {
-      return false;
-    }
-
-    @Override
-    public String treeOperator() {
-      return ">=";
-    }
-  }
+  Tree copy();
 
   /**
-   * "LessThanOrEqual" leaf node, ordinal row value is less than or equal to provided value.
+   * Analyze this tree for current type description. Type description is evaluated for bound
+   * reference only; throws exception if tree cannot be analyzed. This method should be run before
+   * evaluating this tree.
+   * @param td type description
    */
-  public static abstract class LessThanOrEqual extends BoundReference {
-    public LessThanOrEqual(String name, int ordinal) {
-      super(name, ordinal);
-    }
-
-    @Override
-    public TreeNode transform(Rule rule) {
-      return rule.update(this);
-    }
-
-    @Override
-    public final boolean hasMultiplValues() {
-      return false;
-    }
-
-    @Override
-    public String treeOperator() {
-      return "<=";
-    }
-  }
+  void analyze(TypeDescription td);
 
   /**
-   * "In" leaf node, ordinal row value is in provided list of values.
-   * In filter is backed by sorted array.
-   * TODO: replace with typed hash table.
+   * Whether or not this tree and all its subsequent children is analyzed.
+   * @return true if tree is analyzed, false otherwise
    */
-  public static abstract class In extends BoundReference {
-    public In(String name, int ordinal) {
-      super(name, ordinal);
-    }
-
-    @Override
-    public final boolean hasMultiplValues() {
-      return true;
-    }
-
-    @Override
-    public TreeNode transform(Rule rule) {
-      return rule.update(this);
-    }
-
-    @Override
-    public String treeOperator() {
-      return "isin";
-    }
-  }
-
-  /**
-   * "IsNull" leaf node, indicates that value for the field is null.
-   */
-  public static class IsNull extends BoundReference {
-    public IsNull(String name, int ordinal) {
-      super(name, ordinal);
-    }
-
-    @Override
-    public boolean evaluate(InternalRow row) {
-      return row.isNullAt(ordinal);
-    }
-
-    @Override
-    public boolean statUpdate(boolean hasNulls) {
-      // this filter represents search for a value for this field which is null,
-      // if statistics does not have nulls, we should return false
-      return hasNulls;
-    }
-
-    @Override
-    public TreeNode transform(Rule rule) {
-      return rule.update(this);
-    }
-
-    @Override
-    public DataType dataType() {
-      return DataTypes.NullType;
-    }
-
-    @Override
-    public final boolean hasMultiplValues() {
-      return false;
-    }
-
-    @Override
-    public IsNull withOrdinal(int newOrdinal) {
-      return new IsNull(name, newOrdinal);
-    }
-
-    @Override
-    public String treeOperator() {
-      return "is";
-    }
-  }
-
-  /**
-   * "And" binary logical node, intersection of left and right children.
-   */
-  public static class And extends BinaryLogicalNode {
-    private final TreeNode left;
-    private final TreeNode right;
-
-    public And(TreeNode left, TreeNode right) {
-      this.left = left;
-      this.right = right;
-    }
-
-    @Override
-    public TreeNode left() {
-      return left;
-    }
-
-    @Override
-    public TreeNode right() {
-      return right;
-    }
-
-    @Override
-    public boolean evaluate(InternalRow row) {
-      return left.evaluate(row) && right.evaluate(row);
-    }
-
-    @Override
-    public boolean evaluate(Statistics[] stats) {
-      return left.evaluate(stats) && right.evaluate(stats);
-    }
-
-    @Override
-    public boolean evaluate(ColumnFilter[] filters) {
-      return left.evaluate(filters) && right.evaluate(filters);
-    }
-
-    @Override
-    public TreeNode transform(Rule rule) {
-      return rule.update(this);
-    }
-
-    @Override
-    public String toString() {
-      return "(" + left + ") && (" + right + ")";
-    }
-  }
-
-
-  /**
-   * "Or" binary logical node, union of left and right children.
-   */
-  public static class Or extends BinaryLogicalNode {
-    private final TreeNode left;
-    private final TreeNode right;
-
-    public Or(TreeNode left, TreeNode right) {
-      this.left = left;
-      this.right = right;
-    }
-
-    @Override
-    public TreeNode left() {
-      return left;
-    }
-
-    @Override
-    public TreeNode right() {
-      return right;
-    }
-
-    @Override
-    public boolean evaluate(InternalRow row) {
-      return left.evaluate(row) || right.evaluate(row);
-    }
-
-    @Override
-    public boolean evaluate(Statistics[] stats) {
-      return left.evaluate(stats) || right.evaluate(stats);
-    }
-
-    @Override
-    public boolean evaluate(ColumnFilter[] filters) {
-      return left.evaluate(filters) || right.evaluate(filters);
-    }
-
-    @Override
-    public TreeNode transform(Rule rule) {
-      return rule.update(this);
-    }
-
-    @Override
-    public String toString() {
-      return "(" + left + ") || (" + right + ")";
-    }
-  }
-
-  /**
-   * "Not" unary logical node, negates expression of child.
-   * TODO: fix how not handles state, currently `not` would inverse "unknown" state.
-   */
-  public static class Not extends UnaryLogicalNode {
-    private final TreeNode child;
-
-    public Not(TreeNode child) {
-      this.child = child;
-    }
-
-    @Override
-    public TreeNode child() {
-      return child;
-    }
-
-    @Override
-    public boolean evaluate(InternalRow row) {
-      return !child.evaluate(row);
-    }
-
-    @Override
-    public boolean evaluate(Statistics[] stats) {
-      return !child.evaluate(stats);
-    }
-
-    @Override
-    public boolean evaluate(ColumnFilter[] filters) {
-      return !child.evaluate(filters);
-    }
-
-    @Override
-    public TreeNode transform(Rule rule) {
-      return rule.update(this);
-    }
-
-    @Override
-    public String toString() {
-      return "!(" + child + ")";
-    }
-  }
-
-  /**
-   * Trivial node, that is already evaluated.
-   */
-  public static class Trivial implements TreeNode {
-    private final boolean result;
-
-    public Trivial(boolean result) {
-      this.result = result;
-    }
-
-    /**
-     * Return result for this trivial filter.
-     * @return true or false
-     */
-    public boolean result() {
-      return result;
-    }
-
-    @Override
-    public boolean evaluate(InternalRow row) {
-      return result;
-    }
-
-    @Override
-    public boolean evaluate(Statistics[] stats) {
-      return result;
-    }
-
-    @Override
-    public boolean evaluate(ColumnFilter[] filters) {
-      return result;
-    }
-
-    @Override
-    public TreeNode transform(Rule rule) {
-      return rule.update(this);
-    }
-
-    @Override
-    public boolean resolved() {
-      // trivial predicate is always resolved, since result is known
-      return true;
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-      if (obj == null || !(obj instanceof Trivial)) return false;
-      Trivial that = (Trivial) obj;
-      return that.result() == this.result();
-    }
-
-    @Override
-    public int hashCode() {
-      return 31 + (result ? 1 : 0);
-    }
-
-    @Override
-    public String toString() {
-      return "" + result;
-    }
-  }
+  boolean analyzed();
 }

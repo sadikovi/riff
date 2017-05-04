@@ -22,38 +22,41 @@
 
 package com.github.sadikovi.riff.tree;
 
-import org.apache.spark.sql.catalyst.InternalRow;
-
-import com.github.sadikovi.riff.Statistics;
+import com.github.sadikovi.riff.TypeDescription;
 
 /**
- * Binary logical node is a tree node that cannot be evaluated on its own, but using its children.
+ * Binary logical node is a tree node that can be evaluated based on its children and operator.
  * Mainly used as a container for concrete implementations by providing `equals` and `hashCode`
  * methods.
  */
-public abstract class BinaryLogicalNode implements TreeNode {
+public abstract class BinaryLogical implements Tree {
   /**
    * Get left subtree.
    * @return left subtree
    */
-  public abstract TreeNode left();
+  public abstract Tree left();
 
   /**
    * Get right subtree.
    * @return right subtree
    */
-  public abstract TreeNode right();
+  public abstract Tree right();
 
   @Override
-  public boolean resolved() {
-    // both child nodes should be resolved
-    return left().resolved() && right().resolved();
+  public final void analyze(TypeDescription td) {
+    left().analyze(td);
+    right().analyze(td);
+  }
+
+  @Override
+  public final boolean analyzed() {
+    return left().analyzed() && right().analyzed();
   }
 
   @Override
   public boolean equals(Object obj) {
     if (obj == null || obj.getClass() != this.getClass()) return false;
-    BinaryLogicalNode that = (BinaryLogicalNode) obj;
+    BinaryLogical that = (BinaryLogical) obj;
     return this.left().equals(that.left()) && this.right().equals(that.right());
   }
 

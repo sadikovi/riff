@@ -22,30 +22,33 @@
 
 package com.github.sadikovi.riff.tree;
 
-import org.apache.spark.sql.catalyst.InternalRow;
-
-import com.github.sadikovi.riff.Statistics;
+import com.github.sadikovi.riff.TypeDescription;
 
 /**
  * Unary logical node that has single subtree.
  * This class serves as a container by providing generic `equals` and `hashCode` methods.
  */
-public abstract class UnaryLogicalNode implements TreeNode {
+public abstract class UnaryLogical implements Tree {
   /**
-   * Get subtree.
+   * Get child tree for this unary node.
    * @return subtree
    */
-  public abstract TreeNode child();
+  public abstract Tree child();
 
   @Override
-  public boolean resolved() {
-    return child().resolved();
+  public final void analyze(TypeDescription td) {
+    child().analyze(td);
+  }
+
+  @Override
+  public final boolean analyzed() {
+    return child().analyzed();
   }
 
   @Override
   public boolean equals(Object obj) {
     if (obj == null || obj.getClass() != this.getClass()) return false;
-    UnaryLogicalNode that = (UnaryLogicalNode) obj;
+    UnaryLogical that = (UnaryLogical) obj;
     return this.child().equals(that.child());
   }
 

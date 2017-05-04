@@ -39,12 +39,15 @@ class PredicateStateSuite extends UnitTestSuite {
       new PredicateState(nvl("col"), null)
     }
     err.getMessage should be ("Type description is null")
+  }
 
-    // tree is already resolved
-    err = intercept[IllegalArgumentException] {
-      new PredicateState(nvl("col").withOrdinal(0), new TypeDescription(schema))
-    }
-    err.getMessage should be ("Expected unresolved tree, found {col[0] is null}")
+  test("tree can be already resolved") {
+    val schema = StructType(StructField("col", IntegerType) :: Nil)
+    val td = new TypeDescription(schema)
+    val tree = nvl("col")
+    tree.analyze(td)
+    val state = new PredicateState(tree, td)
+    state.indexTree should be (TRUE)
   }
 
   test("fail to resolve tree because of non-existent column") {
@@ -80,17 +83,12 @@ class PredicateStateSuite extends UnitTestSuite {
       StructField("col3", LongType) :: Nil)
     val td = new TypeDescription(schema, Array("col1"))
     val p = and(eqt("col2", "abc"), and(gt("col3", 47L), eqt("col1", 12)))
-    val state = new PredicateState(p, td)
-    state.tree should be (
-      and(
-        eqt("col2", "abc").withOrdinal(1),
-        and(
-          gt("col3", 47L).withOrdinal(2),
-          eqt("col1", 12).withOrdinal(0)
-        )
-      )
-    )
-    state.indexTree should be (eqt("col1", 12).withOrdinal(0))
+    val state = new PredicateState(p.copy(), td)
+    p.analyze(td)
+    state.tree should be (p)
+    val indexTree = eqt("col1", 12)
+    indexTree.analyze(td)
+    state.indexTree should be (indexTree)
     state.hasIndexedTreeOnly should be (false)
   }
 
@@ -102,15 +100,8 @@ class PredicateStateSuite extends UnitTestSuite {
     val td = new TypeDescription(schema, Array("col1"))
     val p = and(eqt("col2", "abc"), or(gt("col3", 47L), eqt("col1", 12)))
     val state = new PredicateState(p, td)
-    state.tree should be (
-      and(
-        eqt("col2", "abc").withOrdinal(1),
-        or(
-          gt("col3", 47L).withOrdinal(2),
-          eqt("col1", 12).withOrdinal(0)
-        )
-      )
-    )
+    p.analyze(td)
+    state.tree should be (p)
     state.indexTree should be (TRUE)
     state.hasIndexedTreeOnly should be (false)
   }
@@ -123,13 +114,9 @@ class PredicateStateSuite extends UnitTestSuite {
     val td = new TypeDescription(schema, Array("col1"))
     val p = or(eqt("col1", 12), gt("col1", 47))
     val state = new PredicateState(p, td)
+    p.analyze(td)
     state.hasIndexedTreeOnly should be (true)
-    state.indexTree should be (
-      or(
-        eqt("col1", 12).withOrdinal(0),
-        gt("col1", 47).withOrdinal(0)
-      )
-    )
+    state.indexTree should be (p)
     state.tree should be (null)
   }
 
@@ -141,14 +128,10 @@ class PredicateStateSuite extends UnitTestSuite {
     val td = new TypeDescription(schema, Array("col1"))
     val p = or(eqt("col3", 12L), gt("col2", "abc"))
     val state = new PredicateState(p, td)
+    p.analyze(td)
     state.hasIndexedTreeOnly should be (false)
     state.indexTree should be (TRUE)
-    state.tree should be (
-      or(
-        eqt("col3", 12L).withOrdinal(2),
-        gt("col2", "abc").withOrdinal(1)
-      )
-    )
+    state.tree should be (p)
   }
 
   test("check isResultKnown for predicate state") {

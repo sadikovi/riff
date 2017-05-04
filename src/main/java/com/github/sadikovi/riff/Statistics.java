@@ -33,13 +33,17 @@ import org.apache.spark.sql.types.StringType;
 import org.apache.spark.unsafe.types.UTF8String;
 
 import com.github.sadikovi.riff.io.OutputBuffer;
-import com.github.sadikovi.riff.tree.BoundReference;
 
 /**
  * Stripe min/max statistics.
  * Keeps information about min and max values and nulls.
  */
-public abstract class Statistics {
+public abstract class Statistics extends GenericInternalRow {
+  // ordinal for min value in a row
+  public static final int ORD_MIN = 0;
+  // ordinal for max value in a row
+  public static final int ORD_MAX = 1;
+
   protected final byte id;
   protected boolean hasNulls;
 
@@ -78,33 +82,6 @@ public abstract class Statistics {
    * @param obj instance to merge
    */
   protected abstract void merge(Statistics obj);
-
-  /**
-   * Evaluate bound reference (name and ordinal) based on current statistics instance.
-   * Should return true if node value is within statistics and false otherwise. Most of the time it
-   * is useful to call method on node to evaluate it with min/max/null.
-   * @param ref bound reference to evaluate
-   * @return true if value is within range, false otherwise (similar with null values)
-   */
-  public abstract boolean evaluateState(BoundReference ref);
-
-  /**
-   * Get min value for this statistics. Used for testing purposes only.
-   * Recommended that implementations overwrite this method.
-   * @return min value
-   */
-  public Object getMin() {
-    throw new UnsupportedOperationException();
-  }
-
-  /**
-   * Get max value for this statistics. Used for testing purposes only.
-   * Recommended that implementations overwrite this method.
-   * @return max value
-   */
-  public Object getMax() {
-    throw new UnsupportedOperationException();
-  }
 
   /**
    * Return unique statistics id.
@@ -219,17 +196,11 @@ public abstract class Statistics {
     }
 
     @Override
-    public boolean evaluateState(BoundReference ref) {
-      // statistics only contain information about nullability
-      return ref.statUpdate(hasNulls);
-    }
-
-    @Override
     public boolean equals(Object obj) {
       if (obj == null || !(obj instanceof NoopStatistics)) return false;
       NoopStatistics that = (NoopStatistics) obj;
       if (that == this) return true;
-      return that.hasNulls() == this.hasNulls();
+      return that.hasNulls == this.hasNulls;
     }
 
     @Override
@@ -249,16 +220,6 @@ public abstract class Statistics {
 
     IntStatistics() {
       super(ID);
-    }
-
-    @Override
-    public Object getMin() {
-      return min;
-    }
-
-    @Override
-    public Object getMax() {
-      return max;
     }
 
     @Override
@@ -289,8 +250,16 @@ public abstract class Statistics {
     }
 
     @Override
-    public boolean evaluateState(BoundReference ref) {
-      return ref.statUpdate(hasNulls) && ref.statUpdate(min, max);
+    public int getInt(int ordinal) {
+      if (ordinal == ORD_MIN) return min;
+      if (ordinal == ORD_MAX) return max;
+      throw new UnsupportedOperationException("Invalid ordinal " + ordinal);
+    }
+
+    @Override
+    public boolean isNullAt(int ordinal) {
+      // int statistics values are never null
+      return false;
     }
 
     @Override
@@ -298,7 +267,7 @@ public abstract class Statistics {
       if (obj == null || !(obj instanceof IntStatistics)) return false;
       IntStatistics that = (IntStatistics) obj;
       if (that == this) return true;
-      return that.min == this.min && that.max == this.max && that.hasNulls() == this.hasNulls();
+      return that.min == this.min && that.max == this.max && that.hasNulls == this.hasNulls;
     }
 
     @Override
@@ -318,16 +287,6 @@ public abstract class Statistics {
 
     LongStatistics() {
       super(ID);
-    }
-
-    @Override
-    public Object getMin() {
-      return min;
-    }
-
-    @Override
-    public Object getMax() {
-      return max;
     }
 
     @Override
@@ -359,8 +318,16 @@ public abstract class Statistics {
     }
 
     @Override
-    public boolean evaluateState(BoundReference ref) {
-      return ref.statUpdate(hasNulls) && ref.statUpdate(min, max);
+    public long getLong(int ordinal) {
+      if (ordinal == ORD_MIN) return min;
+      if (ordinal == ORD_MAX) return max;
+      throw new UnsupportedOperationException("Invalid ordinal " + ordinal);
+    }
+
+    @Override
+    public boolean isNullAt(int ordinal) {
+      // long statistics values are never null
+      return false;
     }
 
     @Override
@@ -368,7 +335,7 @@ public abstract class Statistics {
       if (obj == null || !(obj instanceof LongStatistics)) return false;
       LongStatistics that = (LongStatistics) obj;
       if (that == this) return true;
-      return that.min == this.min && that.max == this.max && that.hasNulls() == this.hasNulls();
+      return that.min == this.min && that.max == this.max && that.hasNulls == this.hasNulls;
     }
 
     @Override
@@ -388,16 +355,6 @@ public abstract class Statistics {
 
     UTF8StringStatistics() {
       super(ID);
-    }
-
-    @Override
-    public Object getMin() {
-      return min;
-    }
-
-    @Override
-    public Object getMax() {
-      return max;
     }
 
     @Override
@@ -463,8 +420,17 @@ public abstract class Statistics {
     }
 
     @Override
-    public boolean evaluateState(BoundReference ref) {
-      return ref.statUpdate(hasNulls) && ref.statUpdate(min, max);
+    public UTF8String getUTF8String(int ordinal) {
+      if (ordinal == ORD_MIN) return min;
+      if (ordinal == ORD_MAX) return max;
+      throw new UnsupportedOperationException("Invalid ordinal " + ordinal);
+    }
+
+    @Override
+    public boolean isNullAt(int ordinal) {
+      if (ordinal == ORD_MIN) return min == null;
+      if (ordinal == ORD_MAX) return max == null;
+      return false;
     }
 
     @Override

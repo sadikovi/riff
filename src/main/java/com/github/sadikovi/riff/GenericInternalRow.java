@@ -36,8 +36,8 @@ import org.apache.spark.unsafe.types.UTF8String;
  * that subclasses provide only methods they support without overwriting all methods of the generic
  * row.
  */
-abstract class GenericInternalRow extends InternalRow {
-  GenericInternalRow() { }
+public abstract class GenericInternalRow extends InternalRow {
+  public GenericInternalRow() { }
 
   @Override
   public int numFields() {
