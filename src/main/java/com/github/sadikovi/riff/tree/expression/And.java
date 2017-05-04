@@ -20,25 +20,26 @@
  * SOFTWARE.
  */
 
-package com.github.sadikovi.riff.ntree.expression;
+package com.github.sadikovi.riff.tree.expression;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 
 import com.github.sadikovi.riff.ColumnFilter;
-import com.github.sadikovi.riff.ntree.BinaryLogical;
-import com.github.sadikovi.riff.ntree.Rule;
-import com.github.sadikovi.riff.ntree.Statistics;
-import com.github.sadikovi.riff.ntree.Tree;
+import com.github.sadikovi.riff.Statistics;
+import com.github.sadikovi.riff.tree.BinaryLogical;
+import com.github.sadikovi.riff.tree.Rule;
+import com.github.sadikovi.riff.tree.Tree;
 
 /**
- * [[Or]] is binary logical node representing union of child subtrees. Node is analyzed when both
- * children are analyzed. Evaluated when either or both of the children yield `true` as a result.
+ * [[And]] is binary logical predicate representing intersection of left and right subtrees -
+ * only analyzed when both subtrees are analyzed. Evaluation for statistics and column filters
+ * works the same way - if one of the children returns `false`, the result is `false`.
  */
-public class Or extends BinaryLogical {
+public class And extends BinaryLogical {
   private final Tree left;
   private final Tree right;
 
-  public Or(Tree left, Tree right) {
+  public And(Tree left, Tree right) {
     this.left = left;
     this.right = right;
   }
@@ -55,17 +56,17 @@ public class Or extends BinaryLogical {
 
   @Override
   public boolean evaluateState(InternalRow row) {
-    return left.evaluateState(row) || right.evaluateState(row);
+    return left.evaluateState(row) && right.evaluateState(row);
   }
 
   @Override
   public boolean evaluateState(Statistics[] stats) {
-    return left.evaluateState(stats) || right.evaluateState(stats);
+    return left.evaluateState(stats) && right.evaluateState(stats);
   }
 
   @Override
   public boolean evaluateState(ColumnFilter[] filters) {
-    return left.evaluateState(filters) || right.evaluateState(filters);
+    return left.evaluateState(filters) && right.evaluateState(filters);
   }
 
   @Override
@@ -75,11 +76,11 @@ public class Or extends BinaryLogical {
 
   @Override
   public Tree copy() {
-    return new Or(left.copy(), right.copy());
+    return new And(left.copy(), right.copy());
   }
 
   @Override
   public String toString() {
-    return "(" + left + ") || (" + right + ")";
+    return "(" + left + ") && (" + right + ")";
   }
 }

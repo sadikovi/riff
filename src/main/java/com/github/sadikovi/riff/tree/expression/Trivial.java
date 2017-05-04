@@ -20,15 +20,15 @@
  * SOFTWARE.
  */
 
-package com.github.sadikovi.riff.ntree.expression;
+package com.github.sadikovi.riff.tree.expression;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 
 import com.github.sadikovi.riff.ColumnFilter;
+import com.github.sadikovi.riff.Statistics;
 import com.github.sadikovi.riff.TypeDescription;
-import com.github.sadikovi.riff.ntree.Rule;
-import com.github.sadikovi.riff.ntree.Statistics;
-import com.github.sadikovi.riff.ntree.Tree;
+import com.github.sadikovi.riff.tree.Rule;
+import com.github.sadikovi.riff.tree.Tree;
 
 /**
  * [[Trivial]] node represents boolean flag `true` or `false`. Result for this node is already

@@ -36,7 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.github.sadikovi.riff.io.CompressionCodec;
-import com.github.sadikovi.riff.tree.TreeNode;
+import com.github.sadikovi.riff.tree.Tree;
 
 /**
  * File reader provides methods to read a Riff file and returns a row buffer that can be used as
@@ -104,7 +104,7 @@ public class FileReader {
    * @throws FileNotFoundException if either data or header file is not found
    * @throws IOException
    */
-  public RowBuffer prepareRead(TreeNode filter) throws FileNotFoundException, IOException {
+  public RowBuffer prepareRead(Tree filter) throws FileNotFoundException, IOException {
     if (readPrepared) throw new IOException("Reader reuse");
     // we start with reading header file and extracting all information that is required to validate
     // file and/or resolve statistics
@@ -154,9 +154,9 @@ public class FileReader {
       boolean skipFile = false;
       if (state != null) {
         if (state.hasIndexedTreeOnly()) {
-          skipFile = !state.indexTree().evaluate(fileStats);
+          skipFile = !state.indexTree().evaluateState(fileStats);
         } else {
-          skipFile = !state.tree().evaluate(fileStats);
+          skipFile = !state.tree().evaluateState(fileStats);
         }
       }
       if (skipFile) {
@@ -290,17 +290,17 @@ public class FileReader {
         boolean keep = true;
         if (stripes[i].hasStatistics()) {
           if (state.hasIndexedTreeOnly()) {
-            keep = state.indexTree().evaluate(stripes[i].getStatistics());
+            keep = state.indexTree().evaluateState(stripes[i].getStatistics());
           } else {
-            keep = state.tree().evaluate(stripes[i].getStatistics());
+            keep = state.tree().evaluateState(stripes[i].getStatistics());
           }
         }
         // if predicate passes statistics, evaluate column filters
         if (keep && stripes[i].hasColumnFilters()) {
           if (state.hasIndexedTreeOnly()) {
-            keep = state.indexTree().evaluate(stripes[i].getColumnFilters());
+            keep = state.indexTree().evaluateState(stripes[i].getColumnFilters());
           } else {
-            keep = state.tree().evaluate(stripes[i].getColumnFilters());
+            keep = state.tree().evaluateState(stripes[i].getColumnFilters());
           }
         }
 

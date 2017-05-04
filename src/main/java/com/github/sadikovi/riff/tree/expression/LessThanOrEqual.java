@@ -20,26 +20,26 @@
  * SOFTWARE.
  */
 
-package com.github.sadikovi.riff.ntree.expression;
+package com.github.sadikovi.riff.tree.expression;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 
 import com.github.sadikovi.riff.ColumnFilter;
-import com.github.sadikovi.riff.ntree.Rule;
-import com.github.sadikovi.riff.ntree.Statistics;
-import com.github.sadikovi.riff.ntree.Tree;
-import com.github.sadikovi.riff.ntree.TypedBoundReference;
-import com.github.sadikovi.riff.ntree.TypedExpression;
+import com.github.sadikovi.riff.Statistics;
+import com.github.sadikovi.riff.tree.Rule;
+import com.github.sadikovi.riff.tree.Tree;
+import com.github.sadikovi.riff.tree.TypedBoundReference;
+import com.github.sadikovi.riff.tree.TypedExpression;
 
 /**
- * [[LessThan]] is inequality predicate for typed expression.
- * Ordinal row value is less than expression value.
+ * [[LessThanOrEqual]] is inequality predicate for typed expression.
+ * Ordinal row value is less than or equal to expression value.
  */
-public class LessThan extends TypedBoundReference {
+public class LessThanOrEqual extends TypedBoundReference {
   private final String name;
   private final TypedExpression expr;
 
-  public LessThan(String name, TypedExpression expr) {
+  public LessThanOrEqual(String name, TypedExpression expr) {
     this.name = name;
     this.expr = expr;
   }
@@ -51,7 +51,7 @@ public class LessThan extends TypedBoundReference {
 
   @Override
   public String operator() {
-    return "<";
+    return "<=";
   }
 
   @Override
@@ -61,17 +61,17 @@ public class LessThan extends TypedBoundReference {
 
   @Override
   public boolean evaluateState(InternalRow row, int ordinal) {
-    return !row.isNullAt(ordinal) && expr.ltExpr(row, ordinal);
+    return !row.isNullAt(ordinal) && expr.leExpr(row, ordinal);
   }
 
   @Override
   public boolean evaluateState(Statistics stats) {
-    return !stats.isNullAt(Statistics.ORD_MIN) && expr.ltExpr(stats, Statistics.ORD_MIN);
+    return !stats.isNullAt(Statistics.ORD_MIN) && expr.leExpr(stats, Statistics.ORD_MIN);
   }
 
   @Override
   public boolean evaluateState(ColumnFilter filter) {
-    // column filter is not evaluated for LessThan
+    // column filter is not evaluated for LessThanOrEqual
     return true;
   }
 
@@ -82,6 +82,6 @@ public class LessThan extends TypedBoundReference {
 
   @Override
   public Tree copy() {
-    return new LessThan(name, expr.copy()).copyOrdinal(this);
+    return new LessThanOrEqual(name, expr.copy()).copyOrdinal(this);
   }
 }

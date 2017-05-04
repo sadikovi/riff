@@ -111,19 +111,19 @@ class FileReaderSuite extends UnitTestSuite {
   test("evaluate stripes for predicate state - remove some stripes") {
     val stripes = Array(
       new StripeInformation(2.toByte, 101L, 100, Array(
-        statistics("a", "z", false),
-        statistics(1, 3, false),
-        statistics(1L, 3L, false)
+        stats("a", "z", false),
+        stats(1, 3, false),
+        stats(1L, 3L, false)
       )),
       new StripeInformation(1.toByte, 0L, 100, Array(
-        statistics("a", "z", false),
-        statistics(4, 5, false),
-        statistics(1L, 3L, false)
+        stats("a", "z", false),
+        stats(4, 5, false),
+        stats(1L, 3L, false)
       )),
       new StripeInformation(3.toByte, 202L, 100, Array(
-        statistics("a", "z", false),
-        statistics(1, 3, false),
-        statistics(1L, 3L, false)
+        stats("a", "z", false),
+        stats(1, 3, false),
+        stats(1L, 3L, false)
       )))
     val state = new PredicateState(eqt("col1", 5), td)
     val res = FileReader.evaluateStripes(stripes, state)
@@ -134,18 +134,18 @@ class FileReaderSuite extends UnitTestSuite {
   test("evaluate stripes for predicate state with column filters") {
     val stripes = Array(
       new StripeInformation(1.toByte, 0L, 100, Array(
-        statistics("a", "z", false),
-        statistics(1, 3, false),
-        statistics(1L, 3L, false)
+        stats("a", "z", false),
+        stats(1, 3, false),
+        stats(1L, 3L, false)
       ), Array(
         filter("z"),
         filter(1),
         filter(2L)
       )),
       new StripeInformation(2.toByte, 101L, 100, Array(
-        statistics("a", "z", false),
-        statistics(1, 3, false),
-        statistics(1L, 3L, false)
+        stats("a", "z", false),
+        stats(1, 3, false),
+        stats(1L, 3L, false)
       ), Array(
         filter("b"),
         filter(1),

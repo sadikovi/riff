@@ -20,59 +20,52 @@
  * SOFTWARE.
  */
 
-package com.github.sadikovi.riff.ntree.expression;
+package com.github.sadikovi.riff.tree.expression;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 
 import com.github.sadikovi.riff.ColumnFilter;
-import com.github.sadikovi.riff.ntree.Rule;
-import com.github.sadikovi.riff.ntree.Statistics;
-import com.github.sadikovi.riff.ntree.Tree;
-import com.github.sadikovi.riff.ntree.TypedBoundReference;
-import com.github.sadikovi.riff.ntree.TypedExpression;
+import com.github.sadikovi.riff.Statistics;
+import com.github.sadikovi.riff.tree.BinaryLogical;
+import com.github.sadikovi.riff.tree.Rule;
+import com.github.sadikovi.riff.tree.Tree;
 
 /**
- * [[EqualTo]] is equality predicate for typed expression.
- * Ordinal row value is equal to expression value.
+ * [[Or]] is binary logical node representing union of child subtrees. Node is analyzed when both
+ * children are analyzed. Evaluated when either or both of the children yield `true` as a result.
  */
-public class EqualTo extends TypedBoundReference {
-  private final String name;
-  private final TypedExpression expr;
+public class Or extends BinaryLogical {
+  private final Tree left;
+  private final Tree right;
 
-  public EqualTo(String name, TypedExpression expr) {
-    this.name = name;
-    this.expr = expr;
+  public Or(Tree left, Tree right) {
+    this.left = left;
+    this.right = right;
   }
 
   @Override
-  public TypedExpression expression() {
-    return this.expr;
+  public Tree left() {
+    return left;
   }
 
   @Override
-  public String operator() {
-    return "=";
+  public Tree right() {
+    return right;
   }
 
   @Override
-  public String name() {
-    return name;
+  public boolean evaluateState(InternalRow row) {
+    return left.evaluateState(row) || right.evaluateState(row);
   }
 
   @Override
-  public boolean evaluateState(InternalRow row, int ordinal) {
-    return !row.isNullAt(ordinal) && expr.eqExpr(row, ordinal);
+  public boolean evaluateState(Statistics[] stats) {
+    return left.evaluateState(stats) || right.evaluateState(stats);
   }
 
   @Override
-  public boolean evaluateState(Statistics stats) {
-    return !stats.isNullAt(Statistics.ORD_MIN) && !stats.isNullAt(Statistics.ORD_MAX) &&
-      expr.leExpr(stats, Statistics.ORD_MIN) && expr.geExpr(stats, Statistics.ORD_MAX);
-  }
-
-  @Override
-  public boolean evaluateState(ColumnFilter filter) {
-    return expr.containsExpr(filter);
+  public boolean evaluateState(ColumnFilter[] filters) {
+    return left.evaluateState(filters) || right.evaluateState(filters);
   }
 
   @Override
@@ -82,6 +75,11 @@ public class EqualTo extends TypedBoundReference {
 
   @Override
   public Tree copy() {
-    return new EqualTo(name, expr.copy()).copyOrdinal(this);
+    return new Or(left.copy(), right.copy());
+  }
+
+  @Override
+  public String toString() {
+    return "(" + left + ") || (" + right + ")";
   }
 }

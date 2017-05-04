@@ -20,55 +20,57 @@
  * SOFTWARE.
  */
 
-package com.github.sadikovi.riff.ntree.expression;
+package com.github.sadikovi.riff.tree.expression;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.unsafe.types.UTF8String;
 
 import com.github.sadikovi.riff.ColumnFilter;
-import com.github.sadikovi.riff.ntree.TypedExpression;
+import com.github.sadikovi.riff.tree.TypedExpression;
 
 /**
- * [[LongExpression]] to hold long value that used for comparison for all typed bound
+ * [[UTF8StringExpression]] to hold UTF8String value that used for comparison for all typed bound
  * references.
  */
-public class LongExpression implements TypedExpression<LongExpression> {
+public class UTF8StringExpression implements TypedExpression<UTF8StringExpression> {
   // value is accessible to equality and comparison methods
-  protected final long value;
+  protected final UTF8String value;
 
-  public LongExpression(long value) {
+  public UTF8StringExpression(UTF8String value) {
     this.value = value;
   }
 
   @Override
   public DataType dataType() {
-    return DataTypes.LongType;
+    return DataTypes.StringType;
   }
 
   @Override
   public boolean eqExpr(InternalRow row, int ordinal) {
-    return row.getLong(ordinal) == value;
+    // equality for UTF8String is faster and based on direct byte array comparison
+    return row.getUTF8String(ordinal).equals(value);
   }
 
   @Override
   public boolean gtExpr(InternalRow row, int ordinal) {
-    return row.getLong(ordinal) > value;
+    return row.getUTF8String(ordinal).compareTo(value) > 0;
   }
 
   @Override
   public boolean ltExpr(InternalRow row, int ordinal) {
-    return row.getLong(ordinal) < value;
+    return row.getUTF8String(ordinal).compareTo(value) < 0;
   }
 
   @Override
   public boolean geExpr(InternalRow row, int ordinal) {
-    return row.getLong(ordinal) >= value;
+    return row.getUTF8String(ordinal).compareTo(value) >= 0;
   }
 
   @Override
   public boolean leExpr(InternalRow row, int ordinal) {
-    return row.getLong(ordinal) <= value;
+    return row.getUTF8String(ordinal).compareTo(value) <= 0;
   }
 
   @Override
@@ -77,30 +79,31 @@ public class LongExpression implements TypedExpression<LongExpression> {
   }
 
   @Override
-  public int compareTo(LongExpression obj) {
-    if (value == obj.value) return 0;
-    return value < obj.value ? -1 : 1;
+  public int compareTo(UTF8StringExpression obj) {
+    // compareTo method for UTF8String returns either positive, 0, or negative
+    // non-zero values are not necessarily 1 and -1
+    return value.compareTo(obj.value);
   }
 
   @Override
   public boolean equals(Object obj) {
-    if (obj == null || !(obj instanceof LongExpression)) return false;
-    LongExpression expr = (LongExpression) obj;
-    return expr.value == value;
+    if (obj == null || !(obj instanceof UTF8StringExpression)) return false;
+    UTF8StringExpression expr = (UTF8StringExpression) obj;
+    return expr.value.equals(value);
   }
 
   @Override
   public int hashCode() {
-    return (int) (value ^ (value >>> 32));
+    return value.hashCode();
   }
 
   @Override
   public TypedExpression copy() {
-    return new LongExpression(value);
+    return new UTF8StringExpression(UTF8String.fromBytes(value.getBytes()));
   }
 
   @Override
   public String prettyString() {
-    return value + "L";
+    return "'" + value + "'";
   }
 }

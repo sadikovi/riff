@@ -20,53 +20,45 @@
  * SOFTWARE.
  */
 
-package com.github.sadikovi.riff.ntree.expression;
+package com.github.sadikovi.riff.tree.expression;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 
 import com.github.sadikovi.riff.ColumnFilter;
-import com.github.sadikovi.riff.ntree.BinaryLogical;
-import com.github.sadikovi.riff.ntree.Rule;
-import com.github.sadikovi.riff.ntree.Statistics;
-import com.github.sadikovi.riff.ntree.Tree;
+import com.github.sadikovi.riff.Statistics;
+import com.github.sadikovi.riff.tree.BoundReference;
+import com.github.sadikovi.riff.tree.Rule;
+import com.github.sadikovi.riff.tree.Tree;
 
 /**
- * [[And]] is binary logical predicate representing intersection of left and right subtrees -
- * only analyzed when both subtrees are analyzed. Evaluation for statistics and column filters
- * works the same way - if one of the children returns `false`, the result is `false`.
+ * [[IsNull]] node represents field that has evaluated against null values. When row has a null
+ * value for this node's field, yields true, otherwise false. Does not have information about type.
  */
-public class And extends BinaryLogical {
-  private final Tree left;
-  private final Tree right;
+public class IsNull extends BoundReference {
+  private final String name;
 
-  public And(Tree left, Tree right) {
-    this.left = left;
-    this.right = right;
+  public IsNull(String name) {
+    this.name = name;
   }
 
   @Override
-  public Tree left() {
-    return left;
+  public String name() {
+    return name;
   }
 
   @Override
-  public Tree right() {
-    return right;
+  public boolean evaluateState(InternalRow row, int ordinal) {
+    return row.isNullAt(ordinal);
   }
 
   @Override
-  public boolean evaluateState(InternalRow row) {
-    return left.evaluateState(row) && right.evaluateState(row);
+  public boolean evaluateState(Statistics stats) {
+    return stats.hasNulls();
   }
 
   @Override
-  public boolean evaluateState(Statistics[] stats) {
-    return left.evaluateState(stats) && right.evaluateState(stats);
-  }
-
-  @Override
-  public boolean evaluateState(ColumnFilter[] filters) {
-    return left.evaluateState(filters) && right.evaluateState(filters);
+  public boolean evaluateState(ColumnFilter filter) {
+    return true;
   }
 
   @Override
@@ -76,11 +68,11 @@ public class And extends BinaryLogical {
 
   @Override
   public Tree copy() {
-    return new And(left.copy(), right.copy());
+    return new IsNull(name).copyOrdinal(this);
   }
 
   @Override
   public String toString() {
-    return "(" + left + ") && (" + right + ")";
+    return prettyName() + " is null";
   }
 }

@@ -20,14 +20,14 @@
  * SOFTWARE.
  */
 
-package com.github.sadikovi.riff.ntree.expression;
+package com.github.sadikovi.riff.tree.expression;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 
 import com.github.sadikovi.riff.ColumnFilter;
-import com.github.sadikovi.riff.ntree.TypedExpression;
+import com.github.sadikovi.riff.tree.TypedExpression;
 
 /**
  * [[IntegerExpression]] to hold integer value that used for comparison for all typed bound

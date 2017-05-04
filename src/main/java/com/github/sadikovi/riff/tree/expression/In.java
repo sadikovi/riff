@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-package com.github.sadikovi.riff.ntree.expression;
+package com.github.sadikovi.riff.tree.expression;
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -29,11 +29,11 @@ import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.types.DataType;
 
 import com.github.sadikovi.riff.ColumnFilter;
-import com.github.sadikovi.riff.ntree.Rule;
-import com.github.sadikovi.riff.ntree.Statistics;
-import com.github.sadikovi.riff.ntree.Tree;
-import com.github.sadikovi.riff.ntree.TypedBoundReference;
-import com.github.sadikovi.riff.ntree.TypedExpression;
+import com.github.sadikovi.riff.Statistics;
+import com.github.sadikovi.riff.tree.Rule;
+import com.github.sadikovi.riff.tree.Tree;
+import com.github.sadikovi.riff.tree.TypedBoundReference;
+import com.github.sadikovi.riff.tree.TypedExpression;
 
 /**
  * [[In]] node represents predicate that evaluates row against a list of possible values.

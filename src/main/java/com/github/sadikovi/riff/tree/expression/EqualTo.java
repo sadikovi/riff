@@ -20,25 +20,38 @@
  * SOFTWARE.
  */
 
-package com.github.sadikovi.riff.ntree.expression;
+package com.github.sadikovi.riff.tree.expression;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 
 import com.github.sadikovi.riff.ColumnFilter;
-import com.github.sadikovi.riff.ntree.BoundReference;
-import com.github.sadikovi.riff.ntree.Rule;
-import com.github.sadikovi.riff.ntree.Statistics;
-import com.github.sadikovi.riff.ntree.Tree;
+import com.github.sadikovi.riff.Statistics;
+import com.github.sadikovi.riff.tree.Rule;
+import com.github.sadikovi.riff.tree.Tree;
+import com.github.sadikovi.riff.tree.TypedBoundReference;
+import com.github.sadikovi.riff.tree.TypedExpression;
 
 /**
- * [[IsNull]] node represents field that has evaluated against null values. When row has a null
- * value for this node's field, yields true, otherwise false. Does not have information about type.
+ * [[EqualTo]] is equality predicate for typed expression.
+ * Ordinal row value is equal to expression value.
  */
-public class IsNull extends BoundReference {
+public class EqualTo extends TypedBoundReference {
   private final String name;
+  private final TypedExpression expr;
 
-  public IsNull(String name) {
+  public EqualTo(String name, TypedExpression expr) {
     this.name = name;
+    this.expr = expr;
+  }
+
+  @Override
+  public TypedExpression expression() {
+    return this.expr;
+  }
+
+  @Override
+  public String operator() {
+    return "=";
   }
 
   @Override
@@ -48,17 +61,18 @@ public class IsNull extends BoundReference {
 
   @Override
   public boolean evaluateState(InternalRow row, int ordinal) {
-    return row.isNullAt(ordinal);
+    return !row.isNullAt(ordinal) && expr.eqExpr(row, ordinal);
   }
 
   @Override
   public boolean evaluateState(Statistics stats) {
-    return stats.hasNulls();
+    return !stats.isNullAt(Statistics.ORD_MIN) && !stats.isNullAt(Statistics.ORD_MAX) &&
+      expr.leExpr(stats, Statistics.ORD_MIN) && expr.geExpr(stats, Statistics.ORD_MAX);
   }
 
   @Override
   public boolean evaluateState(ColumnFilter filter) {
-    return true;
+    return expr.containsExpr(filter);
   }
 
   @Override
@@ -68,11 +82,6 @@ public class IsNull extends BoundReference {
 
   @Override
   public Tree copy() {
-    return new IsNull(name).copyOrdinal(this);
-  }
-
-  @Override
-  public String toString() {
-    return prettyName() + " is null";
+    return new EqualTo(name, expr.copy()).copyOrdinal(this);
   }
 }

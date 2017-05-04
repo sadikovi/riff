@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-package com.github.sadikovi.riff.ntree;
+package com.github.sadikovi.riff.tree;
 
 import com.github.sadikovi.riff.TypeDescription;
 

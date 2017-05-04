@@ -30,7 +30,7 @@ import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
 import com.github.sadikovi.riff.io._
-import com.github.sadikovi.riff.tree.TreeNode
+import com.github.sadikovi.riff.tree.Tree
 import com.github.sadikovi.riff.tree.FilterApi._
 import com.github.sadikovi.testutil.implicits._
 import com.github.sadikovi.testutil.UnitTestSuite
@@ -212,7 +212,7 @@ class RiffSuite extends UnitTestSuite {
   def writeReadTest(
       codec: CompressionCodec,
       path: Path,
-      filter: TreeNode = null): Seq[InternalRow] = {
+      filter: Tree = null): Seq[InternalRow] = {
     val writer = Riff.writer.setCodec(codec).setTypeDesc(schema, "col2").create(path)
     writer.prepareWrite()
     for (row <- batch) {

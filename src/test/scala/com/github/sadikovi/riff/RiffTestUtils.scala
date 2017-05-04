@@ -31,7 +31,7 @@ import org.apache.spark.unsafe.types.UTF8String
  * Mainly added for convenience of creating different objects and shortcuts.
  */
 object RiffTestUtils {
-  def statistics(min: Int, max: Int, nulls: Boolean): Statistics = {
+  def stats(min: Int, max: Int, nulls: Boolean) = {
     val stats = Statistics.sqlTypeToStatistics(IntegerType)
     if (nulls) stats.update(InternalRow(null), 0)
     stats.update(InternalRow(min), 0)
@@ -39,7 +39,7 @@ object RiffTestUtils {
     stats
   }
 
-  def statistics(min: Long, max: Long, nulls: Boolean): Statistics = {
+  def stats(min: Long, max: Long, nulls: Boolean) = {
     val stats = Statistics.sqlTypeToStatistics(LongType)
     if (nulls) stats.update(InternalRow(null), 0)
     stats.update(InternalRow(min), 0)
@@ -47,32 +47,8 @@ object RiffTestUtils {
     stats
   }
 
-  def statistics(min: String, max: String, nulls: Boolean): Statistics = {
-    val stats = Statistics.sqlTypeToStatistics(StringType)
-    if (nulls) stats.update(InternalRow(null), 0)
-    stats.update(InternalRow(UTF8String.fromString(min)), 0)
-    stats.update(InternalRow(UTF8String.fromString(max)), 0)
-    stats
-  }
-
-  def stats(min: Int, max: Int, nulls: Boolean) = {
-    val stats = com.github.sadikovi.riff.ntree.Statistics.sqlTypeToStatistics(IntegerType)
-    if (nulls) stats.update(InternalRow(null), 0)
-    stats.update(InternalRow(min), 0)
-    stats.update(InternalRow(max), 0)
-    stats
-  }
-
-  def stats(min: Long, max: Long, nulls: Boolean) = {
-    val stats = com.github.sadikovi.riff.ntree.Statistics.sqlTypeToStatistics(LongType)
-    if (nulls) stats.update(InternalRow(null), 0)
-    stats.update(InternalRow(min), 0)
-    stats.update(InternalRow(max), 0)
-    stats
-  }
-
   def stats(min: String, max: String, nulls: Boolean) = {
-    val stats = com.github.sadikovi.riff.ntree.Statistics.sqlTypeToStatistics(StringType)
+    val stats = Statistics.sqlTypeToStatistics(StringType)
     if (nulls) stats.update(InternalRow(null), 0)
     stats.update(InternalRow(UTF8String.fromString(min)), 0)
     stats.update(InternalRow(UTF8String.fromString(max)), 0)
