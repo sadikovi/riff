@@ -193,6 +193,13 @@ class RiffSuite extends UnitTestSuite {
     }
   }
 
+  test("create file reader using path as string") {
+    withTempDir { dir =>
+      val reader = Riff.reader.create(s"${dir / "file"}")
+      assert(reader.headerPath.toString == s"file:${dir / "file"}")
+    }
+  }
+
   //////////////////////////////////////////////////////////////
   // == Read/write tests ==
   //////////////////////////////////////////////////////////////

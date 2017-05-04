@@ -257,10 +257,20 @@ public class Riff {
     /**
      * Create final instance of either writer or reader depending on param type for provided path.
      * @param path path to a file for specified file system
-     * @return T instance
+     * @return R instance
      * @throws IOException if any IO error occurs
      */
     public abstract R create(Path path) throws IOException;
+
+    /**
+     * Create instance using path as string, done mainly for testing.
+     * @param path string path
+     * @return R instance
+     * @throws IOException
+     */
+    public R create(String path) throws IOException {
+      return create(new Path(path));
+    }
   }
 
   /**
