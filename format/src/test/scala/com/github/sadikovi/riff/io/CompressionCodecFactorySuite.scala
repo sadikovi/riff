@@ -83,4 +83,20 @@ class CompressionCodecFactorySuite extends UnitTestSuite {
     assert(CompressionCodecFactory.forFileExt("none") == CompressionCodecFactory.UNCOMPRESSED)
     assert(CompressionCodecFactory.forFileExt("") == CompressionCodecFactory.UNCOMPRESSED)
   }
+
+  test("codec name into file extension") {
+    CompressionCodecFactory.fileExtForShortName("deflate") should be (".deflate")
+    CompressionCodecFactory.fileExtForShortName("DEFLATE") should be (".deflate")
+    CompressionCodecFactory.fileExtForShortName("gzip") should be (".gz")
+    CompressionCodecFactory.fileExtForShortName("GZIP") should be (".gz")
+    CompressionCodecFactory.fileExtForShortName("none") should be ("")
+    CompressionCodecFactory.fileExtForShortName("NONE") should be ("")
+  }
+
+  test("codec file extesion for unknown codec name") {
+    val err = intercept[UnsupportedOperationException] {
+      CompressionCodecFactory.fileExtForShortName("<unknown>")
+    }
+    err.getMessage should be ("Unknown codec: <unknown>")
+  }
 }

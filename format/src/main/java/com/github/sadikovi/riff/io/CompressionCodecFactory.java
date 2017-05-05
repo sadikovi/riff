@@ -29,6 +29,17 @@ package com.github.sadikovi.riff.io;
 public class CompressionCodecFactory {
   // alias for uncompressed strategy
   public static final CompressionCodec UNCOMPRESSED = null;
+  public static final String UNCOMPRESSED_SHORT_NAME = "none";
+  public static final String UNCOMPRESSED_FILE_EXTENSION = "";
+  public static final byte UNCOMPRESSED_ENCODE_FLAG = 0;
+  // constants for zlib codec
+  public static final String ZLIB_FILE_EXTENSION = ".deflate";
+  public static final String ZLIB_SHORT_NAME = "deflate";
+  public static final byte ZLIB_ENCODE_FLAG = 1;
+  // constants for gzip codec
+  public static final String GZIP_FILE_EXTENSION = ".gz";
+  public static final String GZIP_SHORT_NAME = "gzip";
+  public static final byte GZIP_ENCODE_FLAG = 2;
 
   private CompressionCodecFactory() { }
 
@@ -39,9 +50,9 @@ public class CompressionCodecFactory {
    */
   public static byte encode(CompressionCodec codec) {
     // return flag as power of 2
-    if (codec == UNCOMPRESSED) return 0;
-    if (codec instanceof ZlibCodec) return 1;
-    if (codec instanceof GzipCodec) return 2;
+    if (codec == UNCOMPRESSED) return UNCOMPRESSED_ENCODE_FLAG;
+    if (codec instanceof ZlibCodec) return ZLIB_ENCODE_FLAG;
+    if (codec instanceof GzipCodec) return GZIP_ENCODE_FLAG;
     throw new UnsupportedOperationException("Unknown codec: " + codec);
   }
 
@@ -51,10 +62,10 @@ public class CompressionCodecFactory {
    * @return compression codec
    */
   public static CompressionCodec decode(byte flag) {
-    if (flag == 0) return UNCOMPRESSED;
+    if (flag == UNCOMPRESSED_ENCODE_FLAG) return UNCOMPRESSED;
     // return zlib codec with default settings
-    if (flag == 1) return new ZlibCodec();
-    if (flag == 2) return new GzipCodec();
+    if (flag == ZLIB_ENCODE_FLAG) return new ZlibCodec();
+    if (flag == GZIP_ENCODE_FLAG) return new GzipCodec();
     throw new UnsupportedOperationException("Unknown codec flag: " + flag);
   }
 
@@ -65,11 +76,11 @@ public class CompressionCodecFactory {
    */
   public static CompressionCodec forShortName(String name) {
     switch (name.toLowerCase()) {
-      case "deflate":
+      case ZLIB_SHORT_NAME:
         return new ZlibCodec();
-      case "gzip":
+      case GZIP_SHORT_NAME:
         return new GzipCodec();
-      case "none":
+      case UNCOMPRESSED_SHORT_NAME:
         return UNCOMPRESSED;
       default:
         throw new UnsupportedOperationException("Unknown codec: " + name);
@@ -84,12 +95,31 @@ public class CompressionCodecFactory {
    */
   public static CompressionCodec forFileExt(String ext) {
     switch (ext) {
-      case ".deflate":
+      case ZLIB_FILE_EXTENSION:
         return new ZlibCodec();
-      case ".gz":
+      case GZIP_FILE_EXTENSION:
         return new GzipCodec();
       default:
         return UNCOMPRESSED;
+    }
+  }
+
+  /**
+   * Return file extension for provided short name that is associated with compression codec.
+   * If no such name exists, exception is thrown.
+   * @param name short name for codec
+   * @return file extension that is associated with codec
+   */
+  public static String fileExtForShortName(String name) {
+    switch (name.toLowerCase()) {
+      case ZLIB_SHORT_NAME:
+        return ZLIB_FILE_EXTENSION;
+      case GZIP_SHORT_NAME:
+        return GZIP_FILE_EXTENSION;
+      case UNCOMPRESSED_SHORT_NAME:
+        return UNCOMPRESSED_FILE_EXTENSION;
+      default:
+        throw new UnsupportedOperationException("Unknown codec: " + name);
     }
   }
 }

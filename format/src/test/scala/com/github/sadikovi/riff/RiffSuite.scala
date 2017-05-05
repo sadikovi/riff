@@ -36,6 +36,14 @@ import com.github.sadikovi.testutil.implicits._
 import com.github.sadikovi.testutil.UnitTestSuite
 
 class RiffSuite extends UnitTestSuite {
+  test("select compression codec in configuration") {
+    var conf = new Configuration()
+    Riff.Options.compressionCodecName(conf) should be (null)
+    conf = new Configuration()
+    conf.set(Riff.Options.COMPRESSION_CODEC, "gzip")
+    Riff.Options.compressionCodecName(conf) should be ("gzip")
+  }
+
   test("select buffer size") {
     var conf = new Configuration()
     conf.setInt(Riff.Options.BUFFER_SIZE, -1)
@@ -183,6 +191,39 @@ class RiffSuite extends UnitTestSuite {
         .setTypeDesc(StructType(StructField("a", IntegerType) :: Nil))
         .create(dir / ".deflate")
       assert(writer.codec == null)
+    }
+  }
+
+  test("read codec from configuration") {
+    withTempDir { dir =>
+      val conf = new Configuration()
+      conf.set(Riff.Options.COMPRESSION_CODEC, "none")
+      val writer = Riff.writer
+        .setConf(conf)
+        .setTypeDesc(StructType(StructField("a", IntegerType) :: Nil))
+        .create(dir / "path.gz")
+      assert(writer.codec == null)
+    }
+
+    withTempDir { dir =>
+      val conf = new Configuration()
+      conf.set(Riff.Options.COMPRESSION_CODEC, "gzip")
+      val writer = Riff.writer
+        .setConf(conf)
+        .setTypeDesc(StructType(StructField("a", IntegerType) :: Nil))
+        .create(dir / "path.deflate")
+      assert(writer.codec.isInstanceOf[GzipCodec])
+    }
+
+    // even though ".deflate" is treated as filename we force deflate compression through conf
+    withTempDir { dir =>
+      val conf = new Configuration()
+      conf.set(Riff.Options.COMPRESSION_CODEC, "deflate")
+      val writer = Riff.writer
+        .setConf(conf)
+        .setTypeDesc(StructType(StructField("a", IntegerType) :: Nil))
+        .create(dir / ".deflate")
+      assert(writer.codec.isInstanceOf[ZlibCodec])
     }
   }
 
