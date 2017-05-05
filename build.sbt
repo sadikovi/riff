@@ -59,6 +59,14 @@ coverageFailOnMinimum := true
 
 EclipseKeys.eclipseOutput := Some("target/eclipse")
 
+// Split code into logical subprojects, while maintaining single project build
+// common project (test utils)
+unmanagedSourceDirectories in Compile += baseDirectory.value / "common" / "src" / "main"
+unmanagedSourceDirectories in Test += baseDirectory.value / "common" / "src" / "test"
+// format and specification project
+unmanagedSourceDirectories in Compile += baseDirectory.value / "format" / "src" / "main"
+unmanagedSourceDirectories in Test += baseDirectory.value / "format" / "src" / "test"
+
 // tasks dependencies
 lazy val compileScalastyle = taskKey[Unit]("compileScalastyle")
 compileScalastyle := org.scalastyle.sbt.ScalastylePlugin.scalastyle.in(Compile).toTask("").value
