@@ -35,8 +35,6 @@ import com.github.sadikovi.riff.io.InStream;
  */
 public class IndexedRowReader {
   private final TypeDescription desc;
-  // buffer for primitive fields (used for conversion)
-  private byte[] buf;
   // bit set to mark indexed fields
   private long indexed;
   // set of converters to use
@@ -44,7 +42,6 @@ public class IndexedRowReader {
 
   public IndexedRowReader(TypeDescription desc) {
     this.desc = desc;
-    this.buf = new byte[8];
     // compute index fields in bit set
     this.indexed = 0L;
     for (TypeSpec spec : this.desc.indexFields()) {
