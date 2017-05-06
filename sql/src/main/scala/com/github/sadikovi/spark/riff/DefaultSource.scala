@@ -22,19 +22,25 @@
 
 package com.github.sadikovi.spark.riff
 
+import java.net.URI
+
+import scala.collection.JavaConverters._
+
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileStatus, Path}
 import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
 
+import org.apache.spark.TaskContext
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.riff.{RiffOutputWriter, RiffOutputWriterFactory}
+import org.apache.spark.sql.riff._
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.datasources._
-import org.apache.spark.sql.sources.{DataSourceRegister, Filter}
+import org.apache.spark.sql.sources.{And, DataSourceRegister, Filter}
 import org.apache.spark.sql.types.StructType
 
 import org.slf4j.LoggerFactory
 
+import com.github.sadikovi.riff.{Buffers, Riff}
 import com.github.sadikovi.riff.Riff.Options
 import com.github.sadikovi.riff.TypeDescription
 import com.github.sadikovi.riff.io.CompressionCodecFactory
@@ -52,6 +58,8 @@ class DefaultSource
 
   // logger for file format, since we cannot use internal Spark logging
   @transient private val log = LoggerFactory.getLogger(classOf[DefaultSource])
+  // type description for this source, when inferring schema
+  private var typeDescription: TypeDescription = null
 
   override def shortName(): String = "riff"
 
@@ -107,7 +115,51 @@ class DefaultSource
       sparkSession: SparkSession,
       parameters: Map[String, String],
       files: Seq[FileStatus]): Option[StructType] = {
-    None
+    // when inferring schema we expect at least one data file in directory
+    if (files.isEmpty) {
+      log.warn("No paths found for schema inferrence")
+      None
+    } else {
+      // Spark, when returning parsed file paths, does not include metadata files, only files that
+      // are either partitioned or do not begin with "_". This forces us to reconstruct metadata path
+      // manually.
+
+      // Logic is to use "path" key set in parameters map; this is set by DataFrameReader and
+      // contains raw unresolved path to the directory or file. We make path qualified and check
+      // if it contains metadata, otherwise fall back to reading single file from the list.
+
+      // Normally "path" key contains single path, we apply the same logic as Spark datasource
+      val hadoopConf = sparkSession.sparkContext.hadoopConfiguration
+
+      val metadata = parameters.get("path").map { path =>
+        val hdfsPath = new Path(path)
+        val fs = hdfsPath.getFileSystem(hadoopConf)
+        val qualifiedPath = hdfsPath.makeQualified(fs.getUri, fs.getWorkingDirectory)
+        val reader = Riff.metadataReader.setFileSystem(fs).setConf(hadoopConf).create(qualifiedPath)
+        reader.readMetadataFile(true)
+      }
+
+      // metadata can be null, we need to check
+      metadata match {
+        case Some(value) if value != null =>
+          log.info("Infer schema from metadata")
+          typeDescription = value.getTypeDescription
+        case other =>
+          log.info("Failed to load metadata, infer schema from header file")
+          // infer schema from the first file in the list
+          val headerFileStatus: Option[FileStatus] = files
+            .filter(!_.getPath.getName.endsWith(Riff.DATA_FILE_SUFFIX))
+            .headOption
+          if (headerFileStatus.isEmpty) {
+            throw new RuntimeException(s"No header files found in list ${files.toList}")
+          }
+          val headerFile = headerFileStatus.get.getPath
+          val fs = headerFile.getFileSystem(hadoopConf)
+          val reader = Riff.reader.setFileSystem(fs).setConf(hadoopConf).create(headerFile)
+          typeDescription = reader.readTypeDescription()
+      }
+      Option(typeDescription).map(_.toStructType)
+    }
   }
 
   override def isSplitable(
@@ -118,15 +170,56 @@ class DefaultSource
     false
   }
 
-  override def buildReaderWithPartitionValues(
+  override def buildReader(
       sparkSession: SparkSession,
       dataSchema: StructType,
       partitionSchema: StructType,
       requiredSchema: StructType,
       filters: Seq[Filter],
       options: Map[String, String],
-      hadoopConf: Configuration): (PartitionedFile) => Iterator[InternalRow] = {
-    null
+      hadoopConf: Configuration): PartitionedFile => Iterator[InternalRow] = {
+    // right now Spark appends partition values to each row, it would be good to try doing it
+    // internally somehow
+
+    // check if filter pushdown disabled
+    val filterPushdownEnabled = sparkSession.conf.get(SQL_RIFF_FILTER_PUSHDOWN,
+      SQL_RIFF_FILTER_PUSHDOWN_DEFAULT).toBoolean
+
+    val predicate = if (filterPushdownEnabled) {
+      val reducedFilter = filters.reduceOption(And)
+      val tree = Filters.createRiffFilter(reducedFilter)
+      if (tree != null) {
+        log.info(s"Applying filter tree $tree")
+      }
+      tree
+    } else {
+      log.info("Filter pushdown disabled")
+      null
+    }
+
+    // set buffer size for instream in riff
+    hadoopConf.set(Options.BUFFER_SIZE,
+      sparkSession.conf.get(SQL_RIFF_BUFFER_SIZE, s"${Options.BUFFER_SIZE_DEFAULT}"))
+
+    val broadcastedHadoopConf =
+      sparkSession.sparkContext.broadcast(new SerializableConfiguration(hadoopConf))
+
+    // right now, riff does not support column pruning, hence we ignore required schema and just
+    // return iterator of rows
+    (file: PartitionedFile) => {
+      assert(file.partitionValues.numFields == partitionSchema.size)
+      // because riff stores header and data files separately, we have to ignore data files
+      if (file.filePath.endsWith(Riff.DATA_FILE_SUFFIX)) {
+        Buffers.emptyRowBuffer().asScala
+      } else {
+        val path = new Path(new URI(file.filePath))
+        val hadoopConf = broadcastedHadoopConf.value.value
+        val reader = Riff.reader.setConf(hadoopConf).create(path)
+        val iter = reader.prepareRead(predicate)
+        Option(TaskContext.get()).foreach(_.addTaskCompletionListener(_ => iter.close()))
+        iter.asScala
+      }
+    }
   }
 }
 
@@ -144,6 +237,9 @@ object RiffFileFormat {
   val SQL_RIFF_COLUMN_FILTER_ENABLED = "spark.sql.riff.column.filter.enabled"
   // set buffer size in bytes for outstream
   val SQL_RIFF_BUFFER_SIZE = "spark.sql.riff.buffer.size"
+  // enable/disable filter pushdown for the format
+  val SQL_RIFF_FILTER_PUSHDOWN = "spark.sql.riff.filterPushdown"
+  val SQL_RIFF_FILTER_PUSHDOWN_DEFAULT = "true"
 
   // internal Spark SQL option for output committer
   val SPARK_OUTPUT_COMMITTER_CLASS = "spark.sql.sources.outputCommitterClass"
