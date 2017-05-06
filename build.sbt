@@ -66,6 +66,9 @@ unmanagedSourceDirectories in Test += baseDirectory.value / "common" / "src" / "
 // format and specification project
 unmanagedSourceDirectories in Compile += baseDirectory.value / "format" / "src" / "main"
 unmanagedSourceDirectories in Test += baseDirectory.value / "format" / "src" / "test"
+// sql project
+unmanagedSourceDirectories in Compile += baseDirectory.value / "sql" / "src" / "main"
+unmanagedSourceDirectories in Test += baseDirectory.value / "sql" / "src" / "test"
 
 // tasks dependencies
 lazy val compileScalastyle = taskKey[Unit]("compileScalastyle")
