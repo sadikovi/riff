@@ -43,7 +43,7 @@ import org.slf4j.LoggerFactory
  * handled separately by output writer.
  */
 class RiffOutputWriterFactory(val desc: TypeDescription) extends OutputWriterFactory {
-  override def getFileExtension(context: TaskAttemptContext): String = {
+  def getFileExtension(context: TaskAttemptContext): String = {
     val conf = context.getConfiguration()
     CompressionCodecFactory.fileExtForShortName(conf.get(Riff.Options.COMPRESSION_CODEC)) + ".riff"
   }
