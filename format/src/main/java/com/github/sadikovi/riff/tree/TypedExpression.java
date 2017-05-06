@@ -22,6 +22,8 @@
 
 package com.github.sadikovi.riff.tree;
 
+import java.io.Serializable;
+
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.types.DataType;
 
@@ -33,7 +35,7 @@ import com.github.sadikovi.riff.ColumnFilter;
  * All predicate related methods should be implement following this rule:
  * {value at ordinal <action> this expression}.
  */
-public interface TypedExpression<E> extends Comparable<E> {
+public interface TypedExpression<E> extends Comparable<E>, Serializable {
   /**
    * Associated Spark SQL data type for this expression.
    * @return data type
