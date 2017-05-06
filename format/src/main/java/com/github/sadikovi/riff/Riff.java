@@ -424,6 +424,46 @@ public class Riff {
     }
   }
 
+  /**
+   * Metadata writer settings builder.
+   */
+  public static class MetadataWriterBuilder
+      extends Builder<MetadataWriterBuilder, Metadata.MetadataWriter> {
+    protected MetadataWriterBuilder() {
+      super();
+      this.instance = this;
+    }
+
+    @Override
+    public Metadata.MetadataWriter create(Path path) throws IOException {
+      // set file system if none found
+      if (fs == null) {
+        fs = path.getFileSystem(conf);
+      }
+      return new Metadata.MetadataWriter(fs, conf, path);
+    }
+  }
+
+  /**
+   * Metadata reader settings builder.
+   */
+  public static class MetadataReaderBuilder
+      extends Builder<MetadataReaderBuilder, Metadata.MetadataReader> {
+    protected MetadataReaderBuilder() {
+      super();
+      this.instance = this;
+    }
+
+    @Override
+    public Metadata.MetadataReader create(Path path) throws IOException {
+      // set file system if none found
+      if (fs == null) {
+        fs = path.getFileSystem(conf);
+      }
+      return new Metadata.MetadataReader(fs, conf, path);
+    }
+  }
+
   private Riff() { /* no-op */ }
 
   /**
@@ -440,5 +480,21 @@ public class Riff {
    */
   public static ReaderBuilder reader() {
     return new ReaderBuilder();
+  }
+
+  /**
+   * Get new metadata writer.
+   * @return metadata writer builder
+   */
+  public static MetadataWriterBuilder metadataWriter() {
+    return new MetadataWriterBuilder();
+  }
+
+  /**
+   * Get new metadata reader.
+   * @return metadata reader builder
+   */
+  public static MetadataReaderBuilder metadataReader() {
+    return new MetadataReaderBuilder();
   }
 }
