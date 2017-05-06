@@ -121,9 +121,9 @@ public class FileReader {
       LOG.info("Read header flags {}", Arrays.toString(flags));
       CompressionCodec codec = Riff.decodeCompressionCodec(flags[0]);
       if (codec == null) {
-        LOG.info("Found no compression codec");
+        LOG.debug("Found no compression codec, using uncompressed");
       } else {
-        LOG.info("Found compression codec {}", codec);
+        LOG.debug("Found compression codec {}", codec);
       }
       // initialize valid predicate state if necessary
       PredicateState state = null;
@@ -147,7 +147,7 @@ public class FileReader {
       Statistics[] fileStats = new Statistics[buffer.getInt()];
       for (int i = 0; i < fileStats.length; i++) {
         fileStats[i] = Statistics.readExternal(buffer);
-        LOG.info("Read file statistics {}", fileStats[i]);
+        LOG.debug("Read file statistics {}", fileStats[i]);
       }
       // if predicate state is available - evaluate tree and decide on whether or not to read the
       // file any further.
@@ -166,7 +166,7 @@ public class FileReader {
       }
       // read stripe information until no bytes are available in buffer
       final int contentLen = in.readInt();
-      LOG.info("Read content of {} bytes", contentLen);
+      LOG.debug("Read content of {} bytes", contentLen);
       buffer = ByteBuffer.allocate(contentLen);
       // do not flip buffer after this operation as we write directly into underlying array
       in.readFully(buffer.array(), buffer.arrayOffset(), buffer.limit());
