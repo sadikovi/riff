@@ -22,12 +22,16 @@
 
 package com.github.sadikovi.riff;
 
-import java.io.Serializable;
+import java.io.Externalizable;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
 
 import org.apache.spark.sql.types.DataType;
+import org.apache.spark.sql.types.Metadata;
 import org.apache.spark.sql.types.StructField;
 
-public class TypeSpec implements Serializable {
+public class TypeSpec implements Externalizable {
   // SQL field specification
   private StructField field;
   // whether or not this field should be used for indexing
@@ -43,6 +47,9 @@ public class TypeSpec implements Serializable {
     this.pos = pos;
     this.origPos = origPos;
   }
+
+  // for serializer
+  public TypeSpec() { }
 
   /** Get field */
   public StructField field() {
@@ -88,6 +95,31 @@ public class TypeSpec implements Serializable {
       spec.isIndexed() == this.isIndexed() &&
       spec.position() == this.position() &&
       spec.origSQLPos() == this.origSQLPos();
+  }
+
+  @Override
+  public void writeExternal(ObjectOutput out) throws IOException {
+    // TODO: serialize struct field comments
+    out.writeBoolean(indexed);
+    out.writeInt(pos);
+    out.writeInt(origPos);
+    out.writeBoolean(field.nullable());
+    out.writeUTF(field.name());
+    out.writeUTF(field.dataType().json());
+    out.writeUTF(field.metadata().json());
+  }
+
+  @Override
+  public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+    this.indexed = in.readBoolean();
+    this.pos = in.readInt();
+    this.origPos = in.readInt();
+    // reconstruct field
+    boolean nullable = in.readBoolean();
+    String name = in.readUTF();
+    DataType dataType = DataType.fromJson(in.readUTF());
+    Metadata metadata = Metadata.fromJson(in.readUTF());
+    this.field = new StructField(name, dataType, nullable, metadata);
   }
 
   @Override

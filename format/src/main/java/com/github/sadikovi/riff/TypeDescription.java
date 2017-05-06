@@ -22,12 +22,14 @@
 
 package com.github.sadikovi.riff;
 
+import java.io.Externalizable;
 import java.io.InputStream;
 import java.io.IOException;
+import java.io.ObjectInput;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
-import java.io.Serializable;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -44,7 +46,7 @@ import org.apache.spark.sql.types.StructType;
  * Internal schema specification based on Spark SQL schema, that acts as proxy to write and read
  * SQL rows. Note that type description columns index might be different from Spark SQL schema.
  */
-public class TypeDescription implements Serializable {
+public class TypeDescription implements Externalizable {
   private HashMap<String, TypeSpec> schema;
   // quick access to type spec by type description ordinal index
   private TypeSpec[] ordinalFields;
@@ -114,6 +116,14 @@ public class TypeDescription implements Serializable {
 
   public TypeDescription(StructType schema) {
     this(schema, null);
+  }
+
+  // for serializer
+  public TypeDescription() {
+    this.schema = null;
+    this.ordinalFields = null;
+    this.indexFields = null;
+    this.dataFields = null;
   }
 
   /** Check if schema is valid, contains supported types */
@@ -222,14 +232,53 @@ public class TypeDescription implements Serializable {
     return struct;
   }
 
+  @Override
+  public void writeExternal(ObjectOutput out) throws IOException {
+    // type description ordinal fields array is only serialized, the rest can be reconstructed from
+    // that array
+    out.writeInt(ordinalFields.length);
+    for (int i = 0; i < ordinalFields.length; i++) {
+      out.writeObject(ordinalFields[i]);
+    }
+  }
+
+  @Override
+  public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+    int len = in.readInt();
+    this.ordinalFields = new TypeSpec[len];
+    // number of index fields in this array
+    int numIndexed = 0;
+    for (int i = 0; i < len; i++) {
+      this.ordinalFields[i] = (TypeSpec) in.readObject();
+      if (this.ordinalFields[i].isIndexed()) {
+        numIndexed++;
+      }
+    }
+    // build index fields and data fields
+    this.indexFields = new TypeSpec[numIndexed];
+    this.dataFields = new TypeSpec[len - numIndexed];
+    int k = 0, j = 0;
+    for (int i = 0; i < len; i++) {
+      if (this.ordinalFields[i].isIndexed()) {
+        this.indexFields[k++] = this.ordinalFields[i];
+      } else {
+        this.dataFields[j++] = this.ordinalFields[i];
+      }
+    }
+    // build hashmap for lookup
+    this.schema = new HashMap<String, TypeSpec>(len);
+    for (int i = 0; i < len; i++) {
+      this.schema.put(this.ordinalFields[i].field().name(), this.ordinalFields[i]);
+    }
+  }
+
   /**
    * Write type description into external output stream.
    * Does not close stream.
    * @param out output stream
    * @throws IOException
    */
-  public void writeExternal(OutputStream out) throws IOException {
-    // we use serializer to write object directly, no custom layout is necessary
+  public void writeTo(OutputStream out) throws IOException {
     ObjectOutputStream oos = new ObjectOutputStream(out);
     oos.writeObject(this);
     oos.flush();
@@ -241,7 +290,7 @@ public class TypeDescription implements Serializable {
    * @param stream input stream with object data
    * @throws IOException when io error happens, or class not found
    */
-  public static TypeDescription readExternal(InputStream stream) throws IOException {
+  public static TypeDescription readFrom(InputStream stream) throws IOException {
     ObjectInputStream in = new ObjectInputStream(stream);
     try {
       return (TypeDescription) in.readObject();

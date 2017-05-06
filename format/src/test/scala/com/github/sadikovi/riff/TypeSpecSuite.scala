@@ -22,7 +22,9 @@
 
 package com.github.sadikovi.riff
 
-import org.apache.spark.sql.types.{IntegerType, StringType, StructField}
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream}
+
+import org.apache.spark.sql.types.{IntegerType, StringType, StructField, StructType}
 
 import com.github.sadikovi.testutil.UnitTestSuite
 
@@ -84,5 +86,44 @@ class TypeSpecSuite extends UnitTestSuite {
 
     val spec1 = new TypeSpec(field, false, pos, origPos);
     assert(spec1.hashCode != spec.hashCode)
+  }
+
+  test("write/read spec into external stream 1") {
+    val field = StructField("col", StringType)
+    val (indexed, pos, origPos) = (true, 1, 3)
+    val spec1 = new TypeSpec(field, indexed, pos, origPos)
+
+    val out = new ByteArrayOutputStream()
+    val oos = new ObjectOutputStream(out)
+    oos.writeObject(spec1)
+
+    val in = new ByteArrayInputStream(out.toByteArray)
+    val ois = new ObjectInputStream(in)
+    val spec2 = ois.readObject().asInstanceOf[TypeSpec]
+
+    spec2 should be (spec1)
+    spec2.isIndexed() should be (true)
+    spec2.position() should be (1)
+    spec2.origSQLPos() should be (3)
+  }
+
+  test("write/read spec into external stream 2") {
+    val field = StructField("field",
+      StructType(StructField("col", IntegerType, true) :: Nil))
+    val (indexed, pos, origPos) = (false, 5, 2)
+    val spec1 = new TypeSpec(field, indexed, pos, origPos)
+
+    val out = new ByteArrayOutputStream()
+    val oos = new ObjectOutputStream(out)
+    oos.writeObject(spec1)
+
+    val in = new ByteArrayInputStream(out.toByteArray)
+    val ois = new ObjectInputStream(in)
+    val spec2 = ois.readObject().asInstanceOf[TypeSpec]
+
+    spec2 should be (spec1)
+    spec2.isIndexed() should be (false)
+    spec2.position() should be (5)
+    spec2.origSQLPos() should be (2)
   }
 }
