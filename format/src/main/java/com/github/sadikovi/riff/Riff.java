@@ -79,6 +79,9 @@ public class Riff {
    * Internal riff options that can be set in hadoop configuration.
    */
   public static class Options {
+    // short name for compression codec
+    public static final String COMPRESSION_CODEC = "riff.compression.codec";
+
     // Number of rows in single stripe, this is used for writing only
     public static final String STRIPE_ROWS = "riff.stripe.rows";
     public static final int STRIPE_ROWS_DEFAULT = 10000;
@@ -98,6 +101,16 @@ public class Riff {
     public static final String COLUMN_FILTER_ENABLED = "riff.column.filter.enabled";
     // column filters are enabled by default
     public static final boolean COLUMN_FILTER_ENABLED_DEFAULT = false;
+
+    /**
+     * Get compression codec from configuration.
+     * If option is not set, null value is returned.
+     * @param conf configuration
+     * @return compression codec short name
+     */
+    static String compressionCodecName(Configuration conf) {
+      return conf.get(COMPRESSION_CODEC);
+    }
 
     /**
      * Select next power of 2 as buffer size.
@@ -366,9 +379,15 @@ public class Riff {
 
     @Override
     public FileWriter create(Path path) throws IOException {
-      // if codec is not set infer from path
+      // compression codec is either set manually through methods or through configuration
+      // first, we check if is set manullay, then whether or not it is set in configuration and
+      // then fall back to the inferring codec from file extension
       if (!codecSet) {
-        codec = inferCompressionCodec(path);
+        if (Options.compressionCodecName(conf) != null) {
+          codec = CompressionCodecFactory.forShortName(Options.compressionCodecName(conf));
+        } else {
+          codec = inferCompressionCodec(path);
+        }
       }
       // set file system if none found
       if (fs == null) {
