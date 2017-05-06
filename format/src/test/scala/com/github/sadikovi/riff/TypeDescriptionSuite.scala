@@ -299,10 +299,42 @@ class TypeDescriptionSuite extends UnitTestSuite {
       StructField("col5", StringType) :: Nil)
     val td1 = new TypeDescription(schema, Array("col4", "col1"))
     val out = new OutputBuffer()
-    td1.writeExternal(out)
+    td1.writeTo(out)
 
     val in = new ByteArrayInputStream(out.array())
-    val td2 = TypeDescription.readExternal(in)
+    val td2 = TypeDescription.readFrom(in)
+    td2.equals(td1) should be (true)
+    td2.toString should be (td1.toString)
+  }
+
+  test("write/read type description, data fields only") {
+    val schema = StructType(
+      StructField("col1", IntegerType) ::
+      StructField("col2", LongType) ::
+      StructField("col3", IntegerType) ::
+      StructField("col4", StringType) ::
+      StructField("col5", StringType) :: Nil)
+    val td1 = new TypeDescription(schema)
+    val out = new OutputBuffer()
+    td1.writeTo(out)
+
+    val in = new ByteArrayInputStream(out.array())
+    val td2 = TypeDescription.readFrom(in)
+    td2.equals(td1) should be (true)
+    td2.toString should be (td1.toString)
+  }
+
+  test("write/read type description, index fields only") {
+    val schema = StructType(
+      StructField("col1", IntegerType) ::
+      StructField("col2", StringType) ::
+      StructField("col3", StringType) :: Nil)
+    val td1 = new TypeDescription(schema, Array("col1", "col2", "col3"))
+    val out = new OutputBuffer()
+    td1.writeTo(out)
+
+    val in = new ByteArrayInputStream(out.array())
+    val td2 = TypeDescription.readFrom(in)
     td2.equals(td1) should be (true)
     td2.toString should be (td1.toString)
   }

@@ -116,7 +116,7 @@ public class FileReader {
       // extract 8 byte long flags
       byte[] flags = readHeaderState(in);
       // read type description
-      td = TypeDescription.readExternal(in);
+      td = TypeDescription.readFrom(in);
       LOG.info("Found type description {}", td);
       LOG.info("Read header flags {}", Arrays.toString(flags));
       CompressionCodec codec = Riff.decodeCompressionCodec(flags[0]);
@@ -223,7 +223,7 @@ public class FileReader {
       in = fs.open(headerPath, hdfsBufferSize);
       // we skip header (4 bytes magic + 12 bytes file id) and state (8 bytes flags)
       in.skipBytes(4 + 12 + 8);
-      td = TypeDescription.readExternal(in);
+      td = TypeDescription.readFrom(in);
       readPrepared = true;
       return td;
     } finally {

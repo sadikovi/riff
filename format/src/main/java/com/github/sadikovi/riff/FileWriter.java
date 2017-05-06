@@ -338,7 +338,7 @@ public class FileWriter {
       writeHeader(out);
       writeHeaderState(out);
       // write type description
-      td.writeExternal(out);
+      td.writeTo(out);
       // == file content ==
       // combine all statistics for a file
       LOG.info("Merge stripe statistics");
