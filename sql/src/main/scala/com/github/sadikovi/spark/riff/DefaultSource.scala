@@ -42,6 +42,7 @@ import org.apache.spark.sql.types.StructType
 import org.slf4j.LoggerFactory
 
 import com.github.sadikovi.riff.{Buffers, Riff}
+import com.github.sadikovi.riff.ProjectionRow
 import com.github.sadikovi.riff.Riff.Options
 import com.github.sadikovi.riff.TypeDescription
 import com.github.sadikovi.riff.io.CompressionCodecFactory
@@ -234,7 +235,7 @@ class DefaultSource
 
             override def next: InternalRow = {
               val row = iter.next()
-              val proj = new GenericInternalRow(new Array[Any](projectionFields.length))
+              val proj = new ProjectionRow(projectionFields.length)
               var i = 0
               while (i < projectionFields.length) {
                 val spec = td.atPosition(td.position(projectionFields(i)))

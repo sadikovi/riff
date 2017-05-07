@@ -48,7 +48,7 @@ public abstract class GenericInternalRow extends InternalRow {
     throw new UnsupportedOperationException();
   }
 
-  public final void update(int ordinal, Object value) {
+  public void update(int ordinal, Object value) {
     throw new UnsupportedOperationException();
   }
 

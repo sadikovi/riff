@@ -71,6 +71,10 @@ private[riff] object Filters {
       case IsNotNull(attribute: String) =>
         not(nvl(attribute))
       case And(left: Filter, right: Filter) =>
+        // TODO: Remove Not(IsNull) tree node when there exists an equality for that column
+        // e.g. (!(col1[0] is null)) && (col1[0] > 100). This is how Spark pushes down predicate to
+        // source and adds filters that we do not need to evaluate since our filters are already
+        // null safe.
         and(recurBuild(left), recurBuild(right))
       case Or(left: Filter, right: Filter) =>
         or(recurBuild(left), recurBuild(right))
