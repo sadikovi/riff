@@ -177,6 +177,7 @@ public class FileReader {
       in.close();
       // reevaluate stripes based on predicate tree
       stripes = evaluateStripes(stripes, state);
+      LOG.debug("Prepare to read {} stripes", stripes.length);
       // open data file and check file id
       in = fs.open(dataPath, hdfsBufferSize);
       assertBytes(fileId, readHeader(in), "Wrong file id");

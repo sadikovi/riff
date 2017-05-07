@@ -103,7 +103,6 @@ class RiffOutputWriter(
     .setTypeDesc(typeDesc)
     .setConf(configuration)
     .create(filepath)
-  log.info(s"Using file writer $writer")
   writer.prepareWrite()
 
   override def write(row: Row): Unit = {
