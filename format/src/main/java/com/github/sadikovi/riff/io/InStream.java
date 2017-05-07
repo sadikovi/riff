@@ -32,6 +32,8 @@ public class InStream extends InputStream {
   private final int bufferSize;
   // buffer for reading primitive types (similar to DataInputStream)
   private final byte[] buf;
+  // buffer for header values (primitive types), similar to "buf"
+  private final ByteBuffer header;
   // compression codec to use, should be set to null if source is uncompressed
   private final CompressionCodec codec;
   // source stream to read from (usually represents stripe information)
@@ -46,6 +48,8 @@ public class InStream extends InputStream {
     this.bufferSize = bufferSize;
     // initialize buffer to read all primitive types (8 bytes max for long and double)
     this.buf = new byte[8];
+    // initialize header buffer of 4 bytes
+    this.header = ByteBuffer.allocate(4);
     // codec is null if source stream does not have compressed chunks
     this.codec = codec;
     this.source = source;
@@ -66,8 +70,8 @@ public class InStream extends InputStream {
       source.copy(uncompressed);
     } else {
       assert OutStream.HEADER_SIZE == 4: "Inconsistent header";
-      // for header size of 4 bytes; use small buffer array that we prepared for primitives
-      ByteBuffer header = ByteBuffer.wrap(buf, 0, 4);
+      // for header size of 4 bytes; use predefined header buffer and reset it for each chunk
+      header.clear();
       source.copy(header);
       if (header.remaining() < OutStream.HEADER_SIZE) {
         throw new IOException("EOF, expected at least " + OutStream.HEADER_SIZE + " bytes");

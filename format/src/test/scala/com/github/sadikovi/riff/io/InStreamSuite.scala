@@ -228,4 +228,19 @@ class InStreamSuite extends UnitTestSuite {
       in.reset()
     }
   }
+
+  test("compressed, instream is refilled during readInt()") {
+    // this test exposes issue when the same buffer was reused for reading header and would
+    // overwrite previously written bytes
+    val source = new StripeInputBuffer(1.toByte, Array[Byte](
+      /* header */
+      0, 0, 0, 3,
+      0, 0, 0,
+      -128, 0, 0, 13,
+      /* bytes: 12, 0, 0, 0, 125, 0, 0, 0, 0, 0, 0, 0, 125, 2, 3, 4 */
+      -29, 97, 96, 96, -88, 101, -128, -128, 90, 38, 102, 22, 0
+    ))
+    val in = new InStream(16, new ZlibCodec(), source)
+    in.readInt() should be (12)
+  }
 }
