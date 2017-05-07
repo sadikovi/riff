@@ -32,6 +32,7 @@ import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
 
 import org.apache.spark.TaskContext
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
 import org.apache.spark.sql.riff._
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.datasources._
@@ -178,8 +179,11 @@ class DefaultSource
       filters: Seq[Filter],
       options: Map[String, String],
       hadoopConf: Configuration): PartitionedFile => Iterator[InternalRow] = {
-    // right now Spark appends partition values to each row, it would be good to try doing it
-    // internally somehow
+    // right now Spark appends partition values to each row, would be good to do it internally
+    // TODO: handle partition values append internally
+    val projectionFields = requiredSchema.fieldNames.distinct.toArray
+    require(projectionFields.nonEmpty,
+      s"Found empty list of projection fields for schema $requiredSchema")
 
     // check if filter pushdown disabled
     val filterPushdownEnabled = sparkSession.conf.get(SQL_RIFF_FILTER_PUSHDOWN,
@@ -217,7 +221,31 @@ class DefaultSource
         val reader = Riff.reader.setConf(hadoopConf).create(path)
         val iter = reader.prepareRead(predicate)
         Option(TaskContext.get()).foreach(_.addTaskCompletionListener(_ => iter.close()))
-        iter.asScala
+        // TODO: this is super inefficient, fix it by applying projection on indexed row
+        if (projectionFields.length < reader.getTypeDescription().size()) {
+          // do projection if we have fewer fields to return
+          new Iterator[InternalRow]() {
+            private val td = reader.getTypeDescription()
+
+            override def hasNext: Boolean = {
+              iter.hasNext()
+            }
+
+            override def next: InternalRow = {
+              val row = iter.next()
+              val proj = new GenericInternalRow(new Array[Any](projectionFields.length))
+              var i = 0
+              while (i < projectionFields.length) {
+                val spec = td.atPosition(td.position(projectionFields(i)))
+                proj.update(i, row.get(spec.position(), spec.dataType()))
+                i += 1
+              }
+              proj
+            }
+          }
+        } else {
+          iter.asScala
+        }
       }
     }
   }
