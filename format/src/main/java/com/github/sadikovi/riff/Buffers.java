@@ -212,14 +212,14 @@ public class Buffers {
         currentStream = null;
         currentStripe = null;
       }
-      LOG.info("Read stripe {}", info);
+      LOG.debug("Read stripe {}", info);
       // seek to a position in raw stream
       in.seek(info.offset());
       byte[] bytes = new byte[info.length()];
       in.readFully(bytes);
       currentStripe = new StripeInputBuffer(info.id(), bytes);
       currentStream = new InStream(bufferSize, codec, currentStripe);
-      LOG.info("Buffer new stream {}", currentStream);
+      LOG.debug("Buffer new stream {}", currentStream);
     }
 
     /**
