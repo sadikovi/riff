@@ -29,7 +29,7 @@ import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
 import com.github.sadikovi.riff.io._
-import com.github.sadikovi.riff.tree.Tree
+import com.github.sadikovi.riff.tree.{FilterApi, Tree}
 import com.github.sadikovi.riff.tree.FilterApi._
 import com.github.sadikovi.testutil.UnitTestSuite
 
@@ -416,6 +416,21 @@ class IndexedRowSuite extends UnitTestSuite {
     ind(1).getInt(td.position("col1")) should be (2)
     ind(2).getUTF8String(td.position("col2")) should be (UTF8String.fromString("abc"))
     ind(2).getInt(td.position("col1")) should be (3)
+    ind(3) should be (null)
+    ind(4) should be (null)
+  }
+
+  test("write/read with predicate Not(IsNull)") {
+    val (td, ind) = readWithPredicate(
+      and(
+        FilterApi.not(nvl("col1")),
+        eqt("col1", 1)
+      )
+    )
+    assert(ind(0) != null)
+    ind(0).getInt(td.position("col1")) should be (1)
+    ind(1) should be (null)
+    ind(2) should be (null)
     ind(3) should be (null)
     ind(4) should be (null)
   }

@@ -24,6 +24,7 @@ package com.github.sadikovi.riff
 
 import org.apache.spark.sql.types._
 
+import com.github.sadikovi.riff.tree.FilterApi
 import com.github.sadikovi.riff.tree.FilterApi._
 import com.github.sadikovi.testutil.UnitTestSuite
 
@@ -182,5 +183,20 @@ class PredicateStateSuite extends UnitTestSuite {
     val td = new TypeDescription(schema, Array("col1"))
     new PredicateState(or(TRUE, eqt("col1", 1)), td).result() should be (true)
     new PredicateState(and(FALSE, eqt("col1", 1)), td).result() should be (false)
+  }
+
+  test("predicate state for filter Not(IsNull) that does not contain index fields") {
+    val schema = StructType(
+      StructField("col1", IntegerType) ::
+      StructField("col2", StringType) :: Nil)
+    val td = new TypeDescription(schema, Array("col2"))
+    val p = and(
+      FilterApi.not(nvl("col1")),
+      eqt("col1", 1)
+    )
+    val state = new PredicateState(p, td)
+    p.analyze(td)
+    state.indexTree() should be (TRUE)
+    state.tree() should be (p)
   }
 }

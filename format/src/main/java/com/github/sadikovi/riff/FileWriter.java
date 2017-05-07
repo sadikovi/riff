@@ -251,18 +251,18 @@ public class FileWriter {
     stripeId = 0;
     stripes = new ArrayList<StripeInformation>();
     recordWriter = new IndexedRowWriter(td);
-    LOG.info("Initialized record writer {}", recordWriter);
+    LOG.debug("Initialized record writer {}", recordWriter);
     // initialize stripe related parameters
     stripe = new StripeOutputBuffer(stripeId++);
     stripeStream = new OutStream(bufferSize, codec, stripe);
     stripeStats = createStatistics(td);
     stripeFilters = createColumnFilters(td, columnFilterEnabled, numRowsInStripe);
     stripeCurrentRecords = numRowsInStripe;
-    LOG.info("Initialize stripe outstream {}", stripeStream);
+    LOG.debug("Initialize stripe outstream {}", stripeStream);
     // create stream for data file
     try {
       out = fs.create(dataPath, false, hdfsBufferSize);
-      LOG.info("Prepare data file header");
+      LOG.debug("Prepare data file header");
       writeHeader(out);
     } catch (IOException ioe) {
       if (out != null) {
@@ -289,7 +289,7 @@ public class FileWriter {
         StripeInformation stripeInfo =
           new StripeInformation(stripe, out.getPos(), stripeStats, stripeFilters);
         stripe.flush(out);
-        LOG.info("Finished writing stripe {}, records={}", stripeInfo, numRowsInStripe);
+        LOG.debug("Finished writing stripe {}, records={}", stripeInfo, numRowsInStripe);
         stripes.add(stripeInfo);
         stripe = new StripeOutputBuffer(stripeId++);
         stripeStream = new OutStream(bufferSize, codec, stripe);
@@ -321,7 +321,7 @@ public class FileWriter {
       stripeStream.flush();
       StripeInformation stripeInfo = new StripeInformation(stripe, out.getPos(), stripeStats);
       stripe.flush(out);
-      LOG.info("Finished writing stripe {}, records={}", stripeInfo,
+      LOG.debug("Finished writing stripe {}, records={}", stripeInfo,
         numRowsInStripe - stripeCurrentRecords);
       stripes.add(stripeInfo);
       stripeStream.close();
@@ -333,7 +333,7 @@ public class FileWriter {
       LOG.info("Finished writing data file {}", dataPath);
 
       // write header file
-      LOG.info("Prepare header file");
+      LOG.debug("Prepare header file");
       out = fs.create(headerPath, false, hdfsBufferSize);
       writeHeader(out);
       writeHeaderState(out);
@@ -341,7 +341,7 @@ public class FileWriter {
       td.writeTo(out);
       // == file content ==
       // combine all statistics for a file
-      LOG.info("Merge stripe statistics");
+      LOG.debug("Merge stripe statistics");
       Statistics[] fileStats = createStatistics(td);
       for (StripeInformation info : stripes) {
         if (info.hasStatistics()) {
@@ -350,7 +350,7 @@ public class FileWriter {
           }
         }
       }
-      LOG.info("Write header file content");
+      LOG.debug("Write header file content");
       // buffer stores content of the entire header file content, when being read, this should be
       // loaded into byte buffer
       OutputBuffer buffer = new OutputBuffer();

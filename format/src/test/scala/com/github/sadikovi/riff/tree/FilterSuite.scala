@@ -537,4 +537,20 @@ class FilterSuite extends UnitTestSuite {
     tree.evaluateState(Array(filter("aa"), filter(1))) should be (false)
     tree.evaluateState(Array(filter("v1"), filter(2))) should be (false)
   }
+
+  test("FilterApi - evaluate tree with Not(IsNull) predicate for row") {
+    val schema = StructType(
+      StructField("col1", IntegerType) ::
+      StructField("col2", StringType) ::
+      StructField("col3", LongType) :: Nil)
+    val td = new TypeDescription(schema, Array("col2"))
+    val tree = and(
+      FilterApi.not(nvl("col1")),
+      eqt("col1", 1)
+    )
+
+    tree.analyze(td)
+    tree.evaluateState(InternalRow(UTF8String.fromString("abc1"), 1, 1L)) should be (true)
+    tree.evaluateState(InternalRow(UTF8String.fromString("abc2"), 1, 2L)) should be (true)
+  }
 }

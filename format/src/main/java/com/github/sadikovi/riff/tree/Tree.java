@@ -22,6 +22,8 @@
 
 package com.github.sadikovi.riff.tree;
 
+import java.io.Serializable;
+
 import org.apache.spark.sql.catalyst.InternalRow;
 
 import com.github.sadikovi.riff.ColumnFilter;
@@ -34,7 +36,7 @@ import com.github.sadikovi.riff.TypeDescription;
  * considered immutable when transforming. State is evaluated for internal row, considered always
  * resolved and returns `true` when internal row passes predicate or `false` otherwise.
  */
-public interface Tree {
+public interface Tree extends Serializable {
   /**
    * Evaluate state for this tree.
    * @param row row to evaluate
