@@ -180,10 +180,11 @@ class DefaultSource
       options: Map[String, String],
       hadoopConf: Configuration): PartitionedFile => Iterator[InternalRow] = {
     // right now Spark appends partition values to each row, would be good to do it internally
-    // TODO: handle partition values append internally
+    // TODO: handle partition values append internally, similar to ParquetFileFormat
     val projectionFields = requiredSchema.fieldNames.distinct.toArray
-    require(projectionFields.nonEmpty,
-      s"Found empty list of projection fields for schema $requiredSchema")
+    // if projection fields are empty, count is requested, empty projection is generated, but we
+    // read all fields.
+    // TODO: store count in metadata and return dummy iterator of that many rows
 
     // check if filter pushdown disabled
     val filterPushdownEnabled = sparkSession.conf.get(SQL_RIFF_FILTER_PUSHDOWN,
