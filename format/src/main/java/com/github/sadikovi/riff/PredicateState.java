@@ -203,7 +203,13 @@ public class PredicateState {
 
     @Override
     public Tree update(Not node) {
-      return new Not(node.child().transform(this));
+      // there is an issue when Not results in inversing correct trivial node, e.g.
+      // Not(IsNull("col")), where "col" is a data field, meaning that IsNull("col") is replaced to
+      // TRUE, and Not inverses result, meaning that 0 records will be returned.
+      // In this case we should check on returned node
+      Tree updated = node.child().transform(this);
+      if (updated instanceof Trivial) return updated;
+      return new Not(updated);
     }
 
     @Override
