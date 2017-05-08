@@ -25,11 +25,14 @@ package com.github.sadikovi.testutil
 import java.io.{InputStream, OutputStream}
 import java.util.UUID
 
+import scala.util.control.NonFatal
+
 import org.apache.hadoop.conf.{Configuration => HadoopConf}
 import org.apache.hadoop.fs.{FileSystem, Path => HadoopPath}
 import org.apache.hadoop.fs.permission.FsPermission
 
 import org.apache.spark.sql.{DataFrame, Row}
+import org.apache.spark.sql.types.StructType
 
 import com.github.sadikovi.testutil.implicits._
 
@@ -127,10 +130,36 @@ trait TestBase {
 
   /** Compare two DataFrame objects */
   final protected def checkAnswer(df: DataFrame, expected: DataFrame): Unit = {
-    val got = df.collect.map(_.toString).sortWith(_ < _)
-    val exp = expected.collect.map(_.toString).sortWith(_ < _)
-    assert(got.sameElements(exp), s"Failed to compare DataFrame ${got.mkString("[", ", ", "]")} " +
-      s"with expected input ${exp.mkString("[", ", ", "]")}")
+    val schema1 = df.schema
+    val schema2 = expected.schema
+    if (schema1 != schema2) {
+      throw new AssertionError(s"Schema mismatch, expected $schema1, found $schema2")
+    }
+    val seq1 = df.collect.map { row => (row, row.toString) }.sortBy(_._2)
+    val seq2 = expected.collect.map { row => (row, row.toString) }.sortBy(_._2)
+
+    if (seq1.length != seq2.length) {
+      throw new AssertionError(s"""
+        | ${seq1.length} rows != ${seq2.length} rows
+        | == DataFrame ==
+        | ${seq1.map(_._2).mkString("[", ", ", "]")}
+        | == Expected ==
+        | ${seq2.map(_._2).mkString("[", ", ", "]")}
+        """.stripMargin)
+    }
+
+    // check row with type
+    def checkRow(row1: Row, row2: Row, schema: StructType): Unit = {
+      for (i <- 0 until schema.length) {
+        if (row1.get(i) != row2.get(i)) {
+          throw new AssertionError(s"$row1 != $row2, reason: ${row1.get(i)} != ${row2.get(i)}")
+        }
+      }
+    }
+
+    for (i <- 0 until seq1.length) {
+      checkRow(seq1(i)._1, seq2(i)._1, schema1)
+    }
   }
 
   final protected def checkAnswer(df: DataFrame, expected: Seq[Row]): Unit = {
