@@ -22,8 +22,6 @@
 
 package com.github.sadikovi.riff;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
@@ -99,13 +97,9 @@ public class TypeSpec implements Externalizable {
       spec.origSQLPos() == this.origSQLPos();
   }
 
-  /**
-   * Internal serialization of the TypeSpec.
-   * Used by manual serde and `Externalizable` interface
-   * @param out output stream
-   * @throws IOException
-   */
-  protected void serialize(DataOutput out) throws IOException {
+  @Override
+  public void writeExternal(ObjectOutput out) throws IOException {
+    // TODO: serialize struct field comments
     out.writeBoolean(indexed);
     out.writeInt(pos);
     out.writeInt(origPos);
@@ -115,13 +109,8 @@ public class TypeSpec implements Externalizable {
     out.writeUTF(field.metadata().json());
   }
 
-  /**
-   * Internal deserialization of the TypeSpec.
-   * Used by manual serde and `Externalizable` interface.
-   * @param in input stream
-   * @throws IOException
-   */
-  protected void deserialize(DataInput in) throws IOException {
+  @Override
+  public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
     this.indexed = in.readBoolean();
     this.pos = in.readInt();
     this.origPos = in.readInt();
@@ -131,16 +120,6 @@ public class TypeSpec implements Externalizable {
     DataType dataType = DataType.fromJson(in.readUTF());
     Metadata metadata = Metadata.fromJson(in.readUTF());
     this.field = new StructField(name, dataType, nullable, metadata);
-  }
-
-  @Override
-  public void writeExternal(ObjectOutput out) throws IOException {
-    serialize(out);
-  }
-
-  @Override
-  public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-    deserialize(in);
   }
 
   @Override
