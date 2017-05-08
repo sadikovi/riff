@@ -41,12 +41,12 @@ import org.apache.spark.sql.types.StructType
 
 import org.slf4j.LoggerFactory
 
+import com.github.sadikovi.hadoop.riff.RiffOutputCommitter
 import com.github.sadikovi.riff.{Buffers, Riff}
 import com.github.sadikovi.riff.ProjectionRow
 import com.github.sadikovi.riff.Riff.Options
 import com.github.sadikovi.riff.TypeDescription
 import com.github.sadikovi.riff.io.CompressionCodecFactory
-import com.github.sadikovi.riff.hadoop.RiffOutputCommitter
 
 /**
  * Spark SQL datasource for Riff file format.
