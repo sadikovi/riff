@@ -93,6 +93,7 @@ public class RiffOutputCommitter extends FileOutputCommitter {
 
   /**
    * Filter to read only part files, and discard any files that start with "_" or ".".
+   * We also discard any data files, leaving only headers to read schema.
    */
   static class PartFileFilter implements PathFilter {
     public static final PartFileFilter instance = new PartFileFilter();
@@ -101,7 +102,8 @@ public class RiffOutputCommitter extends FileOutputCommitter {
 
     @Override
     public boolean accept(Path path) {
-      return !path.getName().startsWith("_") && !path.getName().startsWith(".");
+      return !path.getName().startsWith("_") && !path.getName().startsWith(".") &&
+        !path.getName().endsWith(Riff.DATA_FILE_SUFFIX);
     }
   }
 
