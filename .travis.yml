@@ -18,9 +18,6 @@ matrix:
     - jdk: openjdk7
       scala: 2.11.7
       env: TEST_SPARK_VERSION="2.1.0"
-    - jdk: oraclejdk7
-      scala: 2.11.7
-      env: TEST_SPARK_VERSION="2.1.0"
 script:
   - sbt ++$TRAVIS_SCALA_VERSION scalastyle
   - sbt ++$TRAVIS_SCALA_VERSION "test:scalastyle"
