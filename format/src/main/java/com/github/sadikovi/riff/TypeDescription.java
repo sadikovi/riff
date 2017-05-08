@@ -22,13 +22,15 @@
 
 package com.github.sadikovi.riff;
 
+import java.io.DataInput;
+import java.io.DataInputStream;
+import java.io.DataOutput;
+import java.io.DataOutputStream;
 import java.io.Externalizable;
 import java.io.InputStream;
 import java.io.IOException;
 import java.io.ObjectInput;
-import java.io.ObjectInputStream;
 import java.io.ObjectOutput;
-import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -225,6 +227,7 @@ public class TypeDescription implements Externalizable {
   public StructType toStructType() {
     // StructField instances are immutable, therefore it is safe to pass them directly to
     // construct struct type
+    // Note that we actually preserve nullability of the written data in `StructField`s
     StructType struct = new StructType();
     for (int i = 0; i < ordinalFields.length; i++) {
       struct = struct.add(ordinalFields[i].field());
@@ -232,24 +235,35 @@ public class TypeDescription implements Externalizable {
     return struct;
   }
 
-  @Override
-  public void writeExternal(ObjectOutput out) throws IOException {
-    // type description ordinal fields array is only serialized, the rest can be reconstructed from
-    // that array
+  /**
+   * Internal seriailzation of type description. All write/read and Externalizable methods use
+   * this method to convert into byte stream.
+   * @param out data output
+   * @throws IOException
+   */
+  protected void serialize(DataOutput out) throws IOException {
+    // type description ordinal fields array is only serialized,
+    // the rest can be reconstructed from that array
     out.writeInt(ordinalFields.length);
     for (int i = 0; i < ordinalFields.length; i++) {
-      out.writeObject(ordinalFields[i]);
+      ordinalFields[i].serialize(out);
     }
   }
 
-  @Override
-  public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+  /**
+   * Method to deserialize internal state from data input stream. This should replace any state
+   * that has been updated so far. Used by external deserialization and read methods.
+   * @param in data input
+   * @throws IOException
+   */
+  protected void deserialize(DataInput in) throws IOException {
     int len = in.readInt();
     this.ordinalFields = new TypeSpec[len];
     // number of index fields in this array
     int numIndexed = 0;
     for (int i = 0; i < len; i++) {
-      this.ordinalFields[i] = (TypeSpec) in.readObject();
+      this.ordinalFields[i] = new TypeSpec();
+      this.ordinalFields[i].deserialize(in);
       if (this.ordinalFields[i].isIndexed()) {
         numIndexed++;
       }
@@ -272,6 +286,16 @@ public class TypeDescription implements Externalizable {
     }
   }
 
+  @Override
+  public void writeExternal(ObjectOutput out) throws IOException {
+    serialize(out);
+  }
+
+  @Override
+  public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+    deserialize(in);
+  }
+
   /**
    * Write type description into external output stream.
    * Does not close stream.
@@ -279,26 +303,22 @@ public class TypeDescription implements Externalizable {
    * @throws IOException
    */
   public void writeTo(OutputStream out) throws IOException {
-    ObjectOutputStream oos = new ObjectOutputStream(out);
-    this.writeExternal(oos);
-    oos.flush();
+    DataOutputStream dout = new DataOutputStream(out);
+    this.serialize(dout);
+    dout.flush();
   }
 
   /**
    * Read type description from input stream.
    * Does not close stream.
-   * @param stream input stream with object data
+   * @param in input stream with object data
    * @throws IOException when io error happens, or class not found
    */
-  public static TypeDescription readFrom(InputStream stream) throws IOException {
-    ObjectInputStream in = new ObjectInputStream(stream);
-    try {
-      TypeDescription td = new TypeDescription();
-      td.readExternal(in);
-      return td;
-    } catch (ClassNotFoundException err) {
-      throw new IOException("Failed to deserialize type description", err);
-    }
+  public static TypeDescription readFrom(InputStream in) throws IOException {
+    DataInputStream din = new DataInputStream(in);
+    TypeDescription td = new TypeDescription();
+    td.deserialize(din);
+    return td;
   }
 
   @Override
