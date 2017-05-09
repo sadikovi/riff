@@ -133,6 +133,24 @@ class StatisticsSuite extends UnitTestSuite {
     utfStats.getUTF8String(Statistics.ORD_MAX) should be (UTF8String.fromString("abc"))
   }
 
+  test("ensure copy when updating state for utf8 stats") {
+    val utfStats = Statistics.sqlTypeToStatistics(StringType)
+    val min = Array[Byte](97, 98, 99, 100)
+    val max = Array[Byte](100, 101, 102, 103)
+    utfStats.update(InternalRow(UTF8String.fromBytes(min)), 0)
+    utfStats.update(InternalRow(UTF8String.fromBytes(max)), 0)
+    // update min/max arrays
+    min(0) = 100
+    max(0) = 99
+    utfStats.update(InternalRow(UTF8String.fromBytes(min)), 0)
+    utfStats.update(InternalRow(UTF8String.fromBytes(max)), 0)
+
+    utfStats.getUTF8String(Statistics.ORD_MIN) should be (
+      UTF8String.fromBytes(Array[Byte](97, 98, 99, 100)))
+    utfStats.getUTF8String(Statistics.ORD_MAX) should be (
+      UTF8String.fromBytes(Array[Byte](100, 101, 102, 103)))
+  }
+
   test("write/read for empty int stats") {
     val buf = new OutputBuffer()
     val intStats = Statistics.sqlTypeToStatistics(IntegerType)
