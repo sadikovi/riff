@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-package com.github.sadikovi.riff.hadoop;
+package com.github.sadikovi.hadoop.riff;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -93,6 +93,7 @@ public class RiffOutputCommitter extends FileOutputCommitter {
 
   /**
    * Filter to read only part files, and discard any files that start with "_" or ".".
+   * We also discard any data files, leaving only headers to read schema.
    */
   static class PartFileFilter implements PathFilter {
     public static final PartFileFilter instance = new PartFileFilter();
@@ -101,7 +102,8 @@ public class RiffOutputCommitter extends FileOutputCommitter {
 
     @Override
     public boolean accept(Path path) {
-      return !path.getName().startsWith("_") && !path.getName().startsWith(".");
+      return !path.getName().startsWith("_") && !path.getName().startsWith(".") &&
+        !path.getName().endsWith(Riff.DATA_FILE_SUFFIX);
     }
   }
 
@@ -112,7 +114,7 @@ public class RiffOutputCommitter extends FileOutputCommitter {
    * @param fetchOneFile whether or not to return just first found file or traverse fully
    * @return list of file statuses for part files
    */
-  static List<FileStatus> listFiles(
+  protected static List<FileStatus> listFiles(
       FileSystem fs,
       FileStatus fileStatus,
       boolean fetchOneFile) throws IOException {

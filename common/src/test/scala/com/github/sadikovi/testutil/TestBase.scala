@@ -130,10 +130,13 @@ trait TestBase {
 
   /** Compare two DataFrame objects */
   final protected def checkAnswer(df: DataFrame, expected: DataFrame): Unit = {
-    val schema1 = df.schema
-    val schema2 = expected.schema
-    if (schema1 != schema2) {
-      throw new AssertionError(s"Schema mismatch, expected $schema1, found $schema2")
+    // show nicely formatted schema
+    def schema2str(schema: StructType): String = schema.map { field =>
+      s"${field.name}: ${field.dataType.simpleString}" }.mkString("[", ", ", "]")
+    // we do not preserve nullability
+    if (df.dtypes.toList != expected.dtypes.toList) {
+      throw new AssertionError(
+        s"Schema mismatch, expected ${schema2str(df.schema)}, found ${schema2str(expected.schema)}")
     }
     val seq1 = df.collect.map { row => (row, row.toString) }.sortBy(_._2)
     val seq2 = expected.collect.map { row => (row, row.toString) }.sortBy(_._2)
@@ -148,9 +151,9 @@ trait TestBase {
         """.stripMargin)
     }
 
-    // check row with type
-    def checkRow(row1: Row, row2: Row, schema: StructType): Unit = {
-      for (i <- 0 until schema.length) {
+    // check row values
+    def checkRow(row1: Row, row2: Row): Unit = {
+      for (i <- 0 until row1.length) {
         if (row1.get(i) != row2.get(i)) {
           throw new AssertionError(s"$row1 != $row2, reason: ${row1.get(i)} != ${row2.get(i)}")
         }
@@ -158,7 +161,7 @@ trait TestBase {
     }
 
     for (i <- 0 until seq1.length) {
-      checkRow(seq1(i)._1, seq2(i)._1, schema1)
+      checkRow(seq1(i)._1, seq2(i)._1)
     }
   }
 
