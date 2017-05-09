@@ -87,7 +87,7 @@ class TypeDescriptionSuite extends UnitTestSuite {
     val err = intercept[IllegalArgumentException] {
       new TypeDescription(schema, Array("col1", "col2", "col1"))
     }
-    err.getMessage should be ("Found duplicate index column col1")
+    err.getMessage should be ("Found duplicate index column 'col1' in list [col1, col2, col1]")
   }
 
   test("init type description - duplicate indexed fields in schema") {

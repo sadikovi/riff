@@ -64,10 +64,17 @@ public class TypeDescription implements Externalizable {
       HashSet<String> uniqueNames = new HashSet<String>();
       for (String name : indexColumns) {
         if (uniqueNames.contains(name)) {
-          throw new IllegalArgumentException("Found duplicate index column " + name);
+          throw new IllegalArgumentException("Found duplicate index column '" + name +
+            "' in list " + Arrays.toString(indexColumns));
         }
         uniqueNames.add(name);
-        TypeSpec spec = new TypeSpec(schema.apply(name), true, numFields, schema.fieldIndex(name));
+        TypeSpec spec = null;
+        try {
+          spec = new TypeSpec(schema.apply(name), true, numFields, schema.fieldIndex(name));
+        } catch (IllegalArgumentException err) {
+          // error message always includes trailing "."
+          throw new IllegalArgumentException(err.getMessage() + " Schema " + schema, err);
+        }
         this.indexFields[numFields] = spec;
         this.schema.put(spec.field().name(), spec);
         ++numFields;
