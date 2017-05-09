@@ -360,10 +360,12 @@ public abstract class Statistics extends GenericInternalRow {
     /**
      * Return deep copy of UTF8String, this method forcefully copies `getBytes()` bytes in
      * UTF8String, since it does not return copy when backed by single array.
+     * Clone is null safe, and would return null for null input.
      * @param str UTF8 string to clone
      * @return copy
      */
     private UTF8String clone(UTF8String str) {
+      if (str == null) return null;
       byte[] bytes = new byte[str.numBytes()];
       System.arraycopy(str.getBytes(), 0, bytes, 0, bytes.length);
       return UTF8String.fromBytes(bytes);
