@@ -357,11 +357,26 @@ public abstract class Statistics extends GenericInternalRow {
       super(ID);
     }
 
+    /**
+     * Return deep copy of UTF8String, this method forcefully copies `getBytes()` bytes in
+     * UTF8String, since it does not return copy when backed by single array.
+     * Clone is null safe, and would return null for null input.
+     * @param str UTF8 string to clone
+     * @return copy
+     */
+    private UTF8String clone(UTF8String str) {
+      if (str == null) return null;
+      byte[] bytes = new byte[str.numBytes()];
+      System.arraycopy(str.getBytes(), 0, bytes, 0, bytes.length);
+      return UTF8String.fromBytes(bytes);
+    }
+
     @Override
     protected void updateState(InternalRow row, int ordinal) {
       UTF8String value = row.getUTF8String(ordinal);
-      min = (min == null) ? value : (min.compareTo(value) > 0 ? value : min);
-      max = (max == null) ? value : (max.compareTo(value) < 0 ? value : max);
+      // only clone on actual update
+      min = (min == null) ? clone(value) : (min.compareTo(value) > 0 ? clone(value) : min);
+      max = (max == null) ? clone(value) : (max.compareTo(value) < 0 ? clone(value) : max);
     }
 
     @Override
@@ -405,15 +420,15 @@ public abstract class Statistics extends GenericInternalRow {
       UTF8StringStatistics that = (UTF8StringStatistics) obj;
       // update min
       if (this.min == null || that.min == null) {
-        this.min = this.min == null ? that.min : this.min;
+        this.min = this.min == null ? clone(that.min) : this.min;
       } else {
-        this.min = this.min.compareTo(that.min) > 0 ? that.min : this.min;
+        this.min = this.min.compareTo(that.min) > 0 ? clone(that.min) : this.min;
       }
       // update max
       if (this.max == null || that.max == null) {
-        this.max = this.max == null ? that.max : this.max;
+        this.max = this.max == null ? clone(that.max) : this.max;
       } else {
-        this.max = this.max.compareTo(that.max) < 0 ? that.max : this.max;
+        this.max = this.max.compareTo(that.max) < 0 ? clone(that.max) : this.max;
       }
       // update nulls
       this.hasNulls = this.hasNulls || that.hasNulls;

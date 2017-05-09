@@ -34,6 +34,17 @@ class RiffSQLSuite extends UnitTestSuite with SparkLocal {
     stopSparkSession
   }
 
+  test("parse index fields for option") {
+    RiffFileFormat.parseIndexFields(null) should be (Array.empty)
+    RiffFileFormat.parseIndexFields("") should be (Array.empty)
+    RiffFileFormat.parseIndexFields(",") should be (Array.empty)
+    RiffFileFormat.parseIndexFields(",,,") should be (Array.empty)
+    RiffFileFormat.parseIndexFields("col1,col2,col3") should be (Array("col1", "col2", "col3"))
+    RiffFileFormat.parseIndexFields("col1, col2, col3") should be (Array("col1", "col2", "col3"))
+    RiffFileFormat.parseIndexFields("   col1   ") should be (Array("col1"))
+    RiffFileFormat.parseIndexFields("col1, , col3") should be (Array("col1", "col3"))
+  }
+
   test("write/read riff non-partitioned table") {
     val implicits = spark.implicits
     withTempDir { dir =>
