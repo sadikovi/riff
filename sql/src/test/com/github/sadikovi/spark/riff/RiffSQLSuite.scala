@@ -34,8 +34,6 @@ class RiffSQLSuite extends UnitTestSuite with SparkLocal {
     stopSparkSession
   }
 
-  private val format = "com.github.sadikovi.spark.riff"
-
   test("write/read riff non-partitioned table") {
     val implicits = spark.implicits
     withTempDir { dir =>
@@ -48,8 +46,8 @@ class RiffSQLSuite extends UnitTestSuite with SparkLocal {
         (5, 50L, "abc5")
       ).toDF("col1", "col2", "col3")
 
-      df.write.format(format).option("index", "col2").save(dir.toString / "table")
-      val res = spark.read.format(format).load(dir.toString / "table")
+      df.write.option("index", "col2").riff(dir.toString / "table")
+      val res = spark.read.riff(dir.toString / "table")
       // column order changes because of the indexing
       checkAnswer(res, df.select("col2", "col1", "col3"))
       // check that metadata exists
@@ -69,10 +67,8 @@ class RiffSQLSuite extends UnitTestSuite with SparkLocal {
         (5, 50L, "abc5")
       ).toDF("col1", "col2", "col3")
 
-      df.write.format(format).option("index", "col2")
-        .partitionBy("col1", "col3")
-        .save(dir.toString / "table")
-      val res = spark.read.format(format).load(dir.toString / "table")
+      df.write.option("index", "col2").partitionBy("col1", "col3").riff(dir.toString / "table")
+      val res = spark.read.riff(dir.toString / "table")
       // column order changes because of the indexing
       checkAnswer(res, df.select("col2", "col1", "col3"))
       assert(fs.exists(dir / "table" / "_riff_metadata"))
@@ -89,9 +85,7 @@ class RiffSQLSuite extends UnitTestSuite with SparkLocal {
       ).toDF("col1", "col2", "col3")
 
       val err = intercept[IllegalArgumentException] {
-        df.write.format(format).option("index", "col3")
-          .partitionBy("col1", "col3")
-          .save(dir.toString / "table")
+        df.write.option("index", "col3").partitionBy("col1", "col3").riff(dir.toString / "table")
       }
       assert(err.getMessage.contains("Field \"col3\" does not exist"))
     }
@@ -109,17 +103,17 @@ class RiffSQLSuite extends UnitTestSuite with SparkLocal {
         (5, 50L, "abc5")
       ).toDF("col1", "col2", "col3")
 
-      df.write.format(format).option("index", "col2").save(dir.toString / "table")
-      var left = spark.read.format(format).load(dir.toString / "table").filter("col1 = 1")
+      df.write.option("index", "col2").riff(dir.toString / "table")
+      var left = spark.read.riff(dir.toString / "table").filter("col1 = 1")
       var right = df.filter("col1 = 1").select("col2", "col1", "col3")
       checkAnswer(left, right)
 
-      left = spark.read.format(format).load(dir.toString / "table").filter("col2 = 'abc4'")
-      right = df.filter("col2 = 'abc4'").select("col2", "col1", "col3")
+      left = spark.read.riff(dir.toString / "table").filter("col3 = 'abc4'")
+      right = df.filter("col3 = 'abc4'").select("col2", "col1", "col3")
       checkAnswer(left, right)
 
-      left = spark.read.format(format).load(dir.toString / "table").filter("col3 = 3L")
-      right = df.filter("col3 = 3L").select("col2", "col1", "col3")
+      left = spark.read.riff(dir.toString / "table").filter("col2 = 3L")
+      right = df.filter("col2 = 3L").select("col2", "col1", "col3")
       checkAnswer(left, right)
     }
   }
@@ -136,25 +130,21 @@ class RiffSQLSuite extends UnitTestSuite with SparkLocal {
         (5, 50L, "abc5")
       ).toDF("col1", "col2", "col3")
 
-      df.write.format(format).option("index", "col2").save(dir.toString / "table")
-      var left = spark.read.format(format).load(dir.toString / "table")
-        .filter("col1 between 1 and 4")
+      df.write.option("index", "col2").riff(dir.toString / "table")
+      var left = spark.read.riff(dir.toString / "table").filter("col1 between 1 and 4")
       var right = df.filter("col1 between 1 and 4").select("col2", "col1", "col3")
       checkAnswer(left, right)
 
-      left = spark.read.format(format).load(dir.toString / "table")
-        .filter("col2 between 'abc1' and 'abc3'")
-      right = df.filter("col2 between 'abc1' and 'abc3'").select("col2", "col1", "col3")
+      left = spark.read.riff(dir.toString / "table").filter("col3 between 'abc1' and 'abc3'")
+      right = df.filter("col3 between 'abc1' and 'abc3'").select("col2", "col1", "col3")
       checkAnswer(left, right)
 
-      left = spark.read.format(format).load(dir.toString / "table")
-        .filter("col3 between 2L and 4L")
-      right = df.filter("col3 between 2L and 4L").select("col2", "col1", "col3")
+      left = spark.read.riff(dir.toString / "table").filter("col2 between 2L and 4L")
+      right = df.filter("col2 between 2L and 4L").select("col2", "col1", "col3")
       checkAnswer(left, right)
 
       // filter using In statement
-      left = spark.read.format(format).load(dir.toString / "table")
-        .filter("col2 in ('abc1', 'abc3')")
+      left = spark.read.riff(dir.toString / "table").filter("col2 in ('abc1', 'abc3')")
       right = df.filter("col2 in ('abc1', 'abc3')").select("col2", "col1", "col3")
       checkAnswer(left, right)
     }
@@ -172,8 +162,8 @@ class RiffSQLSuite extends UnitTestSuite with SparkLocal {
         (5, 50L, "abc5")
       ).toDF("col1", "col2", "col3")
 
-      df.write.format(format).option("index", "col2").save(dir.toString / "table")
-      val left = spark.read.format(format).load(dir.toString / "table").filter("col1 is null")
+      df.write.option("index", "col2").riff(dir.toString / "table")
+      val left = spark.read.riff(dir.toString / "table").filter("col1 is null")
       val right = df.filter("col1 is null").select("col2", "col1", "col3")
       checkAnswer(left, right)
     }
@@ -191,9 +181,8 @@ class RiffSQLSuite extends UnitTestSuite with SparkLocal {
         (5, 50L, "abc5", "def5", 500)
       ).toDF("col1", "col2", "col3", "col4", "col5")
 
-      df.write.format(format).option("index", "col2,col4").save(dir.toString / "table")
-      val left = spark.read.format(format).load(dir.toString / "table")
-        .select("col4", "col2", "col1", "col5")
+      df.write.option("index", "col2,col4").riff(dir.toString / "table")
+      val left = spark.read.riff(dir.toString / "table").select("col4", "col2", "col1", "col5")
       val right = df.select("col4", "col2", "col1", "col5")
       checkAnswer(left, right)
     }

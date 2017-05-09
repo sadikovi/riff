@@ -94,7 +94,7 @@ class RiffOutputWriter(
     val taskAttemptId = context.getTaskAttemptID
     val split = taskAttemptId.getTaskID.getId
     val bucketString = bucketId.map(BucketingUtils.bucketIdToString).getOrElse("")
-    new Path(path, f"part-r-$split%05d-$uniqueWriteJobId$bucketString.json$extension")
+    new Path(path, f"part-r-$split%05d-$uniqueWriteJobId$bucketString$extension")
   } else {
     new Path(path)
   }
