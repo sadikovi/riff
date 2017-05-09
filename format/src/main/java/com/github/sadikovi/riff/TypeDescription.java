@@ -280,7 +280,7 @@ public class TypeDescription implements Externalizable {
    */
   public void writeTo(OutputStream out) throws IOException {
     ObjectOutputStream oos = new ObjectOutputStream(out);
-    this.writeExternal(oos);
+    oos.writeObject(this);
     oos.flush();
   }
 
@@ -293,9 +293,7 @@ public class TypeDescription implements Externalizable {
   public static TypeDescription readFrom(InputStream stream) throws IOException {
     ObjectInputStream in = new ObjectInputStream(stream);
     try {
-      TypeDescription td = new TypeDescription();
-      td.readExternal(in);
-      return td;
+      return (TypeDescription) in.readObject();
     } catch (ClassNotFoundException err) {
       throw new IOException("Failed to deserialize type description", err);
     }
