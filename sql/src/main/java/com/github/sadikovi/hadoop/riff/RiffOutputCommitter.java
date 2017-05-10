@@ -93,7 +93,7 @@ public class RiffOutputCommitter extends FileOutputCommitter {
 
   /**
    * Filter to read only part files, and discard any files that start with "_" or ".".
-   * We also discard any data files, leaving only headers to read schema.
+   * We also discard any temporary data files, leaving only correct files to read schema.
    */
   static class PartFileFilter implements PathFilter {
     public static final PartFileFilter instance = new PartFileFilter();

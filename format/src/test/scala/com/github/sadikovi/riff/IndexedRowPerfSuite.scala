@@ -48,7 +48,7 @@ Created file of 20500000 bytes
 
 == Write/read batch of rows ==
 Processing of 100000 records took 280.194 ms
-Data file has 20500000 bytes
+File has 20500000 bytes
 
 == End of performance test suite ==
 */
@@ -155,7 +155,7 @@ class IndexedRowPerfSuite extends UnitTestSuite {
       println()
       println("== Write/read batch of rows ==")
       println(s"Processing of $numRecords records took ${(endTime - startTime) / 1e6} ms")
-      println(s"Data file has $fileSize bytes")
+      println(s"File has $fileSize bytes")
       println()
     }
   }

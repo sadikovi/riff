@@ -46,9 +46,10 @@ import com.github.sadikovi.riff.io.OutStream;
 import com.github.sadikovi.riff.io.StripeOutputBuffer;
 
 /**
- * File writer provides methods to prepare files and write rows into data file. It creates two
- * files at the end of the operation: one is header file containing all metadata about stripes,
- * offsets and statistics in the stream and another is data file containing raw bytes of data.
+ * File writer provides methods to prepare files and write rows into riff data file. It creates two
+ * files at the end of the operation: temporary data file that is removed once all data has been
+ * copied into riff file, and actual riff file containing all metadata about stripes, offsets and
+ * statistics in the stream and raw bytes of data.
  * This class should be used per thread, is not thread-safe.
  *
  * Usage:
@@ -64,7 +65,7 @@ import com.github.sadikovi.riff.io.StripeOutputBuffer;
  * Writer should be used only to create file once, reuses are not allowed - create a new
  * instance instead. Multiple calls of `prepareWrite` are allowed and result in no-op, the same
  * goes for `finishWrite` method. When `finishWrite` is called, writer flushes the last stripe and
- * creates header file for the already written data file.
+ * creates riff file for the already written temporary data file.
  */
 public class FileWriter {
   private static final Logger LOG = LoggerFactory.getLogger(FileWriter.class);

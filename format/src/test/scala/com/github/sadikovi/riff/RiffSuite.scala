@@ -448,9 +448,8 @@ class RiffSuite extends UnitTestSuite {
       }
       writer.finishWrite()
 
+      // this should skip based on header only
       val reader = Riff.reader.create(dir / "file")
-      // remove data file, this should skip based on header only
-      rm(dir / "file.data", false)
       val rowbuf = reader.prepareRead(eqt("col2", "<none>"))
       rowbuf.isInstanceOf[Buffers.EmptyRowBuffer] should be (true)
       rowbuf.hasNext should be (false)

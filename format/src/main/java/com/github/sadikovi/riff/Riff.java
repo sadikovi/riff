@@ -72,7 +72,7 @@ public class Riff {
   private static final Logger LOG = LoggerFactory.getLogger(Riff.class);
 
   public static final String MAGIC = "RIFF";
-  // suffix for data files
+  // suffix for temporary data files
   public static final String DATA_FILE_SUFFIX = ".data";
 
   /**
