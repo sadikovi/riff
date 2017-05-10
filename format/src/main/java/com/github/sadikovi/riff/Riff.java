@@ -167,12 +167,13 @@ public class Riff {
   }
 
   /**
-   * Append data file suffix to the path, suffix is always the last block in file name.
-   * @param path header path
-   * @return data path
+   * Construct path to the temporary data file.
+   * @param path file path
+   * @return temporary data path
    */
   static Path makeDataPath(Path path) {
-    return path.suffix(DATA_FILE_SUFFIX);
+    // prefix file name with "." and append suffix
+    return new Path(path.getParent(), new Path("." + path.getName() + DATA_FILE_SUFFIX));
   }
 
   /**

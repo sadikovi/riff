@@ -46,13 +46,11 @@ class FileWriterSuite extends UnitTestSuite {
       val td = new TypeDescription(StructType(StructField("col", StringType) :: Nil))
       val writer = new FileWriter(fs, conf, path, td, codec)
 
-      writer.headerPath should be (fs.makeQualified(dir / "file"))
-      writer.dataPath should be (fs.makeQualified(dir / "file.data"))
+      writer.filePath should be (fs.makeQualified(dir / "file"))
       writer.numRowsInStripe should be (Riff.Options.STRIPE_ROWS_DEFAULT)
       writer.bufferSize should be (Riff.Options.BUFFER_SIZE_DEFAULT)
       writer.toString should be (
-        s"FileWriter[header=${fs.makeQualified(dir / "file")}, " +
-        s"data=${fs.makeQualified(dir / "file.data")}, " +
+        s"FileWriter[path=${fs.makeQualified(dir / "file")}, " +
         s"type_desc=$td, " +
         s"rows_per_stripe=${Riff.Options.STRIPE_ROWS_DEFAULT}, " +
         s"is_compressed=${codec != null}, " +
@@ -70,13 +68,11 @@ class FileWriterSuite extends UnitTestSuite {
       val td = new TypeDescription(StructType(StructField("col", StringType) :: Nil))
       val writer = new FileWriter(fs, conf, path, td, codec)
 
-      writer.headerPath should be (fs.makeQualified(dir / "file"))
-      writer.dataPath should be (fs.makeQualified(dir / "file.data"))
+      writer.filePath should be (fs.makeQualified(dir / "file"))
       writer.numRowsInStripe should be (Riff.Options.STRIPE_ROWS_DEFAULT)
       writer.bufferSize should be (Riff.Options.BUFFER_SIZE_DEFAULT)
       writer.toString should be (
-        s"FileWriter[header=${fs.makeQualified(dir / "file")}, " +
-        s"data=${fs.makeQualified(dir / "file.data")}, " +
+        s"FileWriter[path=${fs.makeQualified(dir / "file")}, " +
         s"type_desc=$td, " +
         s"rows_per_stripe=${Riff.Options.STRIPE_ROWS_DEFAULT}, " +
         s"is_compressed=${codec != null}, " +
@@ -107,7 +103,7 @@ class FileWriterSuite extends UnitTestSuite {
       val codec: CompressionCodec = null
       val td = new TypeDescription(StructType(StructField("col", StringType) :: Nil))
 
-      touch(path.suffix(".data"))
+      touch(Riff.makeDataPath(path))
       intercept[FileAlreadyExistsException] {
         new FileWriter(fs, conf, path, td, codec)
       }
@@ -174,11 +170,9 @@ class FileWriterSuite extends UnitTestSuite {
         writer.write(InternalRow(UTF8String.fromString(s"$i")))
       }
       writer.finishWrite()
-      val header = fs.getFileStatus(writer.headerPath)
-      val data = fs.getFileStatus(writer.dataPath)
-      // should be greater than header size + header flags
-      assert(header.getLen > 16 + 8)
-      assert(data.getLen > 16)
+      val fileStatus = fs.getFileStatus(writer.filePath)
+      // should be greater than magic + header state
+      assert(fileStatus.getLen > 16)
     }
   }
 
@@ -195,11 +189,9 @@ class FileWriterSuite extends UnitTestSuite {
         writer.write(InternalRow(UTF8String.fromString(s"$i")))
       }
       writer.finishWrite()
-      val header = fs.getFileStatus(writer.headerPath)
-      val data = fs.getFileStatus(writer.dataPath)
-      // should be greater than header size + header flags
-      assert(header.getLen > 16 + 8)
-      assert(data.getLen > 16)
+      val fileStatus = fs.getFileStatus(writer.filePath)
+      // should be greater than magic + header state
+      assert(fileStatus.getLen > 16)
     }
   }
 
@@ -212,11 +204,9 @@ class FileWriterSuite extends UnitTestSuite {
       val writer = new FileWriter(fs, conf, path, td, codec)
       writer.prepareWrite()
       writer.finishWrite()
-      val header = fs.getFileStatus(writer.headerPath)
-      val data = fs.getFileStatus(writer.dataPath)
-      // should be greater than header size + header flags
-      assert(header.getLen > 16 + 8)
-      assert(data.getLen > 16)
+      val fileStatus = fs.getFileStatus(writer.filePath)
+      // should be greater than magic + header state
+      assert(fileStatus.getLen > 16)
     }
   }
 }

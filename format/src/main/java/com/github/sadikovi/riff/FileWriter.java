@@ -30,6 +30,7 @@ import java.util.Random;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.Path;
 
@@ -39,6 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.github.sadikovi.riff.io.CompressionCodec;
+import com.github.sadikovi.riff.io.FSAppendStream;
 import com.github.sadikovi.riff.io.OutputBuffer;
 import com.github.sadikovi.riff.io.OutStream;
 import com.github.sadikovi.riff.io.StripeOutputBuffer;
@@ -69,14 +71,12 @@ public class FileWriter {
 
   // file system to use for writing a file
   private final FileSystem fs;
-  // resolved path for header file
-  private final Path headerPath;
-  // resolved path for data file
-  private final Path dataPath;
+  // resolved path for final Riff file
+  private final Path filePath;
+  // resolved path for temporary data file
+  private final Path tmpDataPath;
   // type description for schema to write
   private final TypeDescription td;
-  // unique id for this writer, assigned per file
-  private final byte[] fileId;
   // number of rows in stripe
   private final int numRowsInStripe;
   // buffer size for outstream
@@ -92,10 +92,14 @@ public class FileWriter {
   private boolean writePrepared;
   // write has been finished
   private boolean writeFinished;
-  // output stream, either for data file or header file
-  private FSDataOutputStream out;
+  // temporary data file output stream
+  private FSDataOutputStream temporaryStream;
+  // file output stream
+  private FSDataOutputStream outputStream;
   // stripe id (incremented for each stripe)
   private short stripeId;
+  // current position in the stream
+  private long currentOffset;
   // all stripes in a data file
   private ArrayList<StripeInformation> stripes;
   // record writer
@@ -131,23 +135,20 @@ public class FileWriter {
       TypeDescription td,
       CompressionCodec codec) throws IOException {
     this.fs = fs;
-    this.headerPath = fs.makeQualified(path);
-    this.dataPath = Riff.makeDataPath(headerPath);
+    this.filePath = fs.makeQualified(path);
+    this.tmpDataPath = Riff.makeDataPath(filePath);
     this.writePrepared = false;
     this.writeFinished = false;
-    if (this.fs.exists(headerPath)) {
-      throw new FileAlreadyExistsException("Already exists: " + headerPath);
+    if (this.fs.exists(filePath)) {
+      throw new FileAlreadyExistsException("Already exists: " + filePath);
     }
-    if (this.fs.exists(dataPath)) {
+    if (this.fs.exists(tmpDataPath)) {
       throw new FileAlreadyExistsException(
-        "Data path already exists: " + dataPath + ". Data path is created from provided path " +
-        path + " and also should not exist when creating writer");
+        "Temporary data path already exists: " + tmpDataPath + ". Data path is created from " +
+        "provided path " + path + " and also should not exist when creating writer");
     }
     // this assumes that subsequent rows are provided for this schema
     this.td = td;
-    // generate unique id for this file, collisions are possible, this mainly to prevent accidental
-    // renaming of files
-    this.fileId = nextFileKey();
     this.numRowsInStripe = Riff.Options.numRowsInStripe(conf);
     this.bufferSize = Riff.Options.power2BufferSize(conf);
     this.hdfsBufferSize = Riff.Options.hdfsBufferSize(conf);
@@ -159,31 +160,19 @@ public class FileWriter {
   }
 
   /**
-   * Generate new file key of 12 bytes for file identifier.
-   * This key is shared between header and data files.
-   * @return array with random byte values
+   * Return file path for writer.
+   * @return qualified file path
    */
-  private static byte[] nextFileKey() {
-    Random rand = new Random();
-    byte[] key = new byte[12];
-    rand.nextBytes(key);
-    return key;
+  public Path filePath() {
+    return filePath;
   }
 
   /**
-   * Return header path for writer.
-   * @return header path
+   * Return temporary data path for writer.
+   * @return qualified temporary data path
    */
-  public Path headerPath() {
-    return headerPath;
-  }
-
-  /**
-   * Return data path for writer.
-   * @return data path
-   */
-  public Path dataPath() {
-    return dataPath;
+  public Path temporaryDataPath() {
+    return tmpDataPath;
   }
 
   /**
@@ -211,33 +200,27 @@ public class FileWriter {
   }
 
   /**
-   * Write global header that is shared between header file and data file.
+   * Write global header.
+   * Encode additional information in output stream for flags, such as compression codec.
+   * Right now we write 8 bytes for additional data.
    * @param out output stream to write into
    * @throws IOException
    */
   private void writeHeader(FSDataOutputStream out) throws IOException {
-    // header consists of 16 bytes - 4 bytes magic and 12 bytes unique key
+    // header consists of 16 bytes - 4 bytes magic and 12 bytes state
     OutputBuffer dataHeader = new OutputBuffer();
     dataHeader.writeBytes(Riff.MAGIC.getBytes());
-    dataHeader.writeBytes(fileId);
+    // write state flags:
+    byte[] state = new byte[12];
+    // [0] - compression codec
+    state[0] = Riff.encodeCompressionCodec(codec);
+    dataHeader.write(state);
+    // check total number of bytes for header
     if (dataHeader.bytesWritten() != 16) {
       throw new IOException("Invalid number of bytes written - expected 16, got " +
         dataHeader.bytesWritten());
     }
     dataHeader.writeExternal(out);
-  }
-
-  /**
-   * Encode additional information in output stream for flags, such as compression codec.
-   * Right now we write 8 bytes for additional data. This should written only in header file.
-   * Flags: [0] - compression codec
-   * @param out output stream
-   * @throws IOException
-   */
-  private void writeHeaderState(FSDataOutputStream out) throws IOException {
-    byte[] state = new byte[8];
-    state[0] = Riff.encodeCompressionCodec(codec);
-    out.write(state);
   }
 
   /**
@@ -249,6 +232,7 @@ public class FileWriter {
     if (writePrepared) return;
     LOG.info("Prepare file's type description {}", td);
     stripeId = 0;
+    currentOffset = 0L;
     stripes = new ArrayList<StripeInformation>();
     recordWriter = new IndexedRowWriter(td);
     LOG.debug("Initialized record writer {}", recordWriter);
@@ -261,12 +245,10 @@ public class FileWriter {
     LOG.debug("Initialize stripe outstream {}", stripeStream);
     // create stream for data file
     try {
-      out = fs.create(dataPath, false, hdfsBufferSize);
-      LOG.debug("Prepare data file header");
-      writeHeader(out);
+      temporaryStream = fs.create(tmpDataPath, false, hdfsBufferSize);
     } catch (IOException ioe) {
-      if (out != null) {
-        out.close();
+      if (temporaryStream != null) {
+        temporaryStream.close();
       }
       throw ioe;
     }
@@ -287,8 +269,9 @@ public class FileWriter {
         stripeStream.flush();
         // write stripe information into output, such as stripe id and length, and capture position
         StripeInformation stripeInfo =
-          new StripeInformation(stripe, out.getPos(), stripeStats, stripeFilters);
-        stripe.flush(out);
+          new StripeInformation(stripe, currentOffset, stripeStats, stripeFilters);
+        currentOffset += stripeInfo.length();
+        stripe.flush(temporaryStream);
         LOG.debug("Finished writing stripe {}, records={}", stripeInfo, numRowsInStripe);
         stripes.add(stripeInfo);
         stripe = new StripeOutputBuffer(stripeId++);
@@ -301,8 +284,8 @@ public class FileWriter {
       recordWriter.writeRow(row, stripeStream);
       stripeCurrentRecords--;
     } catch (IOException ioe) {
-      if (out != null) {
-        out.close();
+      if (temporaryStream != null) {
+        temporaryStream.close();
       }
       throw ioe;
     }
@@ -319,8 +302,9 @@ public class FileWriter {
     try {
       // flush the last stripe into output stream
       stripeStream.flush();
-      StripeInformation stripeInfo = new StripeInformation(stripe, out.getPos(), stripeStats);
-      stripe.flush(out);
+      StripeInformation stripeInfo =
+        new StripeInformation(stripe, currentOffset, stripeStats);
+      stripe.flush(temporaryStream);
       LOG.debug("Finished writing stripe {}, records={}", stripeInfo,
         numRowsInStripe - stripeCurrentRecords);
       stripes.add(stripeInfo);
@@ -328,20 +312,25 @@ public class FileWriter {
       stripe = null;
       stripeStream = null;
       stripeStats = null;
-      // finished writing data file
-      out.close();
-      LOG.info("Finished writing data file {}", dataPath);
+      // finished writing temporary data file, close stream, we will reopen it for append
+      temporaryStream.close();
+      temporaryStream = null;
+      LOG.info("Finished writing temporary data file {}", tmpDataPath);
 
-      // write header file
-      LOG.debug("Prepare header file");
-      out = fs.create(headerPath, false, hdfsBufferSize);
-      writeHeader(out);
-      writeHeaderState(out);
+      // write complete file
+      LOG.debug("Write file header");
+      outputStream = fs.create(filePath, false, hdfsBufferSize);
+      writeHeader(outputStream);
       // write type description
-      td.writeTo(out);
-      // == file content ==
-      // combine all statistics for a file
+      td.writeTo(outputStream);
+
+      LOG.debug("Write file metadata");
+      // buffer stores content of the entire header file content, when being read, this should be
+      // loaded into byte buffer
+      OutputBuffer buffer = new OutputBuffer();
+
       LOG.debug("Merge stripe statistics");
+      // combine all statistics for a file
       Statistics[] fileStats = createStatistics(td);
       for (StripeInformation info : stripes) {
         if (info.hasStatistics()) {
@@ -350,10 +339,6 @@ public class FileWriter {
           }
         }
       }
-      LOG.debug("Write header file content");
-      // buffer stores content of the entire header file content, when being read, this should be
-      // loaded into byte buffer
-      OutputBuffer buffer = new OutputBuffer();
 
       // we write content in 2 parts:
       // 1. Write file statistics, this is done to evaluate predicate state on global file stats,
@@ -367,28 +352,69 @@ public class FileWriter {
         LOG.info("Writing file statistics {}", fileStats[i]);
         fileStats[i].writeExternal(buffer);
       }
-      out.writeInt(buffer.bytesWritten());
-      buffer.writeExternal(out);
+      outputStream.writeInt(buffer.bytesWritten());
+      buffer.writeExternal(outputStream);
 
       // 2. Write stripe information
       buffer.reset();
       LOG.info("Writing {} stripes", stripes.size());
       buffer.writeInt(stripes.size());
+      // when we save stripes they contain relative offset to the first stripe, when reading each
+      // stripe, we would correct on current stream position.
+      long offset = outputStream.getPos();
       for (int i = 0; i < stripes.size(); i++) {
         stripes.get(i).writeExternal(buffer);
       }
-      // flush buffer into output stream, close output stream similar to writing data file
+      // flush buffer into output stream, close output stream similar to writing temporary data file
       // and report when it is done. In case of exceptions out will be closed in `finally` block
-      out.writeInt(buffer.bytesWritten());
-      buffer.writeExternal(out);
-      out.close();
-      LOG.info("Finished writing header file {}", headerPath);
+      outputStream.writeInt(buffer.bytesWritten());
+      buffer.writeExternal(outputStream);
+      // write bytes from temporary data path into final file; we use append stream to do it more
+      // or less efficiently.
+      long start = System.nanoTime();
+      appendDataStream(outputStream);
+      long end = System.nanoTime();
+      LOG.info("Append took {} ms", (end - start) / 1e6);
     } finally {
+      // close temporary stream
+      if (temporaryStream != null) {
+        temporaryStream.close();
+      }
+      // close actual file stream
+      if (outputStream != null) {
+        outputStream.close();
+      }
+      // remove temporary data file
+      fs.delete(tmpDataPath, false);
+    }
+    LOG.info("Finished writing file {}", filePath);
+    writeFinished = true;
+  }
+
+  /**
+   * Move content of temporary data file into destination stream. Append happens back-to-back, no
+   * intermediate bytes are inserted, no compression is applied. Target stream is fully transferred.
+   * Output stream is not closed by the end of this operation or in case of error.
+   * @param out stream to copy into
+   * @throws IOException
+   */
+  private void appendDataStream(FSDataOutputStream out) throws IOException {
+    // we are going to use the same buffer size that was used for outstream
+    FSAppendStream append = new FSAppendStream(out, bufferSize);
+    FSDataInputStream in = fs.open(tmpDataPath, hdfsBufferSize);
+    try {
+      append.writeStream(in);
+      // do not flush stream, we will do it when closing both temporary and output streams
+    } catch (IOException ioe) {
       if (out != null) {
         out.close();
       }
+      throw ioe;
+    } finally {
+      if (in != null) {
+        in.close();
+      }
     }
-    writeFinished = true;
   }
 
   /**
@@ -458,8 +484,7 @@ public class FileWriter {
   @Override
   public String toString() {
     return "FileWriter[" +
-      "header=" + headerPath +
-      ", data=" + dataPath +
+      "path=" + filePath +
       ", type_desc=" + td +
       ", rows_per_stripe=" + numRowsInStripe +
       ", is_compressed=" + (codec != null) +

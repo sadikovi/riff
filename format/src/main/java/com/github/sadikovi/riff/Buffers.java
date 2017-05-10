@@ -60,7 +60,7 @@ public class Buffers {
       TypeDescription td,
       CompressionCodec codec,
       int bufferSize,
-      PredicateState state) {
+      PredicateState state) throws IOException {
     RowBuffer rowbuf = null;
     if (stripes == null || stripes.length == 0) {
       rowbuf = new EmptyRowBuffer(in);
@@ -153,6 +153,8 @@ public class Buffers {
 
     // raw input stream for buffer
     private FSDataInputStream in;
+    // stream offset
+    private final long offset;
     // sorted by offsets stripes
     private StripeInformation[] stripes;
     // compression codec to use, can be null (no compression applied)
@@ -182,11 +184,15 @@ public class Buffers {
         FSDataInputStream in,
         StripeInformation[] stripes,
         CompressionCodec codec,
-        int bufferSize) {
+        int bufferSize) throws IOException {
       if (in == null) throw new IllegalArgumentException("Null input stream");
       if (stripes == null) throw new IllegalArgumentException("Null stripes list");
       if (bufferSize <= 0) throw new IllegalArgumentException("Invalid buffer size: " + bufferSize);
       this.in = in;
+      // offset in the current stream, marks the beginning of the first stripe
+      this.offset = in.getPos();
+      // each stripe has a relative offset to the beginning of the block, this should be corrected
+      // on stream offset
       this.stripes = stripes;
       this.codec = codec;
       this.bufferSize = bufferSize;
@@ -214,7 +220,7 @@ public class Buffers {
       }
       LOG.debug("Read stripe {}", info);
       // seek to a position in raw stream
-      in.seek(info.offset());
+      in.seek(info.offset() + offset);
       byte[] bytes = new byte[info.length()];
       in.readFully(bytes);
       currentStripe = new StripeInputBuffer(info.id(), bytes);
@@ -229,6 +235,14 @@ public class Buffers {
      */
     protected StripeInformation[] getStripes() {
       return stripes;
+    }
+
+    /**
+     * Stream offset for each stripe.
+     * @return offset in bytes
+     */
+    protected long offset() {
+      return offset;
     }
 
     @Override
@@ -282,7 +296,7 @@ public class Buffers {
         StripeInformation[] stripes,
         TypeDescription td,
         CompressionCodec codec,
-        int bufferSize) {
+        int bufferSize) throws IOException {
       super(in, stripes, codec, bufferSize);
       this.reader = new IndexedRowReader(td);
       LOG.info("Created reader {}", reader);
@@ -333,7 +347,7 @@ public class Buffers {
         TypeDescription td,
         CompressionCodec codec,
         int bufferSize,
-        PredicateState state) {
+        PredicateState state) throws IOException {
       super(in, stripes, codec, bufferSize);
       this.reader = new IndexedRowReader(td);
       LOG.info("Created reader {}", reader);

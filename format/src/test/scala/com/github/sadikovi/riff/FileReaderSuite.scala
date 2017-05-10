@@ -47,8 +47,7 @@ class FileReaderSuite extends UnitTestSuite {
     withTempDir { dir =>
       val path = dir / "file"
       val reader = new FileReader(fs, new Configuration(), path)
-      reader.headerPath() should be (new Path(s"file:$path"))
-      reader.dataPath() should be (new Path(s"file:$path.data"))
+      reader.filePath() should be (new Path(s"file:$path"))
       reader.bufferSize() should be (Riff.Options.BUFFER_SIZE_DEFAULT)
     }
   }
@@ -59,8 +58,7 @@ class FileReaderSuite extends UnitTestSuite {
       val conf = new Configuration()
       conf.setInt(Riff.Options.BUFFER_SIZE, Riff.Options.BUFFER_SIZE_MAX)
       val reader = new FileReader(fs, conf, path)
-      reader.headerPath() should be (new Path(s"file:$path"))
-      reader.dataPath() should be (new Path(s"file:$path.data"))
+      reader.filePath() should be (new Path(s"file:$path"))
       reader.bufferSize() should be (Riff.Options.BUFFER_SIZE_MAX)
     }
   }

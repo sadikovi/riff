@@ -63,10 +63,8 @@ public class FileReader {
 
   // file system to use
   private final FileSystem fs;
-  // path to the header file
-  private final Path headerPath;
-  // path to the data file
-  private final Path dataPath;
+  // path to the riff file
+  private final Path filePath;
   // buffer size for instream
   private final int bufferSize;
   // HDFS buffer size for opening stream
@@ -79,8 +77,7 @@ public class FileReader {
   FileReader(FileSystem fs, Configuration conf, Path path) {
     this.fs = fs;
     // we do not check if files exist, it will be checked in prepareRead method
-    this.headerPath = fs.makeQualified(path);
-    this.dataPath = Riff.makeDataPath(this.headerPath);
+    this.filePath = fs.makeQualified(path);
     this.bufferSize = Riff.Options.power2BufferSize(conf);
     this.hdfsBufferSize = Riff.Options.hdfsBufferSize(conf);
     // type description is only available after preparing read
@@ -98,7 +95,7 @@ public class FileReader {
   }
 
   /**
-   * Prepare row buffer based on header and data paths.
+   * Prepare row buffer based on file path.
    * @param filter optional filter, if null then no filter applied
    * @return row buffer
    * @throws FileNotFoundException if either data or header file is not found
@@ -106,20 +103,18 @@ public class FileReader {
    */
   public RowBuffer prepareRead(Tree filter) throws FileNotFoundException, IOException {
     if (readPrepared) throw new IOException("Reader reuse");
-    // we start with reading header file and extracting all information that is required to validate
-    // file and/or resolve statistics
+    // we start with reading file header and extracting all information that is required to
+    // validate file and/or resolve statistics
     FSDataInputStream in = null;
     try {
-      in = fs.open(headerPath, hdfsBufferSize);
-      // read input stream and return header file id, this will be used to compare with data file
-      byte[] fileId = readHeader(in);
-      // extract 8 byte long flags
-      byte[] flags = readHeaderState(in);
+      in = fs.open(filePath, hdfsBufferSize);
+      // read input stream and return file state
+      byte[] fileState = readHeader(in);
       // read type description
       td = TypeDescription.readFrom(in);
       LOG.info("Found type description {}", td);
-      LOG.info("Read header flags {}", Arrays.toString(flags));
-      CompressionCodec codec = Riff.decodeCompressionCodec(flags[0]);
+      LOG.info("Read file state {}", Arrays.toString(fileState));
+      CompressionCodec codec = Riff.decodeCompressionCodec(fileState[0]);
       if (codec == null) {
         LOG.debug("Found no compression codec, using uncompressed");
       } else {
@@ -133,7 +128,7 @@ public class FileReader {
 
       // content of the header file is split into 2 parts:
       // 1. File statistics
-      // 2. Stripe information for data file
+      // 2. Stripe information for subsequent row buffer read
       // To optimize reads we first load file statistics and resolve any filters provided. Depending
       // on the outcome of evaluation, we either proceed reading stripes or return empty row buffer
 
@@ -160,7 +155,7 @@ public class FileReader {
         }
       }
       if (skipFile) {
-        LOG.info("Skip file {}", headerPath);
+        LOG.info("Skip file {}", filePath);
         in.close();
         return Buffers.emptyRowBuffer();
       }
@@ -174,13 +169,9 @@ public class FileReader {
       for (int i = 0; i < stripes.length; i++) {
         stripes[i] = StripeInformation.readExternal(buffer);
       }
-      in.close();
       // reevaluate stripes based on predicate tree
       stripes = evaluateStripes(stripes, state);
       LOG.debug("Prepare to read {} stripes", stripes.length);
-      // open data file and check file id
-      in = fs.open(dataPath, hdfsBufferSize);
-      assertBytes(fileId, readHeader(in), "Wrong file id");
       readPrepared = true;
       return Buffers.prepareRowBuffer(in, stripes, td, codec, bufferSize, state);
     } catch (IOException ioe) {
@@ -207,11 +198,11 @@ public class FileReader {
   }
 
   /**
-   * Read type description from header file for this reader.
+   * Read type description from file header, type description is cached by this reader.
    * This method should be invoked separately from `prepareRead()`, and after this call type
    * description is available with `getTypeDescription()` call.
    *
-   * Note: this method should be in sync with `readHeader` and `readHeaderState`.
+   * TODO: this method should be in sync with `readHeader`.
    *
    * @return type description and set it internally, so there is no need to call it again
    * @throws FileNotFoundException if header file does not exist
@@ -221,9 +212,9 @@ public class FileReader {
     if (readPrepared) throw new IOException("Reader reuse");
     FSDataInputStream in = null;
     try {
-      in = fs.open(headerPath, hdfsBufferSize);
-      // we skip header (4 bytes magic + 12 bytes file id) and state (8 bytes flags)
-      in.skipBytes(4 + 12 + 8);
+      in = fs.open(filePath, hdfsBufferSize);
+      // we skip header (4 bytes magic + 12 bytes state/flags)
+      in.skipBytes(4 + 12);
       td = TypeDescription.readFrom(in);
       readPrepared = true;
       return td;
@@ -235,41 +226,26 @@ public class FileReader {
   }
 
   /**
-   * Read header and return byte array of file id.
+   * Read header and return byte array of state.
    * @param in input stream
-   * @return file id
+   * @return byte array with state information
    * @throws IOException
    */
   private static byte[] readHeader(FSDataInputStream in) throws IOException {
-    // in total we read 16 bytes of header, this includes 4 bytes of magic and 12 bytes of file id
+    // in total we read 16 bytes of header, this includes 4 bytes of magic and 12 bytes of state
     try {
-      byte[] magic1 = Riff.MAGIC.getBytes();
-      byte[] magic2 = new byte[4];
-      in.readFully(magic2);
-      assertBytes(magic1, magic2, "Wrong magic");
-      // read file id
-      byte[] fileId = new byte[12];
-      in.readFully(fileId);
-      return fileId;
-    } catch (IOException ioe) {
+      byte[] headerMetadata = new byte[16];
+      in.readFully(headerMetadata);
+      // copy and assert magic
+      byte[] magic1 = new byte[4];
+      System.arraycopy(headerMetadata, 0, magic1, 0, magic1.length);
+      assertBytes(magic1, Riff.MAGIC.getBytes(), "Wrong magic");
+      // copy state
+      byte[] state = new byte[12];
+      System.arraycopy(headerMetadata, magic1.length, state, 0, state.length);
+      return state;
+    } catch (Exception ioe) {
       throw new IOException("Could not read header bytes", ioe);
-    }
-  }
-
-  /**
-   * Read header state and return encoded flags.
-   * @param in input stream
-   * @return byte array of flags (8 bytes long)
-   * @throws IOException
-   */
-  private static byte[] readHeaderState(FSDataInputStream in) throws IOException {
-    // header state is 8 bytes and only exists in header file
-    try {
-      byte[] flags = new byte[8];
-      in.readFully(flags);
-      return flags;
-    } catch (IOException ioe) {
-      throw new IOException("Could not read header state bytes", ioe);
     }
   }
 
@@ -327,40 +303,33 @@ public class FileReader {
   }
 
   /**
-   * Assert file id based on provided expected file id.
-   * @param fileId found file id
-   * @param expectedFileId expected file id
-   * @throws AssertionError if file ids do not match
+   * Assert bytes based on provided expected bytes. Both arrays are assumed to be non-null.
+   * @param arr1 array of bytes, non-null
+   * @param arr2 array of bytes to compare to, non-null
+   * @throws AssertionError if byte arrays do not match
    */
   protected static void assertBytes(byte[] arr1, byte[] arr2, String prefix) {
-    String msg = prefix + ": " + ((arr1 == null) ? "null" : Arrays.toString(arr1)) + " != " +
-      ((arr2 == null) ? "null" : Arrays.toString(arr2));
-    if (arr1 == null || arr2 == null || arr1.length != arr2.length) {
-      throw new AssertionError(msg);
-    }
-    for (int i = 0; i < arr1.length; i++) {
-      if (arr1[i] != arr2[i]) {
-        throw new AssertionError(msg);
+    boolean failed = arr1 == null || arr2 == null || arr1.length != arr2.length;
+    if (!failed) {
+      for (int i = 0; i < arr1.length; i++) {
+        failed = failed || arr1[i] != arr2[i];
       }
     }
+    // construct message only when assertion failed
+    if (failed) {
+      String msg = prefix + ": " + ((arr1 == null) ? "null" : Arrays.toString(arr1)) + " != " +
+        ((arr2 == null) ? "null" : Arrays.toString(arr2));
+      throw new AssertionError(msg);
+    }
   }
 
   /**
-   * Get header path for this reader.
+   * Get file path for this reader.
    * Path might not exist on file system.
-   * @return header path
+   * @return file path
    */
-  public Path headerPath() {
-    return headerPath;
-  }
-
-  /**
-   * Get data path for this reader.
-   * Path might not exist on file system.
-   * @return data path
-   */
-  public Path dataPath() {
-    return dataPath;
+  public Path filePath() {
+    return filePath;
   }
 
   /**
@@ -374,8 +343,7 @@ public class FileReader {
   @Override
   public String toString() {
     return "FileReader[" +
-      "header=" + headerPath +
-      ", data=" + dataPath +
+      "path=" + filePath +
       ", buffer_size=" + bufferSize +
       ", hdfs_buffer_size=" + hdfsBufferSize + "]";
   }
