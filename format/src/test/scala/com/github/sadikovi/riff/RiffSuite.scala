@@ -117,7 +117,7 @@ class RiffSuite extends UnitTestSuite {
   test("make data path") {
     val path = new Path("/a/b/c")
     val dpath = Riff.makeDataPath(path)
-    dpath should be (new Path("/a/b/c.data"))
+    dpath should be (new Path("/a/b/.c.data"))
   }
 
   test("select column filter enabled") {
@@ -230,14 +230,14 @@ class RiffSuite extends UnitTestSuite {
   test("create file reader") {
     withTempDir { dir =>
       val reader = Riff.reader.create(dir / "file")
-      assert(reader.headerPath.toString == s"file:${dir / "file"}")
+      assert(reader.filePath.toString == s"file:${dir / "file"}")
     }
   }
 
   test("create file reader using path as string") {
     withTempDir { dir =>
       val reader = Riff.reader.create(s"${dir / "file"}")
-      assert(reader.headerPath.toString == s"file:${dir / "file"}")
+      assert(reader.filePath.toString == s"file:${dir / "file"}")
     }
   }
 
@@ -276,6 +276,48 @@ class RiffSuite extends UnitTestSuite {
     }
     rowbuf.close()
     seq
+  }
+
+  test("write/read, with gzip, check stripe info") {
+    withTempDir { dir =>
+      val writer = Riff.writer
+        .setCodec("gzip")
+        .setRowsInStripe(1)
+        .setTypeDesc(schema, "col2")
+        .create(dir / "file")
+      writer.prepareWrite()
+      for (row <- batch) {
+        writer.write(row)
+      }
+      writer.finishWrite()
+
+      val reader = Riff.reader.create(dir / "file")
+      val rowbuf = reader.prepareRead().asInstanceOf[Buffers.InternalRowBuffer]
+      rowbuf.offset() should be (612)
+      rowbuf.getStripes().length should be (5)
+
+      rowbuf.getStripes()(0).offset() should be (0)
+      rowbuf.getStripes()(0).length() should be (36)
+      rowbuf.getStripes()(0).hasStatistics() should be (true)
+
+      rowbuf.getStripes()(1).offset() should be (36)
+      rowbuf.getStripes()(1).length() should be (36)
+      rowbuf.getStripes()(1).hasStatistics() should be (true)
+
+      rowbuf.getStripes()(2).offset() should be (72)
+      rowbuf.getStripes()(2).length() should be (36)
+      rowbuf.getStripes()(2).hasStatistics() should be (true)
+
+      rowbuf.getStripes()(3).offset() should be (108)
+      rowbuf.getStripes()(3).length() should be (36)
+      rowbuf.getStripes()(3).hasStatistics() should be (true)
+
+      rowbuf.getStripes()(4).offset() should be (144)
+      rowbuf.getStripes()(4).length() should be (36)
+      rowbuf.getStripes()(4).hasStatistics() should be (true)
+
+      rowbuf.close()
+    }
   }
 
   // == direct scan ==
@@ -374,7 +416,9 @@ class RiffSuite extends UnitTestSuite {
       val rowbuf = reader.prepareRead(eqt("col2", "def")).asInstanceOf[Buffers.InternalRowBuffer]
       rowbuf.getStripes().length should be (1)
       rowbuf.getStripes()(0).id() should be (1)
-      rowbuf.getStripes()(0).offset() should be (52)
+      // stripe has a relative offset
+      rowbuf.offset() should be (612)
+      rowbuf.getStripes()(0).offset() should be (36)
       rowbuf.getStripes()(0).length() should be (36)
       rowbuf.getStripes()(0).hasStatistics() should be (true)
 
@@ -404,9 +448,8 @@ class RiffSuite extends UnitTestSuite {
       }
       writer.finishWrite()
 
+      // this should skip based on header only
       val reader = Riff.reader.create(dir / "file")
-      // remove data file, this should skip based on header only
-      rm(dir / "file.data", false)
       val rowbuf = reader.prepareRead(eqt("col2", "<none>"))
       rowbuf.isInstanceOf[Buffers.EmptyRowBuffer] should be (true)
       rowbuf.hasNext should be (false)

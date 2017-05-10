@@ -117,14 +117,14 @@ class DefaultSource
       sparkSession: SparkSession,
       parameters: Map[String, String],
       files: Seq[FileStatus]): Option[StructType] = {
-    // when inferring schema we expect at least one data file in directory
+    // when inferring schema we expect at least one file in directory
     if (files.isEmpty) {
       log.warn("No paths found for schema inferrence")
       None
     } else {
       // Spark, when returning parsed file paths, does not include metadata files, only files that
-      // are either partitioned or do not begin with "_". This forces us to reconstruct metadata path
-      // manually.
+      // are either partitioned or do not begin with "_". This forces us to reconstruct metadata
+      // path manually.
 
       // Logic is to use "path" key set in parameters map; this is set by DataFrameReader and
       // contains raw unresolved path to the directory or file. We make path qualified and check
@@ -137,7 +137,8 @@ class DefaultSource
         val hdfsPath = new Path(path)
         val fs = hdfsPath.getFileSystem(hadoopConf)
         val qualifiedPath = hdfsPath.makeQualified(fs.getUri, fs.getWorkingDirectory)
-        val reader = Riff.metadataReader.setFileSystem(fs).setConf(hadoopConf).create(qualifiedPath)
+        val reader = Riff.metadataReader.setFileSystem(fs).setConf(hadoopConf)
+          .create(qualifiedPath)
         reader.readMetadataFile(true)
       }
 
@@ -149,9 +150,7 @@ class DefaultSource
         case other =>
           log.info("Failed to load metadata, infer schema from header file")
           // infer schema from the first file in the list
-          val headerFileStatus: Option[FileStatus] = files
-            .filter(!_.getPath.getName.endsWith(Riff.DATA_FILE_SUFFIX))
-            .headOption
+          val headerFileStatus: Option[FileStatus] = files.headOption
           if (headerFileStatus.isEmpty) {
             throw new RuntimeException(s"No header files found in list ${files.toList}")
           }
@@ -214,40 +213,35 @@ class DefaultSource
     // return iterator of rows
     (file: PartitionedFile) => {
       assert(file.partitionValues.numFields == partitionSchema.size)
-      // because riff stores header and data files separately, we have to ignore data files
-      if (file.filePath.endsWith(Riff.DATA_FILE_SUFFIX)) {
-        Buffers.emptyRowBuffer().asScala
-      } else {
-        val path = new Path(new URI(file.filePath))
-        val hadoopConf = broadcastedHadoopConf.value.value
-        val reader = Riff.reader.setConf(hadoopConf).create(path)
-        val iter = reader.prepareRead(predicate)
-        Option(TaskContext.get()).foreach(_.addTaskCompletionListener(_ => iter.close()))
-        // TODO: this is super inefficient, fix it by applying projection on indexed row
-        if (projectionFields.length < reader.getTypeDescription().size()) {
-          // do projection if we have fewer fields to return
-          new Iterator[InternalRow]() {
-            private val td = reader.getTypeDescription()
+      val path = new Path(new URI(file.filePath))
+      val hadoopConf = broadcastedHadoopConf.value.value
+      val reader = Riff.reader.setConf(hadoopConf).create(path)
+      val iter = reader.prepareRead(predicate)
+      Option(TaskContext.get()).foreach(_.addTaskCompletionListener(_ => iter.close()))
+      // TODO: this is super inefficient, fix it by applying projection on indexed row
+      if (projectionFields.length < reader.getTypeDescription().size()) {
+        // do projection if we have fewer fields to return
+        new Iterator[InternalRow]() {
+          private val td = reader.getTypeDescription()
 
-            override def hasNext: Boolean = {
-              iter.hasNext()
-            }
-
-            override def next: InternalRow = {
-              val row = iter.next()
-              val proj = new ProjectionRow(projectionFields.length)
-              var i = 0
-              while (i < projectionFields.length) {
-                val spec = td.atPosition(td.position(projectionFields(i)))
-                proj.update(i, row.get(spec.position(), spec.dataType()))
-                i += 1
-              }
-              proj
-            }
+          override def hasNext: Boolean = {
+            iter.hasNext()
           }
-        } else {
-          iter.asScala
+
+          override def next: InternalRow = {
+            val row = iter.next()
+            val proj = new ProjectionRow(projectionFields.length)
+            var i = 0
+            while (i < projectionFields.length) {
+              val spec = td.atPosition(td.position(projectionFields(i)))
+              proj.update(i, row.get(spec.position(), spec.dataType()))
+              i += 1
+            }
+            proj
+          }
         }
+      } else {
+        iter.asScala
       }
     }
   }

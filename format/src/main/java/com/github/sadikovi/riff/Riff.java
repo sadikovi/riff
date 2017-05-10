@@ -72,8 +72,6 @@ public class Riff {
   private static final Logger LOG = LoggerFactory.getLogger(Riff.class);
 
   public static final String MAGIC = "RIFF";
-  // suffix for data files
-  public static final String DATA_FILE_SUFFIX = ".data";
 
   /**
    * Internal riff options that can be set in hadoop configuration.
@@ -167,12 +165,13 @@ public class Riff {
   }
 
   /**
-   * Append data file suffix to the path, suffix is always the last block in file name.
-   * @param path header path
-   * @return data path
+   * Construct path to the temporary data file.
+   * @param path file path
+   * @return temporary data path
    */
   static Path makeDataPath(Path path) {
-    return path.suffix(DATA_FILE_SUFFIX);
+    // prefix file name with "." and append ".data" suffix
+    return new Path(path.getParent(), new Path("." + path.getName() + ".data"));
   }
 
   /**

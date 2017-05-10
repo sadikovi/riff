@@ -38,7 +38,7 @@ class StripeInputBufferSuite extends UnitTestSuite {
 
   test("init with empty data array") {
     // this case is perfectly valid, indicates that no records were written
-    // note that stripe metadata is written into header, not data file
+    // note that stripe metadata is written into header of the file
     val buf = new StripeInputBuffer(1.toByte, Array[Byte]())
     buf.length should be (0)
     buf.position should be (0)

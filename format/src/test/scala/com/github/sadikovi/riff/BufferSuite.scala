@@ -152,7 +152,7 @@ class BufferSuite extends UnitTestSuite {
   test("select direct scan buffer on empty stream") {
     withTempDir { dir =>
       // create empty file - this represents stripe bytes, not total data file bytes, because that
-      // would include data file header + metadata + statistics
+      // would include file header + metadata + statistics
       touch(dir / "file")
       val in = open(dir / "file").asInstanceOf[FSDataInputStream]
       val stripes = Array(new StripeInformation(1.toByte, 0, 0, null))
@@ -220,7 +220,7 @@ class BufferSuite extends UnitTestSuite {
   test("select predicate scan buffer on empty stream") {
     withTempDir { dir =>
       // create empty file - this represents stripe bytes, not total data file bytes, because that
-      // would include data file header + metadata + statistics
+      // would include file header + metadata + statistics
       touch(dir / "file")
       val in = open(dir / "file").asInstanceOf[FSDataInputStream]
       val stripes = Array(new StripeInformation(1.toByte, 0, 0, null))
