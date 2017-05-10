@@ -231,7 +231,7 @@ public class FileWriter {
   public void prepareWrite() throws IOException {
     if (writeFinished) throw new IOException("Writer reuse");
     if (writePrepared) return;
-    LOG.info("Prepare file's type description {}", td);
+    LOG.debug("Prepare file's type description {}", td);
     stripeId = 0;
     currentOffset = 0L;
     stripes = new ArrayList<StripeInformation>();

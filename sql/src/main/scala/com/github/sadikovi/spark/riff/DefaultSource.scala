@@ -150,9 +150,7 @@ class DefaultSource
         case other =>
           log.info("Failed to load metadata, infer schema from header file")
           // infer schema from the first file in the list
-          val headerFileStatus: Option[FileStatus] = files
-            .filter(!_.getPath.getName.endsWith(Riff.DATA_FILE_SUFFIX))
-            .headOption
+          val headerFileStatus: Option[FileStatus] = files.headOption
           if (headerFileStatus.isEmpty) {
             throw new RuntimeException(s"No header files found in list ${files.toList}")
           }
