@@ -38,7 +38,8 @@ class RiffOutputCommitterSuite extends UnitTestSuite {
     PartFileFilter.instance.accept(new Path("/.part-00000.crc")) should be (false)
     // make sure that we filter out Riff temporary data files
     PartFileFilter.instance.accept(new Path("/part-00000.riff")) should be (true)
-    PartFileFilter.instance.accept(new Path("/part-00000.riff.data")) should be (false)
+    PartFileFilter.instance.accept(new Path("/part-00000.riff.data")) should be (true)
+    PartFileFilter.instance.accept(new Path("/.part-00000.riff.data")) should be (false)
   }
 
   test("list files and fetch first found") {
