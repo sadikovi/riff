@@ -24,7 +24,7 @@ package com.github.sadikovi.riff
 
 import org.apache.spark.sql.types._
 
-import com.github.sadikovi.riff.tree.FilterApi
+import com.github.sadikovi.riff.tree.{FilterApi, State}
 import com.github.sadikovi.riff.tree.FilterApi._
 import com.github.sadikovi.testutil.UnitTestSuite
 
@@ -135,54 +135,50 @@ class PredicateStateSuite extends UnitTestSuite {
     state.tree should be (p)
   }
 
-  test("check isResultKnown for predicate state") {
+  test("check result() for predicate state") {
     val schema = StructType(
       StructField("col1", IntegerType) ::
       StructField("col2", StringType) :: Nil)
     val td = new TypeDescription(schema, Array("col1"))
     val p = or(eqt("col1", 12), gt("col2", "abc"))
     val state = new PredicateState(p, td)
-    state.isResultKnown should be (false)
+    state.result should be (State.Unknown)
   }
 
-  test("check isResultKnown for index predicate state") {
+  test("check result() for index predicate state") {
     val schema = StructType(
       StructField("col1", IntegerType) :: Nil)
     val td = new TypeDescription(schema, Array("col1"))
     val p = eqt("col1", 12)
     val state = new PredicateState(p, td)
-    state.isResultKnown should be (false)
+    state.result should be (State.Unknown)
   }
 
-  test("check isResultKnown for trivial predicate state") {
+  test("check result() for trivial predicate state") {
     val schema = StructType(
       StructField("col1", IntegerType) :: Nil)
     val td = new TypeDescription(schema, Array("col1"))
     val state = new PredicateState(or(TRUE, eqt("col1", 1)), td)
-    state.isResultKnown should be (true)
+    state.result should be (State.True)
   }
 
-  test("fail to check result for non-trivial predicate state") {
+  test("check result() for non-trivial predicate state") {
     val schema = StructType(
       StructField("col1", IntegerType) ::
       StructField("col2", StringType) :: Nil)
     val td = new TypeDescription(schema, Array("col1"))
     val p = or(eqt("col1", 12), gt("col2", "abc"))
     val state = new PredicateState(p, td)
-
-    val err = intercept[IllegalStateException] {
-      state.result()
-    }
-    err.getMessage should be ("Non-trivial predicate state")
+    state.result should be (State.Unknown)
   }
 
-  test("check result for predicate state") {
+  test("check result() for predicate state with binary logical") {
     val schema = StructType(
       StructField("col1", IntegerType) ::
       StructField("col2", StringType) :: Nil)
     val td = new TypeDescription(schema, Array("col1"))
-    new PredicateState(or(TRUE, eqt("col1", 1)), td).result() should be (true)
-    new PredicateState(and(FALSE, eqt("col1", 1)), td).result() should be (false)
+    new PredicateState(or(TRUE, eqt("col1", 1)), td).result() should be (State.True)
+    new PredicateState(and(FALSE, eqt("col1", 1)), td).result() should be (State.False)
   }
 
   test("predicate state for filter Not(IsNull) that does not contain index fields") {

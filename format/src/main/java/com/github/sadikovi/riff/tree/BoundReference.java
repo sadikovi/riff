@@ -134,6 +134,11 @@ public abstract class BoundReference implements Tree {
   }
 
   @Override
+  public State state() {
+    return State.Unknown;
+  }
+
+  @Override
   public final boolean analyzed() {
     return ordinal != UNRESOLVED_ORDINAL;
   }

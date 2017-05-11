@@ -27,6 +27,7 @@ import org.apache.spark.sql.catalyst.InternalRow;
 import com.github.sadikovi.riff.ColumnFilter;
 import com.github.sadikovi.riff.Statistics;
 import com.github.sadikovi.riff.tree.Rule;
+import com.github.sadikovi.riff.tree.State;
 import com.github.sadikovi.riff.tree.Tree;
 import com.github.sadikovi.riff.tree.UnaryLogical;
 
@@ -64,6 +65,12 @@ public class Not extends UnaryLogical {
     // `not` does not evaluate column filters, because child expression evaluation does not
     // guarantee that records for inverse result will not exist in dataset
     return true;
+  }
+
+  @Override
+  public State state() {
+    // state of not predicate is unknown similar to evaluation
+    return State.Unknown;
   }
 
   @Override

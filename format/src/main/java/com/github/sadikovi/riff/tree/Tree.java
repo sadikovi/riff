@@ -89,4 +89,12 @@ public interface Tree extends Serializable {
    * @return true if tree is analyzed, false otherwise
    */
   boolean analyzed();
+
+  /**
+   * Return state for the tree.
+   * Each node can return either True, False, or Unknown. True means that tree can be evaluated
+   * without check and has `true` value, similar for `false`. Unknown state means that tree needs
+   * to be evaluated for each row/statistics/filter to determine result.
+   */
+  State state();
 }

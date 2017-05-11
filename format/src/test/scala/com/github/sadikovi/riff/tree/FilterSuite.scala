@@ -36,6 +36,29 @@ import com.github.sadikovi.testutil.UnitTestSuite
 class FilterSuite extends UnitTestSuite {
   import FilterApi._
 
+  test("State - trivial") {
+    State.trivial(true) should be (State.True)
+    State.trivial(false) should be (State.False)
+  }
+
+  test("State - and") {
+    State.True.and(State.True) should be (State.True)
+    State.True.and(State.False) should be (State.False)
+    State.False.and(State.True) should be (State.False)
+    State.True.and(State.Unknown) should be (State.Unknown)
+    State.Unknown.and(State.True) should be (State.Unknown)
+    State.Unknown.and(State.False) should be (State.Unknown)
+  }
+
+  test("State - or") {
+    State.True.or(State.True) should be (State.True)
+    State.True.or(State.False) should be (State.True)
+    State.True.or(State.Unknown) should be (State.True)
+    State.False.or(State.False) should be (State.False)
+    State.False.or(State.Unknown) should be (State.Unknown)
+    State.Unknown.or(State.False) should be (State.Unknown)
+  }
+
   test("FilterApi - objToExpression") {
     var expr = FilterApi.objToExpression(1)
     expr.isInstanceOf[IntegerExpression] should be (true)
@@ -66,12 +89,14 @@ class FilterSuite extends UnitTestSuite {
     TRUE.evaluateState(Array(filter(123))) should be (true)
     TRUE.copy() should be (TRUE)
     TRUE.analyzed() should be (true)
+    TRUE.state() should be (State.True)
 
     FALSE.evaluateState(InternalRow()) should be (false)
     FALSE.evaluateState(Array(stats(1, 2, false))) should be (false)
     FALSE.evaluateState(Array(filter(123))) should be (false)
     FALSE.copy() should be (FALSE)
     FALSE.analyzed() should be (true)
+    FALSE.state() should be (State.False)
   }
 
   test("EqualTo predicate") {
@@ -81,6 +106,7 @@ class FilterSuite extends UnitTestSuite {
     pre.equals(eqt("col", 512)) should be (true)
     pre.analyzed() should be (false)
     pre.copy() should be (eqt("col", 512))
+    pre.state() should be (State.Unknown)
     pre.toString should be ("*col = 512")
 
     pre.evaluateState(InternalRow(512), 0) should be (true)
@@ -100,6 +126,7 @@ class FilterSuite extends UnitTestSuite {
     pre.equals(gt("abc", 500)) should be (false)
     pre.equals(gt("col", -10)) should be (false)
     pre.analyzed() should be (false)
+    pre.state() should be (State.Unknown)
     pre.copy() should be (gt("col", 500))
     pre.toString should be ("*col > 500")
 
@@ -120,6 +147,7 @@ class FilterSuite extends UnitTestSuite {
     pre.equals(lt("abc", 500)) should be (false)
     pre.equals(lt("col", -10)) should be (false)
     pre.analyzed() should be (false)
+    pre.state() should be (State.Unknown)
     pre.copy() should be (lt("col", 500))
     pre.toString should be ("*col < 500")
 
@@ -140,6 +168,7 @@ class FilterSuite extends UnitTestSuite {
     pre.equals(ge("abc", 500)) should be (false)
     pre.equals(ge("col", -10)) should be (false)
     pre.analyzed() should be (false)
+    pre.state() should be (State.Unknown)
     pre.copy() should be (ge("col", 500))
     pre.toString should be ("*col >= 500")
 
@@ -163,6 +192,7 @@ class FilterSuite extends UnitTestSuite {
     pre.equals(le("abc", 500)) should be (false)
     pre.equals(le("col", -10)) should be (false)
     pre.analyzed() should be (false)
+    pre.state() should be (State.Unknown)
     pre.copy() should be (le("col", 500))
     pre.toString should be ("*col <= 500")
 
@@ -194,6 +224,7 @@ class FilterSuite extends UnitTestSuite {
     pre.equals(in("col", "a", "k", "c", "f")) should be (false)
     pre.equals(in("abc", "a", "k", "c", "f", "x", "n")) should be (false)
     pre.analyzed() should be (false)
+    pre.state() should be (State.Unknown)
     pre.copy() should be (in("col", "a", "k", "c", "f", "x", "n"))
     pre.toString should be ("*col in ['a', 'c', 'f', 'k', 'n', 'x']")
     pre.copy().toString should be ("*col in ['a', 'c', 'f', 'k', 'n', 'x']")
@@ -222,6 +253,7 @@ class FilterSuite extends UnitTestSuite {
     pre.equals(nvl("col")) should be (true)
     pre.equals(nvl("abc")) should be (false)
     pre.analyzed() should be (false)
+    pre.state() should be (State.Unknown)
     pre.copy() should be (nvl("col"))
     pre.toString should be ("*col is null")
 
@@ -245,6 +277,7 @@ class FilterSuite extends UnitTestSuite {
     pre.equals(FilterApi.not(eqt("col", 2))) should be (false)
     pre.equals(eqt("col", 1)) should be (false)
     pre.analyzed() should be (false)
+    pre.state() should be (State.Unknown)
     FilterApi.not(FALSE).analyzed() should be (true)
     FilterApi.not(TRUE).analyzed() should be (true)
     pre.copy() should be (pre)
@@ -276,6 +309,7 @@ class FilterSuite extends UnitTestSuite {
     pre.equals(and(TRUE, FALSE)) should be (false)
     pre.equals(and(eqt("a", 2), TRUE)) should be (false)
     pre.analyzed() should be (false)
+    pre.state() should be (State.Unknown)
     and(FALSE, FALSE).analyzed() should be (true)
     and(TRUE, FALSE).analyzed() should be (true)
     and(FALSE, TRUE).analyzed() should be (true)
@@ -307,6 +341,7 @@ class FilterSuite extends UnitTestSuite {
     pre.equals(or(TRUE, FALSE)) should be (false)
     pre.equals(or(eqt("a", 2), TRUE)) should be (false)
     pre.analyzed() should be (false)
+    pre.state() should be (State.Unknown)
     or(FALSE, FALSE).analyzed() should be (true)
     or(TRUE, FALSE).analyzed() should be (true)
     or(FALSE, TRUE).analyzed() should be (true)
@@ -354,6 +389,7 @@ class FilterSuite extends UnitTestSuite {
     tree.analyzed should be (false)
     tree.analyze(td)
     tree.analyzed should be (true)
+    tree.state should be (State.Unknown)
     tree.toString should be ("((a[0] = 1) && (b[1] = 8)) || ((!(c[2] > 7)) || (d[3] <= 3))")
     // second analysis is no-op and should not change tree
     tree.analyze(td)
@@ -418,6 +454,7 @@ class FilterSuite extends UnitTestSuite {
     tree.analyzed should be (false)
     tree.analyze(td)
     tree.analyzed should be (true)
+    tree.state should be (State.Unknown)
     tree.toString should be ("(a[0] in ['v1', 'v2', 'v3', 'v4']) || (b[1] = 12)")
   }
 
@@ -453,6 +490,7 @@ class FilterSuite extends UnitTestSuite {
     )
 
     tree.analyzed should be (true)
+    tree.state should be (State.True)
     tree.analyze(td)
     tree.toString should be ("(true) || ((true) && (false))")
   }
@@ -474,6 +512,7 @@ class FilterSuite extends UnitTestSuite {
     tree.toString should be ("(*a = 1) && ((*b > 2L) || (false))")
     tree.analyze(td)
     tree.analyzed should be (true)
+    tree.state should be (State.Unknown)
     tree.toString should be ("(a[0] = 1) && ((b[1] > 2L) || (false))")
   }
 
@@ -492,6 +531,7 @@ class FilterSuite extends UnitTestSuite {
 
     tree.analyze(td)
     tree.analyzed should be (true)
+    tree.state should be (State.Unknown)
 
     tree.evaluateState(InternalRow(1, 3L)) should be (true)
     tree.evaluateState(InternalRow(5, 9L)) should be (false)
@@ -518,6 +558,7 @@ class FilterSuite extends UnitTestSuite {
 
     tree.analyze(td)
     tree.analyzed should be (true)
+    tree.state should be (State.Unknown)
 
     tree.evaluateState(InternalRow(UTF8String.fromString("v1"), 1)) should be (true)
     tree.evaluateState(InternalRow(UTF8String.fromString("v2"), 1)) should be (true)
