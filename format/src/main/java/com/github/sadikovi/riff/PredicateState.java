@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 
 import com.github.sadikovi.riff.tree.BoundReference;
 import com.github.sadikovi.riff.tree.Rule;
+import com.github.sadikovi.riff.tree.State;
 import com.github.sadikovi.riff.tree.Tree;
 
 import com.github.sadikovi.riff.tree.expression.And;
@@ -54,6 +55,8 @@ public class PredicateState {
   private final Tree indexTree;
   // whether or not state has only index tree
   private final boolean indexedOnly;
+  // state for the tree
+  private final State state;
 
   /**
    * Given resolved/unresolved tree and type description, perform resolution if possible and extract
@@ -81,14 +84,14 @@ public class PredicateState {
       /* rule copies and modifies tree by removing trivial branches */
       .transform(new IndexTreeBooleanSimplification());
     this.indexedOnly = this.indexTree.equals(this.tree);
+    this.state = this.tree.state();
     if (this.indexedOnly) {
       // only maintain index tree at this point
       this.tree = null;
     }
 
-    LOG.info("Predicate has only index tree: {}", this.indexedOnly);
-    LOG.info("Predicate index tree: {}", this.indexTree);
-    LOG.info("Predicate state tree: {}", this.tree);
+    LOG.info("Index tree: {}, tree: {}, index_only: {}",
+      this.indexTree, this.tree, this.indexedOnly);
   }
 
   /**
@@ -117,25 +120,19 @@ public class PredicateState {
   }
 
   /**
-   * Whether or not state is trivial and result is already known before evaluation.
-   * TODO: Move this functionality into Tree and extend it to return result.
-   * @return true if state is trivial, false otherwise
+   * Return state for the current active tree, either index tree or full tree. State determines
+   * whether or not current tree can be evaluated in advance and trivial, or unknown and needs to
+   * be evaluated for each row/statistics/filter.
+   * @return state
    */
-  public boolean isResultKnown() {
-    return hasIndexedTreeOnly() ? (indexTree instanceof Trivial) : (tree instanceof Trivial);
+  public State result() {
+    return state;
   }
 
-  /**
-   * If state is trivial, returns boolean flag, main predicate tree (index or full) is a Trivial
-   * node, otherwise throws Exception.
-   * TODO: Move this functionality into Tree and extend it to return result.
-   * @return true if tree is positive Trivial node, false if tree is negative Trivial node
-   * @throws IllegalStateException if state is not trivial
-   */
-  public boolean result() {
-    if (!isResultKnown()) throw new IllegalStateException("Non-trivial predicate state");
-    Trivial node = (Trivial) (hasIndexedTreeOnly() ? indexTree : tree);
-    return node.result();
+  @Override
+  public String toString() {
+    return "State[" + state + ", index_tree=" + indexTree + ", tree=" + tree + ", index_only=" +
+      indexedOnly + "]";
   }
 
   /**

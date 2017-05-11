@@ -28,6 +28,7 @@ import com.github.sadikovi.riff.ColumnFilter;
 import com.github.sadikovi.riff.Statistics;
 import com.github.sadikovi.riff.TypeDescription;
 import com.github.sadikovi.riff.tree.Rule;
+import com.github.sadikovi.riff.tree.State;
 import com.github.sadikovi.riff.tree.Tree;
 
 /**
@@ -84,6 +85,12 @@ public class Trivial implements Tree {
   public boolean analyzed() {
     // trivial node is always analyzed
     return true;
+  }
+
+  @Override
+  public State state() {
+    // trivial node result is always known
+    return State.trivial(result);
   }
 
   @Override

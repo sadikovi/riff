@@ -28,6 +28,7 @@ import com.github.sadikovi.riff.ColumnFilter;
 import com.github.sadikovi.riff.Statistics;
 import com.github.sadikovi.riff.tree.BinaryLogical;
 import com.github.sadikovi.riff.tree.Rule;
+import com.github.sadikovi.riff.tree.State;
 import com.github.sadikovi.riff.tree.Tree;
 
 /**
@@ -71,6 +72,11 @@ public class Or extends BinaryLogical {
   @Override
   public Tree transform(Rule rule) {
     return rule.update(this);
+  }
+
+  @Override
+  public State state() {
+    return left.state().or(right.state());
   }
 
   @Override
