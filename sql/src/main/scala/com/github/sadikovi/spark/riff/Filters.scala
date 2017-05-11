@@ -50,10 +50,10 @@ private[riff] object Filters {
    */
   private def recurBuild(filter: Filter): Tree = {
     filter match {
-      case EqualTo(attribute: String, value: Any) =>
-        eqt(attribute, value)
-      case EqualNullSafe(attribute: String, value: Any) =>
-        // for us we treat `EqualNullSafe` as  `EqualTo` or `IsNull` depending on value
+      case EqualTo(attribute: String, value) =>
+        if (value == null) nvl(attribute) else eqt(attribute, value)
+      case EqualNullSafe(attribute: String, value) =>
+        // for riff we treat `EqualNullSafe` as  `EqualTo` or `IsNull` depending on value
         if (value == null) nvl(attribute) else eqt(attribute, value)
       case GreaterThan(attribute: String, value: Any) =>
         gt(attribute, value)
@@ -65,7 +65,7 @@ private[riff] object Filters {
         le(attribute, value)
       case In(attribute: String, values: Array[Any]) =>
         // scala does not like passing Any into vargs
-        in(attribute, values.map(_.asInstanceOf[AnyRef]))
+        in(attribute, values.map(_.asInstanceOf[AnyRef]): _*)
       case IsNull(attribute: String) =>
         nvl(attribute)
       case IsNotNull(attribute: String) =>
