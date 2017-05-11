@@ -63,6 +63,8 @@ EclipseKeys.eclipseOutput := Some("target/eclipse")
 // common project (test utils)
 unmanagedSourceDirectories in Compile += baseDirectory.value / "common" / "src" / "main"
 unmanagedSourceDirectories in Test += baseDirectory.value / "common" / "src" / "test"
+unmanagedResourceDirectories in Test +=
+  baseDirectory.value / "common" / "src" / "test" / "resources"
 // format and specification project
 unmanagedSourceDirectories in Compile += baseDirectory.value / "format" / "src" / "main"
 unmanagedSourceDirectories in Test += baseDirectory.value / "format" / "src" / "test"

@@ -98,7 +98,7 @@ public class Riff {
     // whether or not column filters are enabled and should be written into header
     public static final String COLUMN_FILTER_ENABLED = "riff.column.filter.enabled";
     // column filters are enabled by default
-    public static final boolean COLUMN_FILTER_ENABLED_DEFAULT = false;
+    public static final boolean COLUMN_FILTER_ENABLED_DEFAULT = true;
 
     /**
      * Get compression codec from configuration.
