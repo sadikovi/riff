@@ -48,6 +48,7 @@ object ScanBenchmark {
 
   private def scanBenchmark(spark: SparkSession): Unit = {
     val valuesPerIteration = 1000000
+    val numPartitions = 50
 
     val fs = new Path("./temp").getFileSystem(spark.sparkContext.hadoopConfiguration)
     fs.delete(new Path("./temp/parquet-table"), true)
@@ -55,7 +56,7 @@ object ScanBenchmark {
     fs.delete(new Path("./temp/riff-table"), true)
 
     val df = spark.createDataFrame(
-      spark.sparkContext.parallelize(0 until valuesPerIteration, 40).map(row), schema)
+      spark.sparkContext.parallelize(0 until valuesPerIteration, numPartitions).map(row), schema)
     df.write.parquet("./temp/parquet-table")
     df.write.orc("./temp/orc-table")
     df.write.option("index", "col1,col3,col5").riff("./temp/riff-table")

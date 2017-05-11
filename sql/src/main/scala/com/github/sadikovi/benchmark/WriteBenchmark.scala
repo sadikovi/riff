@@ -47,32 +47,33 @@ object WriteBenchmark {
 
   private def writeBenchmark(spark: SparkSession): Unit = {
     val valuesPerIteration = 1000000
+    val numPartitions = 50
 
     val writeBenchmark = new Benchmark("SQL Write", valuesPerIteration)
     writeBenchmark.addCase("Parquet write, gzip") { iter =>
       spark.conf.set("spark.sql.parquet.compression.codec", "gzip")
       val df = spark.createDataFrame(
-        spark.sparkContext.parallelize(0 until valuesPerIteration, 40).map(row), schema)
+        spark.sparkContext.parallelize(0 until valuesPerIteration, numPartitions).map(row), schema)
       df.write.mode("overwrite").parquet("./temp/parquet-table")
     }
 
     writeBenchmark.addCase("ORC write, zlib/deflate") { iter =>
       val df = spark.createDataFrame(
-        spark.sparkContext.parallelize(0 until valuesPerIteration, 40).map(row), schema)
+        spark.sparkContext.parallelize(0 until valuesPerIteration, numPartitions).map(row), schema)
       df.write.mode("overwrite").option("compression", "ZLIB").orc("./temp/orc-table")
     }
 
     writeBenchmark.addCase("Riff write (+column filters), gzip") { iter =>
       spark.conf.set("spark.sql.riff.compression.codec", "gzip")
       val df = spark.createDataFrame(
-        spark.sparkContext.parallelize(0 until valuesPerIteration, 40).map(row), schema)
+        spark.sparkContext.parallelize(0 until valuesPerIteration, numPartitions).map(row), schema)
       df.write.mode("overwrite").option("index", "col1,col3,col5").riff("./temp/riff-table")
     }
 
     writeBenchmark.addCase("Riff write (+column filters), deflate") { iter =>
       spark.conf.set("spark.sql.riff.compression.codec", "deflate")
       val df = spark.createDataFrame(
-        spark.sparkContext.parallelize(0 until valuesPerIteration, 40).map(row), schema)
+        spark.sparkContext.parallelize(0 until valuesPerIteration, numPartitions).map(row), schema)
       df.write.mode("overwrite").option("index", "col1,col3,col5").riff("./temp/riff-table")
     }
 
