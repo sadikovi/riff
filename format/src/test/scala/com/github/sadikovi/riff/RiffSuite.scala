@@ -280,7 +280,11 @@ class RiffSuite extends UnitTestSuite {
 
   test("write/read, with gzip, check stripe info") {
     withTempDir { dir =>
+      // disable column filters for this write
+      val conf = new Configuration(false)
+      conf.set(Riff.Options.COLUMN_FILTER_ENABLED, "false")
       val writer = Riff.writer
+        .setConf(conf)
         .setCodec("gzip")
         .setRowsInStripe(1)
         .setTypeDesc(schema, "col2")
@@ -401,7 +405,11 @@ class RiffSuite extends UnitTestSuite {
 
   test("write/read, skip stripes because of statistics") {
     withTempDir { dir =>
+      // disable column filters for this write
+      val conf = new Configuration(false)
+      conf.set(Riff.Options.COLUMN_FILTER_ENABLED, "false")
       val writer = Riff.writer
+        .setConf(conf)
         .setCodec("gzip")
         .setRowsInStripe(1)
         .setTypeDesc(schema, "col2")
