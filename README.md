@@ -35,7 +35,7 @@ These options that you can specify when writing DataFrame by calling `df.write.o
 
 | Name | Description | Default |
 |------|-------------|---------|
-| `index` | Optinal setting to specify columns to index by Riff, if no columns provided, default row layout is used | `""`
+| `index` | Optional setting to specify columns to index by Riff; if no columns provided, default row layout is used | `<empty string>`
 
 ## Example
 Usage is very similar to other datasources for Spark, e.g. Parquet, ORC, JSON, etc. Riff allows to
