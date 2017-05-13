@@ -223,6 +223,7 @@ class DefaultSource
         // do projection if we have fewer fields to return
         new Iterator[InternalRow]() {
           private val td = reader.getTypeDescription()
+          private val ordinals = projectionFields.map { fieldName => td.position(fieldName) }
 
           override def hasNext: Boolean = {
             iter.hasNext()
@@ -230,10 +231,10 @@ class DefaultSource
 
           override def next: InternalRow = {
             val row = iter.next()
-            val proj = new ProjectionRow(projectionFields.length)
+            val proj = new ProjectionRow(ordinals.length)
             var i = 0
-            while (i < projectionFields.length) {
-              val spec = td.atPosition(td.position(projectionFields(i)))
+            while (i < ordinals.length) {
+              val spec = td.atPosition(ordinals(i))
               proj.update(i, row.get(spec.position(), spec.dataType()))
               i += 1
             }
