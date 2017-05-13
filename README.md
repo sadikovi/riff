@@ -115,3 +115,9 @@ spark-submit --class com.github.sadikovi.benchmark.ScanBenchmark \
 spark-submit --class com.github.sadikovi.benchmark.QueryBenchmark \
   target/scala-2.11/riff_2.11-0.1.0-SNAPSHOT.jar
 ```
+
+- Project benchmark
+```
+spark-submit --class com.github.sadikovi.benchmark.ProjectBenchmark \
+  target/scala-2.11/riff_2.11-0.1.0-SNAPSHOT.jar
+```

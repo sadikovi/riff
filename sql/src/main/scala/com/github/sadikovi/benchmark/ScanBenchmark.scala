@@ -61,61 +61,73 @@ object ScanBenchmark {
     df.write.orc("./temp/orc-table")
     df.write.option("index", "col1,col3,col5").riff("./temp/riff-table")
 
-    val scanBenchmark1 = new Benchmark("SQL scan (int, all fields)", valuesPerIteration)
-    // read is for default settings in Spark
+    val scanBenchmark1 = new Benchmark("SQL scan (no filter, all fields)", valuesPerIteration)
     scanBenchmark1.addCase("Parquet") { iter =>
-      spark.read.parquet("./temp/parquet-table")
-        .filter("col1 >= 10 and col1 <= 100000").foreach(_ => Unit)
+      spark.read.parquet("./temp/parquet-table").foreach(_ => Unit)
     }
-
     scanBenchmark1.addCase("ORC") { iter =>
-      spark.read.orc("./temp/orc-table")
-        .filter("col1 >= 10 and col1 <= 100000").foreach(_ => Unit)
+      spark.read.orc("./temp/orc-table").foreach(_ => Unit)
     }
-
     scanBenchmark1.addCase("Riff") { iter =>
-      spark.read.riff("./temp/riff-table")
-        .filter("col1 >= 10 and col1 <= 100000").foreach(_ => Unit)
+      spark.read.riff("./temp/riff-table").foreach(_ => Unit)
     }
 
-    val scanBenchmark2 = new Benchmark("SQL scan (string, all fields)", valuesPerIteration)
+    val scanBenchmark2 = new Benchmark("SQL scan (string filter, all fields)", valuesPerIteration)
     scanBenchmark2.addCase("Parquet") { iter =>
       spark.read.parquet("./temp/parquet-table")
-        .filter("col5 >= 'abc9 abc9 abc9' and col1 <= 'abc10000 abc10000 abc10000'")
+        .filter("col5 >= 'abc9 abc9 abc9' and col5 <= 'abc100000 abc100000 abc100000'")
         .foreach(_ => Unit)
     }
-
     scanBenchmark2.addCase("ORC") { iter =>
       spark.read.orc("./temp/orc-table")
-        .filter("col5 >= 'abc9 abc9 abc9' and col1 <= 'abc10000 abc10000 abc10000'")
+        .filter("col5 >= 'abc9 abc9 abc9' and col5 <= 'abc100000 abc100000 abc100000'")
         .foreach(_ => Unit)
     }
-
     scanBenchmark2.addCase("Riff") { iter =>
       spark.read.riff("./temp/riff-table")
-        .filter("col5 >= 'abc9 abc9 abc9' and col1 <= 'abc10000 abc10000 abc10000'")
+        .filter("col5 >= 'abc9 abc9 abc9' and col5 <= 'abc100000 abc100000 abc100000'")
         .foreach(_ => Unit)
     }
 
-    val scanBenchmark3 = new Benchmark("SQL scan (string, projection)", valuesPerIteration)
-    // read is for default settings in Spark
+    val scanBenchmark3 = new Benchmark("SQL scan (string filter, projection)", valuesPerIteration)
     scanBenchmark3.addCase("Parquet") { iter =>
       spark.read.parquet("./temp/parquet-table")
-        .filter("col5 >= 'abc9 abc9 abc9' and col1 <= 'abc10000 abc10000 abc10000'")
+        .filter("col5 >= 'abc9 abc9 abc9' and col5 <= 'abc100000 abc100000 abc100000'")
         .select("col2", "col4")
         .foreach(_ => Unit)
     }
-
     scanBenchmark3.addCase("ORC") { iter =>
       spark.read.orc("./temp/orc-table")
-        .filter("col5 >= 'abc9 abc9 abc9' and col1 <= 'abc10000 abc10000 abc10000'")
+        .filter("col5 >= 'abc9 abc9 abc9' and col5 <= 'abc100000 abc100000 abc100000'")
+        .select("col2", "col4")
+        .foreach(_ => Unit)
+    }
+    scanBenchmark3.addCase("Riff") { iter =>
+      spark.read.riff("./temp/riff-table")
+        .filter("col5 >= 'abc9 abc9 abc9' and col5 <= 'abc100000 abc100000 abc100000'")
         .select("col2", "col4")
         .foreach(_ => Unit)
     }
 
-    scanBenchmark3.addCase("Riff") { iter =>
+    val scanBenchmark4 = new Benchmark("SQL scan (int filter, projection)", valuesPerIteration)
+    // read is for default settings in Spark
+    scanBenchmark4.addCase("Parquet") { iter =>
+      spark.read.parquet("./temp/parquet-table")
+        .filter("col1 >= 9 and col1 <= 100000")
+        .select("col2", "col4")
+        .foreach(_ => Unit)
+    }
+
+    scanBenchmark4.addCase("ORC") { iter =>
+      spark.read.orc("./temp/orc-table")
+        .filter("col1 >= 9 and col1 <= 100000")
+        .select("col2", "col4")
+        .foreach(_ => Unit)
+    }
+
+    scanBenchmark4.addCase("Riff") { iter =>
       spark.read.riff("./temp/riff-table")
-        .filter("col5 >= 'abc9 abc9 abc9' and col1 <= 'abc10000 abc10000 abc10000'")
+        .filter("col1 >= 9 and col1 <= 100000")
         .select("col2", "col4")
         .foreach(_ => Unit)
     }
@@ -123,6 +135,7 @@ object ScanBenchmark {
     scanBenchmark1.run
     scanBenchmark2.run
     scanBenchmark3.run
+    scanBenchmark4.run
   }
 
   def main(args: Array[String]): Unit = {

@@ -61,29 +61,24 @@ object QueryBenchmark {
     df.write.orc("./temp/orc-table")
     df.write.option("index", "col1,col3,col5").riff("./temp/riff-table")
 
-    val queryBenchmark1 = new Benchmark("SQL Query (int field)", valuesPerIteration)
-    // read is for default settings in Spark
+    val queryBenchmark1 = new Benchmark("SQL Query (int filter, one record)", valuesPerIteration)
     queryBenchmark1.addCase("Parquet") { iter =>
       spark.read.parquet("./temp/parquet-table").filter("col1 = 520").collect
     }
-
     queryBenchmark1.addCase("ORC") { iter =>
       spark.read.orc("./temp/orc-table").filter("col1 = 520").collect
     }
-
     queryBenchmark1.addCase("Riff") { iter =>
       spark.read.riff("./temp/riff-table").filter("col1 = 520").collect
     }
 
-    val queryBenchmark2 = new Benchmark("SQL Query (string field)", valuesPerIteration)
+    val queryBenchmark2 = new Benchmark("SQL Query (string filter, one record)", valuesPerIteration)
     queryBenchmark2.addCase("Parquet") { iter =>
       spark.read.parquet("./temp/parquet-table").filter("col5 = 'abc520 abc520 abc520'").collect
     }
-
     queryBenchmark2.addCase("ORC") { iter =>
       spark.read.orc("./temp/orc-table").filter("col5 = 'abc520 abc520 abc520'").collect
     }
-
     queryBenchmark2.addCase("Riff") { iter =>
       spark.read.riff("./temp/riff-table").filter("col5 = 'abc520 abc520 abc520'").collect
     }
