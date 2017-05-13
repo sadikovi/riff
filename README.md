@@ -98,6 +98,8 @@ Run `sbt test` from project root. See `.travis.yml` for CI build matrix.
 Run `sbt package` to package project, next run `spark-submit` for following benchmarks. All data
 created during benchmarks is stored in `./temp` folder.
 
+Benchmark results are here (https://gist.github.com/sadikovi/41c07e9f76177820b7f9894c79a2efa1).
+
 - Write benchmark
 ```
 spark-submit --class com.github.sadikovi.benchmark.WriteBenchmark \
