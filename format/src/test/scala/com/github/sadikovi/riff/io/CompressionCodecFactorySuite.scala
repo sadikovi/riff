@@ -31,6 +31,7 @@ class CompressionCodecFactorySuite extends UnitTestSuite {
     CompressionCodecFactory.encode(CompressionCodecFactory.UNCOMPRESSED) should be (0)
     CompressionCodecFactory.encode(new ZlibCodec()) should be (1)
     CompressionCodecFactory.encode(new GzipCodec()) should be (2)
+    CompressionCodecFactory.encode(new SnappyCodec()) should be (3)
   }
 
   test("encode unknown codec") {
@@ -50,6 +51,7 @@ class CompressionCodecFactorySuite extends UnitTestSuite {
     assert(CompressionCodecFactory.decode(0) == CompressionCodecFactory.UNCOMPRESSED)
     assert(CompressionCodecFactory.decode(1).isInstanceOf[ZlibCodec])
     assert(CompressionCodecFactory.decode(2).isInstanceOf[GzipCodec])
+    assert(CompressionCodecFactory.decode(3).isInstanceOf[SnappyCodec])
   }
 
   test("decode unknown flag") {
@@ -63,10 +65,12 @@ class CompressionCodecFactorySuite extends UnitTestSuite {
     assert(CompressionCodecFactory.forShortName("none") == CompressionCodecFactory.UNCOMPRESSED)
     assert(CompressionCodecFactory.forShortName("deflate").isInstanceOf[ZlibCodec])
     assert(CompressionCodecFactory.forShortName("gzip").isInstanceOf[GzipCodec])
+    assert(CompressionCodecFactory.forShortName("snappy").isInstanceOf[SnappyCodec])
 
     assert(CompressionCodecFactory.forShortName("NONE") == CompressionCodecFactory.UNCOMPRESSED)
     assert(CompressionCodecFactory.forShortName("DEFLATE").isInstanceOf[ZlibCodec])
     assert(CompressionCodecFactory.forShortName("GZIP").isInstanceOf[GzipCodec])
+    assert(CompressionCodecFactory.forShortName("SNAPPY").isInstanceOf[SnappyCodec])
   }
 
   test("codec for unknown short name") {
@@ -79,6 +83,7 @@ class CompressionCodecFactorySuite extends UnitTestSuite {
   test("codec for file extension") {
     assert(CompressionCodecFactory.forFileExt(".deflate").isInstanceOf[ZlibCodec])
     assert(CompressionCodecFactory.forFileExt(".gz").isInstanceOf[GzipCodec])
+    assert(CompressionCodecFactory.forFileExt(".snappy").isInstanceOf[SnappyCodec])
 
     assert(CompressionCodecFactory.forFileExt("none") == CompressionCodecFactory.UNCOMPRESSED)
     assert(CompressionCodecFactory.forFileExt("") == CompressionCodecFactory.UNCOMPRESSED)
@@ -89,6 +94,8 @@ class CompressionCodecFactorySuite extends UnitTestSuite {
     CompressionCodecFactory.fileExtForShortName("DEFLATE") should be (".deflate")
     CompressionCodecFactory.fileExtForShortName("gzip") should be (".gz")
     CompressionCodecFactory.fileExtForShortName("GZIP") should be (".gz")
+    CompressionCodecFactory.fileExtForShortName("snappy") should be (".snappy")
+    CompressionCodecFactory.fileExtForShortName("SNAPPY") should be (".snappy")
     CompressionCodecFactory.fileExtForShortName("none") should be ("")
     CompressionCodecFactory.fileExtForShortName("NONE") should be ("")
   }

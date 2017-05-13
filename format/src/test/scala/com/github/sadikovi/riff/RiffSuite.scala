@@ -326,6 +326,20 @@ class RiffSuite extends UnitTestSuite {
 
   // == direct scan ==
 
+  test("write/read with snappy, direct scan") {
+    withTempDir { dir =>
+      val res = writeReadTest(new SnappyCodec(), dir / "file")
+      res.length should be (batch.length)
+      for (i <- 0 until res.length) {
+        val row1 = res(i)
+        val row2 = batch(i)
+        row1.getUTF8String(0) should be (row2.getUTF8String(1))
+        row1.getInt(1) should be (row2.getInt(0))
+        row1.getLong(2) should be (row2.getLong(2))
+      }
+    }
+  }
+
   test("write/read with gzip, direct scan") {
     withTempDir { dir =>
       val res = writeReadTest(new GzipCodec(), dir / "file")
@@ -369,6 +383,17 @@ class RiffSuite extends UnitTestSuite {
   }
 
   // == filter scan ==
+
+  test("write/read with snappy, filter scan") {
+    withTempDir { dir =>
+      val filter = eqt("col2", "def")
+      val res = writeReadTest(new SnappyCodec(), dir / "file", filter)
+      res.length should be (1)
+      res(0).getUTF8String(0) should be (UTF8String.fromString("def"))
+      res(0).getInt(1) should be (2)
+      res(0).getLong(2) should be (2L)
+    }
+  }
 
   test("write/read with gzip, filter scan") {
     withTempDir { dir =>

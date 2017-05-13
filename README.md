@@ -24,7 +24,7 @@ running `spark.conf.set("option", "value")`.
 
 | Name | Description | Default |
 |------|-------------|---------|
-| `spark.sql.riff.compression.codec` | Compression codec to use for riff (`none`, `gzip`, `deflate`) | `deflate`
+| `spark.sql.riff.compression.codec` | Compression codec to use for riff (`none`, `snappy`, `gzip`, `deflate`) | `deflate`
 | `spark.sql.riff.stripe.rows` | Number of rows to keep per stripe | `10000`
 | `spark.sql.riff.column.filter.enabled` | When enabled, write column filters in addition to min/max/null statistics (`true`, `false`) | `true`
 | `spark.sql.riff.buffer.size` | Buffer size in bytes for out/in stream | `256 * 1024`
