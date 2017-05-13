@@ -77,6 +77,13 @@ object WriteBenchmark {
       df.write.mode("overwrite").option("index", "col1,col3,col5").riff("./temp/riff-table")
     }
 
+    writeBenchmark.addCase("Riff write (+column filters), snappy") { iter =>
+      spark.conf.set("spark.sql.riff.compression.codec", "snappy")
+      val df = spark.createDataFrame(
+        spark.sparkContext.parallelize(0 until valuesPerIteration, numPartitions).map(row), schema)
+      df.write.mode("overwrite").option("index", "col1,col3,col5").riff("./temp/riff-table")
+    }
+
     writeBenchmark.run
   }
 

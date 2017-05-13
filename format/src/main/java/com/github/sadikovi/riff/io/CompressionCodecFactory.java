@@ -40,6 +40,10 @@ public class CompressionCodecFactory {
   public static final String GZIP_FILE_EXTENSION = ".gz";
   public static final String GZIP_SHORT_NAME = "gzip";
   public static final byte GZIP_ENCODE_FLAG = 2;
+  // constants for snappy codec
+  public static final String SNAPPY_FILE_EXTENSION = ".snappy";
+  public static final String SNAPPY_SHORT_NAME = "snappy";
+  public static final byte SNAPPY_ENCODE_FLAG = 3;
 
   private CompressionCodecFactory() { }
 
@@ -53,6 +57,7 @@ public class CompressionCodecFactory {
     if (codec == UNCOMPRESSED) return UNCOMPRESSED_ENCODE_FLAG;
     if (codec instanceof ZlibCodec) return ZLIB_ENCODE_FLAG;
     if (codec instanceof GzipCodec) return GZIP_ENCODE_FLAG;
+    if (codec instanceof SnappyCodec) return SNAPPY_ENCODE_FLAG;
     throw new UnsupportedOperationException("Unknown codec: " + codec);
   }
 
@@ -66,6 +71,7 @@ public class CompressionCodecFactory {
     // return zlib codec with default settings
     if (flag == ZLIB_ENCODE_FLAG) return new ZlibCodec();
     if (flag == GZIP_ENCODE_FLAG) return new GzipCodec();
+    if (flag == SNAPPY_ENCODE_FLAG) return new SnappyCodec();
     throw new UnsupportedOperationException("Unknown codec flag: " + flag);
   }
 
@@ -80,6 +86,8 @@ public class CompressionCodecFactory {
         return new ZlibCodec();
       case GZIP_SHORT_NAME:
         return new GzipCodec();
+      case SNAPPY_SHORT_NAME:
+        return new SnappyCodec();
       case UNCOMPRESSED_SHORT_NAME:
         return UNCOMPRESSED;
       default:
@@ -90,7 +98,7 @@ public class CompressionCodecFactory {
   /**
    * Get codec for file extension.
    * If extension is unknown uncompressed codec is returned.
-   * @param ext file extension, e.g. ".gz", ".deflate"
+   * @param ext file extension, e.g. ".gz", ".deflate", ".snappy"
    * @return compression codec
    */
   public static CompressionCodec forFileExt(String ext) {
@@ -99,6 +107,8 @@ public class CompressionCodecFactory {
         return new ZlibCodec();
       case GZIP_FILE_EXTENSION:
         return new GzipCodec();
+      case SNAPPY_FILE_EXTENSION:
+        return new SnappyCodec();
       default:
         return UNCOMPRESSED;
     }
@@ -116,6 +126,8 @@ public class CompressionCodecFactory {
         return ZLIB_FILE_EXTENSION;
       case GZIP_SHORT_NAME:
         return GZIP_FILE_EXTENSION;
+      case SNAPPY_SHORT_NAME:
+        return SNAPPY_FILE_EXTENSION;
       case UNCOMPRESSED_SHORT_NAME:
         return UNCOMPRESSED_FILE_EXTENSION;
       default:
