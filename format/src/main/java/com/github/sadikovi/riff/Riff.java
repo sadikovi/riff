@@ -23,6 +23,8 @@
 package com.github.sadikovi.riff;
 
 import java.io.IOException;
+import java.util.Iterator;
+import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -225,13 +227,20 @@ public class Riff {
     }
 
     /**
-     * Set configuration.
-     * This replaces current instance configuration.
+     * Set configuration and copies all keys from previous configuration into new one;
+     * the motivation is that configuration might set additional resources.
      * @param conf configuration, must not be null
      * @return this instance
      */
     public T setConf(Configuration conf) {
       if (conf == null) throw new NullPointerException("Configuration is null");
+      // we should set keys from previous configuration only if they do not exist
+      // unfortunately, cannot use `addResource` because of compilation errors
+      Iterator<Map.Entry<String, String>> iter = this.conf.iterator();
+      while (iter.hasNext()) {
+        Map.Entry<String, String> entry = iter.next();
+        conf.setIfUnset(entry.getKey(), entry.getValue());
+      }
       this.conf = conf;
       return this.instance;
     }

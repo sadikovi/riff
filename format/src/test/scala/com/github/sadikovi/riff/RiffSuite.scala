@@ -137,6 +137,39 @@ class RiffSuite extends UnitTestSuite {
     }
   }
 
+  test("set conf should include previously set options") {
+    withTempDir { dir =>
+      val conf = new Configuration()
+      val writer = Riff.writer
+        .setTypeDesc(StructType(StructField("a", IntegerType) :: Nil))
+        .setCodec("gzip")
+        .setRowsInStripe(128)
+        .setBufferSize(4 * 1024)
+        .setConf(conf)
+        .create(dir / "path")
+      writer.numRowsInStripe should be (128)
+      writer.bufferSize should be (4 * 1024)
+      writer.codec.isInstanceOf[GzipCodec] should be (true)
+    }
+  }
+
+  test("set conf should overwrite previously set options") {
+    withTempDir { dir =>
+      val conf = new Configuration()
+      conf.setInt(Riff.Options.STRIPE_ROWS, 1024)
+      val writer = Riff.writer
+        .setTypeDesc(StructType(StructField("a", IntegerType) :: Nil))
+        .setCodec("gzip")
+        .setRowsInStripe(128)
+        .setBufferSize(4 * 1024)
+        .setConf(conf)
+        .create(dir / "path")
+      writer.numRowsInStripe should be (1024)
+      writer.bufferSize should be (4 * 1024)
+      writer.codec.isInstanceOf[GzipCodec] should be (true)
+    }
+  }
+
   test("set codec manually") {
     withTempDir { dir =>
       val writer = Riff.writer
