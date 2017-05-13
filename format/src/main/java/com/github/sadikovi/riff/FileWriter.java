@@ -387,6 +387,10 @@ public class FileWriter {
       }
       // remove temporary data file
       fs.delete(tmpDataPath, false);
+      // release codec resources
+      if (codec != null) {
+        codec.close();
+      }
     }
     LOG.info("Finished writing file {}", filePath);
     writeFinished = true;

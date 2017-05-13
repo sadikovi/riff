@@ -265,6 +265,10 @@ public class Buffers {
         if (in != null) {
           in.close();
         }
+        // release codec resources
+        if (codec != null) {
+          codec.close();
+        }
       } catch (IOException ioe) {
         LOG.warn("Exception occuried during release of resources: {}", ioe.getMessage());
       } finally {
