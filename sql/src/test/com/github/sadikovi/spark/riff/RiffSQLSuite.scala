@@ -22,6 +22,8 @@
 
 package com.github.sadikovi.spark.riff
 
+import org.apache.spark.sql.functions._
+
 import com.github.sadikovi.testutil.implicits._
 import com.github.sadikovi.testutil.{SparkLocal, UnitTestSuite}
 
@@ -196,6 +198,65 @@ class RiffSQLSuite extends UnitTestSuite with SparkLocal {
       val left = spark.read.riff(dir.toString / "table").select("col4", "col2", "col1", "col5")
       val right = df.select("col4", "col2", "col1", "col5")
       checkAnswer(left, right)
+    }
+  }
+
+  //////////////////////////////////////////////////////////////
+  // == Write/read checks for compression codecs
+  //////////////////////////////////////////////////////////////
+
+  test("write/read dataframe, snappy") {
+    withSQLConf(RiffFileFormat.SQL_RIFF_COMPRESSION_CODEC -> "snappy") {
+      withTempDir { dir =>
+        val df = spark.range(1237).select(
+          col("id").as("col1"),
+          col("id").cast("string").as("col2"),
+          col("id").cast("bigint").as("col3"))
+        df.write.option("index", "col1").riff(dir.toString / "table")
+        // check that folder contains files with snappy extension
+        val ls = fs.listStatus(dir / "table").map(_.getPath.getName).filter { path =>
+          path.startsWith("part-") && path.contains(".snappy") }
+        ls.isEmpty should be (false)
+        // check result with input DataFrame
+        val res = spark.read.riff(dir.toString / "table")
+        checkAnswer(res, df)
+      }
+    }
+  }
+
+  test("write/read dataframe, gzip") {
+    withSQLConf(RiffFileFormat.SQL_RIFF_COMPRESSION_CODEC -> "gzip") {
+      withTempDir { dir =>
+        val df = spark.range(1237).select(
+          col("id").as("col1"),
+          col("id").cast("string").as("col2"),
+          col("id").cast("bigint").as("col3"))
+        df.write.option("index", "col1").riff(dir.toString / "table")
+        // check that folder contains files with gzip extension
+        val ls = fs.listStatus(dir / "table").map(_.getPath.getName).filter { path =>
+          path.startsWith("part-") && path.contains(".gz") }
+        ls.isEmpty should be (false)
+        val res = spark.read.riff(dir.toString / "table")
+        checkAnswer(res, df)
+      }
+    }
+  }
+
+  test("write/read dataframe, deflate") {
+    withSQLConf(RiffFileFormat.SQL_RIFF_COMPRESSION_CODEC -> "deflate") {
+      withTempDir { dir =>
+        val df = spark.range(1237).select(
+          col("id").as("col1"),
+          col("id").cast("string").as("col2"),
+          col("id").cast("bigint").as("col3"))
+        df.write.option("index", "col1").riff(dir.toString / "table")
+        // check that folder contains files with deflate extension
+        val ls = fs.listStatus(dir / "table").map(_.getPath.getName).filter { path =>
+          path.startsWith("part-") && path.contains(".deflate") }
+        ls.isEmpty should be (false)
+        val res = spark.read.riff(dir.toString / "table")
+        checkAnswer(res, df)
+      }
     }
   }
 }
