@@ -218,13 +218,13 @@ class DefaultSource
       val reader = Riff.reader.setConf(hadoopConf).create(path)
       val iter = reader.prepareRead(predicate)
       Option(TaskContext.get()).foreach(_.addTaskCompletionListener(_ => iter.close()))
-      // TODO: this is super inefficient, fix it by applying projection on indexed row
+      // TODO: this is inefficient, it would be better to apply projection directly on indexed row
       if (projectionFields.length < reader.getTypeDescription().size()) {
         // do projection if we have fewer fields to return
-        new Iterator[InternalRow]() {
-          private val td = reader.getTypeDescription()
-          private val ordinals = projectionFields.map { fieldName => td.position(fieldName) }
+        val td = reader.getTypeDescription()
+        val ordinals = projectionFields.map { fieldName => td.position(fieldName) }
 
+        new Iterator[InternalRow]() {
           override def hasNext: Boolean = {
             iter.hasNext()
           }
