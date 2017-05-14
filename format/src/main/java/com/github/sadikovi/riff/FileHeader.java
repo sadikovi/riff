@@ -113,7 +113,7 @@ public class FileHeader {
       fileStats[i].writeExternal(buffer);
       ++i;
     }
-    align(buffer);
+    buffer.align();
     LOG.info("Write header content of {} bytes", buffer.bytesWritten());
     // write magic 4 bytes + buffer length 4 bytes into output stream
     out.writeLong(((long) MAGIC << 32) + buffer.bytesWritten());
@@ -133,6 +133,7 @@ public class FileHeader {
     int magic = (int) (meta >>> 32);
     if (magic != MAGIC) throw new IOException("Wrong magic: " + magic + " != " + MAGIC);
     int len = (int) (meta & 0x7fffffff);
+    LOG.info("Read header content of {} bytes", len);
     // read full header bytes
     ByteBuffer buffer = ByteBuffer.allocate(len);
     in.readFully(buffer.array(), buffer.arrayOffset(), buffer.limit());
@@ -157,15 +158,5 @@ public class FileHeader {
       ++i;
     }
     return new FileHeader(state, td, fileStats);
-  }
-
-  /**
-   * Method to align output buffer to 8-byte word alignment. Buffer is aligned in place.
-   * @param out output buffer
-   */
-  private static void align(OutputBuffer out) throws IOException {
-    if (out.bytesWritten() % 8 != 0) {
-      out.write(new byte[8 - (out.bytesWritten() % 8)]);
-    }
   }
 }

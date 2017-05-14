@@ -66,6 +66,17 @@ public class OutputBuffer extends ByteArrayOutputStream {
   }
 
   /**
+   * Method to align output buffer to 8-byte word alignment. Buffer is aligned in place.
+   * @param out output buffer
+   * @throws IOException
+   */
+  public void align() throws IOException {
+    if (size() % 8 != 0) {
+      write(new byte[8 - (size() % 8)]);
+    }
+  }
+
+  /**
    * Write current buffer into external output stream.
    * @param out sink output stream
    */
