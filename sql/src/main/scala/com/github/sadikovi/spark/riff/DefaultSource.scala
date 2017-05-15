@@ -157,7 +157,7 @@ class DefaultSource
           val headerFile = headerFileStatus.get.getPath
           val fs = headerFile.getFileSystem(hadoopConf)
           val reader = Riff.reader.setFileSystem(fs).setConf(hadoopConf).create(headerFile)
-          typeDescription = reader.readTypeDescription()
+          typeDescription = reader.readFileHeader().getTypeDescription()
       }
       Option(typeDescription).map(_.toStructType)
     }
@@ -219,9 +219,9 @@ class DefaultSource
       val iter = reader.prepareRead(predicate)
       Option(TaskContext.get()).foreach(_.addTaskCompletionListener(_ => iter.close()))
       // TODO: this is inefficient, it would be better to apply projection directly on indexed row
-      if (projectionFields.length < reader.getTypeDescription().size()) {
+      val td = reader.getFileHeader().getTypeDescription()
+      if (projectionFields.length < td.size()) {
         // do projection if we have fewer fields to return
-        val td = reader.getTypeDescription()
         val ordinals = projectionFields.map { fieldName => td.position(fieldName) }
 
         new Iterator[InternalRow]() {

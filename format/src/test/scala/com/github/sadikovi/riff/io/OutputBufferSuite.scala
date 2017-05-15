@@ -154,4 +154,22 @@ class OutputBufferSuite extends UnitTestSuite {
       9, 8, 7, 6, 5, 4, 3, 2
     ))
   }
+
+  test("output buffer - align") {
+    var buf = new OutputBuffer()
+    buf.align()
+    buf.bytesWritten() should be (0)
+
+    buf = new OutputBuffer()
+    buf.writeInt(1)
+    buf.bytesWritten() should be (4)
+    buf.align()
+    buf.bytesWritten() should be (8)
+
+    buf = new OutputBuffer()
+    buf.write(Array[Byte](1, 2, 3, 4, 5, 6, 7))
+    buf.bytesWritten() should be (7)
+    buf.align()
+    buf.bytesWritten() should be (8)
+  }
 }

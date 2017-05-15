@@ -105,7 +105,7 @@ public class Metadata {
       // infer metadata path and read header file
       FileReader reader = new FileReader(fs, conf, filepath);
       this.fs = fs;
-      this.metadata = new Metadata(reader.readTypeDescription());
+      this.metadata = new Metadata(reader.readFileHeader().getTypeDescription());
       reader = null;
     }
 

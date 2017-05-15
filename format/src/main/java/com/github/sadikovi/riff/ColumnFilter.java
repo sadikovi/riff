@@ -22,7 +22,6 @@
 
 package com.github.sadikovi.riff;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
@@ -34,6 +33,7 @@ import org.apache.spark.sql.types.StringType;
 import org.apache.spark.unsafe.types.UTF8String;
 import org.apache.spark.util.sketch.BloomFilter;
 
+import com.github.sadikovi.riff.io.ByteBufferStream;
 import com.github.sadikovi.riff.io.OutputBuffer;
 
 /**
@@ -259,17 +259,14 @@ public abstract class ColumnFilter {
       // we have to create separate buffer to write bytes so we can read from byte buffer
       OutputBuffer tmp = new OutputBuffer();
       filter.writeTo(tmp);
-      buffer.writeInt(tmp.bytesWritten());
       buffer.writeBytes(tmp.array());
     }
 
     @Override
     protected void readState(ByteBuffer buffer) throws IOException {
-      int len = buffer.getInt();
-      ByteArrayInputStream in = new ByteArrayInputStream(buffer.array(),
-        buffer.arrayOffset() + buffer.position(), len);
+      // buffer is updated by stream
+      ByteBufferStream in = new ByteBufferStream(buffer);
       filter = BloomFilter.readFrom(in);
-      buffer.position(buffer.position() + len);
     }
 
     @Override

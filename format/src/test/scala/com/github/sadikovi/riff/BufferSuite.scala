@@ -114,7 +114,7 @@ class BufferSuite extends UnitTestSuite {
   }
 
   test("initialize empty row buffer with null stream") {
-    val rowbuf = Buffers.emptyRowBuffer()
+    val rowbuf = Buffers.emptyRowBuffer(null)
     rowbuf.hasNext should be (false)
     val err = intercept[NoSuchElementException] {
       rowbuf.next

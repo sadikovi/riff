@@ -201,30 +201,6 @@ public class FileWriter {
   }
 
   /**
-   * Write global header.
-   * Encode additional information in output stream for flags, such as compression codec.
-   * Right now we write 8 bytes for additional data.
-   * @param out output stream to write into
-   * @throws IOException
-   */
-  private void writeHeader(FSDataOutputStream out) throws IOException {
-    // header consists of 16 bytes - 4 bytes magic and 12 bytes state
-    OutputBuffer dataHeader = new OutputBuffer();
-    dataHeader.writeBytes(Riff.MAGIC.getBytes());
-    // write state flags:
-    byte[] state = new byte[12];
-    // [0] - compression codec
-    state[0] = Riff.encodeCompressionCodec(codec);
-    dataHeader.write(state);
-    // check total number of bytes for header
-    if (dataHeader.bytesWritten() != 16) {
-      throw new IOException("Invalid number of bytes written - expected 16, got " +
-        dataHeader.bytesWritten());
-    }
-    dataHeader.writeExternal(out);
-  }
-
-  /**
    * Prepare writer. This method initializes stripes, statistics and counters.
    * @throws IOException
    */
@@ -318,18 +294,6 @@ public class FileWriter {
       temporaryStream = null;
       LOG.info("Finished writing temporary data file {}", tmpDataPath);
 
-      // write complete file
-      LOG.debug("Write file header");
-      outputStream = fs.create(filePath, false, hdfsBufferSize);
-      writeHeader(outputStream);
-      // write type description
-      td.writeTo(outputStream);
-
-      LOG.debug("Write file metadata");
-      // buffer stores content of the entire header file content, when being read, this should be
-      // loaded into byte buffer
-      OutputBuffer buffer = new OutputBuffer();
-
       LOG.debug("Merge stripe statistics");
       // combine all statistics for a file
       Statistics[] fileStats = createStatistics(td);
@@ -341,34 +305,25 @@ public class FileWriter {
         }
       }
 
-      // we write content in 2 parts:
-      // 1. Write file statistics, this is done to evaluate predicate state on global file stats,
-      // and skip if necessary
-      // 2. Write the rest of the content, right now this includes stripe information only. This
-      // is only loaded if actual data is required for reads
-
-      // 1. Write file statistics
-      buffer.writeInt(fileStats.length);
-      for (int i = 0; i < fileStats.length; i++) {
-        LOG.info("Writing file statistics {}", fileStats[i]);
-        fileStats[i].writeExternal(buffer);
-      }
-      outputStream.writeInt(buffer.bytesWritten());
-      buffer.writeExternal(outputStream);
-
-      // 2. Write stripe information
-      buffer.reset();
-      LOG.info("Writing {} stripes", stripes.size());
-      buffer.writeInt(stripes.size());
+      // write complete file
+      LOG.debug("Write file header");
+      outputStream = fs.create(filePath, false, hdfsBufferSize);
+      FileHeader fileHeader = new FileHeader(td, fileStats);
+      fileHeader.setState(0, Riff.encodeCompressionCodec(codec));
+      fileHeader.writeTo(outputStream);
+      // write stripe information
+      OutputBuffer buffer = new OutputBuffer();
+      LOG.info("Write {} stripes", stripes.size());
       // when we save stripes they contain relative offset to the first stripe, when reading each
       // stripe, we would correct on current stream position.
-      long offset = outputStream.getPos();
       for (int i = 0; i < stripes.size(); i++) {
         stripes.get(i).writeExternal(buffer);
       }
       // flush buffer into output stream, close output stream similar to writing temporary data file
       // and report when it is done. In case of exceptions out will be closed in `finally` block
-      outputStream.writeInt(buffer.bytesWritten());
+      buffer.align();
+      LOG.info("Write metadata content of {} bytes", buffer.bytesWritten());
+      outputStream.writeLong(((long) buffer.bytesWritten() << 32) + stripes.size());
       buffer.writeExternal(outputStream);
       // write bytes from temporary data path into final file; we use append stream to do it more
       // or less efficiently.
@@ -430,7 +385,6 @@ public class FileWriter {
     Statistics[] stats = new Statistics[td.fields().length];
     for (int i = 0; i < td.fields().length; i++) {
       stats[i] = Statistics.sqlTypeToStatistics(td.fields()[i].dataType());
-      LOG.debug("Create statistics {} for field {}", stats[i], td.fields()[i]);
     }
     return stats;
   }
@@ -464,7 +418,6 @@ public class FileWriter {
     for (int i = 0; i < td.fields().length; i++) {
       if (td.fields()[i].isIndexed()) {
         filters[i] = ColumnFilter.sqlTypeToColumnFilter(td.fields()[i].dataType(), stripeRows);
-        LOG.debug("Create filter {} for indexed field {}", filters[i], td.fields()[i]);
       } else {
         filters[i] = ColumnFilter.noopFilter();
       }
