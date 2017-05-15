@@ -330,7 +330,8 @@ class RiffSuite extends UnitTestSuite {
 
       val reader = Riff.reader.create(dir / "file")
       val rowbuf = reader.prepareRead().asInstanceOf[Buffers.InternalRowBuffer]
-      rowbuf.offset() should be (612)
+      // previous 616 bytes are 8-byte aligned
+      rowbuf.offset() should be (616)
       rowbuf.getStripes().length should be (5)
 
       rowbuf.getStripes()(0).offset() should be (0)
@@ -483,7 +484,8 @@ class RiffSuite extends UnitTestSuite {
       rowbuf.getStripes().length should be (1)
       rowbuf.getStripes()(0).id() should be (1)
       // stripe has a relative offset
-      rowbuf.offset() should be (612)
+      // previous 616 bytes are 8-byte aligned
+      rowbuf.offset() should be (616)
       rowbuf.getStripes()(0).offset() should be (36)
       rowbuf.getStripes()(0).length() should be (36)
       rowbuf.getStripes()(0).hasStatistics() should be (true)

@@ -63,26 +63,6 @@ class FileReaderSuite extends UnitTestSuite {
     }
   }
 
-  test("check assertBytes") {
-    var msg = intercept[AssertionError] {
-      FileReader.assertBytes(null, null, "Test")
-    }.getMessage
-    msg should be ("Test: null != null")
-
-    msg = intercept[AssertionError] {
-      FileReader.assertBytes(new Array[Byte](4), new Array[Byte](2), "Test")
-    }.getMessage
-    msg should be ("Test: [0, 0, 0, 0] != [0, 0]")
-
-    msg = intercept[AssertionError] {
-      FileReader.assertBytes(Array[Byte](4), Array[Byte](2), "Test")
-    }.getMessage
-    msg should be ("Test: [4] != [2]")
-
-    // should be okay
-    FileReader.assertBytes(Array[Byte](1, 2, 3, 4), Array[Byte](1, 2, 3, 4), "Test")
-  }
-
   test("evaluate stripes for null predicate state") {
     val stripes = Array(
       new StripeInformation(1.toByte, 0L, 100, null),
@@ -166,30 +146,32 @@ class FileReaderSuite extends UnitTestSuite {
       reader1.prepareRead()
       var err = intercept[IOException] { reader1.prepareRead() }
       err.getMessage should be ("Reader reuse")
-      err = intercept[IOException] { reader1.readTypeDescription() }
+      err = intercept[IOException] { reader1.readFileHeader() }
       err.getMessage should be ("Reader reuse")
 
       // test readTypeDescription
       val reader2 = Riff.reader.create(dir / "path")
-      reader2.readTypeDescription()
-      err = intercept[IOException] { reader2.readTypeDescription() }
+      reader2.readFileHeader()
+      err = intercept[IOException] { reader2.readFileHeader() }
       err.getMessage should be ("Reader reuse")
       err = intercept[IOException] { reader2.prepareRead() }
       err.getMessage should be ("Reader reuse")
     }
   }
 
-  test("read type description") {
+  test("read file header") {
     withTempDir { dir =>
       val writer = Riff.writer.setTypeDesc(td).create(dir / "path")
       writer.prepareWrite()
       writer.finishWrite()
 
       val reader = Riff.reader.create(dir / "path")
-      val td1 = reader.readTypeDescription()
-      val td2 = reader.getTypeDescription()
-      td1 should be (td)
-      td2 should be (td)
+      val td1 = reader.readFileHeader()
+      val td2 = reader.getFileHeader()
+      td1.getTypeDescription() should be (td)
+      td2.getTypeDescription() should be (td)
+      td2.getFileStatistics() should be (td1.getFileStatistics())
+      td2.state(0) should be (td1.state(0))
     }
   }
 
@@ -197,9 +179,9 @@ class FileReaderSuite extends UnitTestSuite {
     withTempDir { dir =>
       val reader = Riff.reader.create(dir / "path")
       val err = intercept[IllegalStateException] {
-        reader.getTypeDescription()
+        reader.getFileHeader()
       }
-      assert(err.getMessage.contains("Type description is not set"))
+      assert(err.getMessage.contains("File header is not set"))
     }
   }
 }

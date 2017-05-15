@@ -71,6 +71,25 @@ public class FileHeader {
   }
 
   /**
+   * Initialize file header with type description and file statisitcs.
+   * State can be modified using `setState` method.
+   * @param td type description
+   * @param fileStats file statistics
+   */
+  public FileHeader(TypeDescription td, Statistics[] fileStats) {
+    this(new byte[STATE_LENGTH], td, fileStats);
+  }
+
+  /**
+   * Set state for position in byte array.
+   * @param pos position in array
+   * @param flag value to set
+   */
+  public void setState(int pos, byte flag) {
+    state[pos] = flag;
+  }
+
+  /**
    * Get type description.
    * @return type description
    */

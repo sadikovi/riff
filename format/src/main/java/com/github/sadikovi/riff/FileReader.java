@@ -69,8 +69,8 @@ public class FileReader {
   private final int bufferSize;
   // HDFS buffer size for opening stream
   private final int hdfsBufferSize;
-  // type description for this file reader
-  private TypeDescription td;
+  // file header
+  private FileHeader fileHeader;
   // whether or not read has been prepared, this flag is also set when reading type description
   private boolean readPrepared;
 
@@ -80,8 +80,8 @@ public class FileReader {
     this.filePath = fs.makeQualified(path);
     this.bufferSize = Riff.Options.power2BufferSize(conf);
     this.hdfsBufferSize = Riff.Options.hdfsBufferSize(conf);
-    // type description is only available after preparing read
-    this.td = null;
+    // file header is only available after preparing read
+    this.fileHeader = null;
     this.readPrepared = false;
   }
 
@@ -109,12 +109,9 @@ public class FileReader {
     try {
       in = fs.open(filePath, hdfsBufferSize);
       // read input stream and return file state
-      byte[] fileState = readHeader(in);
-      // read type description
-      td = TypeDescription.readFrom(in);
-      LOG.info("Found type description {}", td);
-      LOG.info("Read file state {}", Arrays.toString(fileState));
-      CompressionCodec codec = Riff.decodeCompressionCodec(fileState[0]);
+      fileHeader = FileHeader.readFrom(in);
+      LOG.debug("Found type description {}", fileHeader.getTypeDescription());
+      CompressionCodec codec = Riff.decodeCompressionCodec(fileHeader.state(0));
       if (codec == null) {
         LOG.debug("Found no compression codec, using uncompressed");
       } else {
@@ -123,49 +120,32 @@ public class FileReader {
       // initialize valid predicate state if necessary
       PredicateState state = null;
       if (filter != null) {
-        state = new PredicateState(filter, td);
-      }
-
-      // content of the header file is split into 2 parts:
-      // 1. File statistics
-      // 2. Stripe information for subsequent row buffer read
-      // To optimize reads we first load file statistics and resolve any filters provided. Depending
-      // on the outcome of evaluation, we either proceed reading stripes or return empty row buffer
-
-      // read file statistics content of the stream into byte buffer
-      final int len = in.readInt();
-      LOG.info("Read file statistics content of {} bytes", len);
-      ByteBuffer buffer = ByteBuffer.allocate(len);
-      // do not flip buffer after this operation as we write directly into underlying array
-      in.readFully(buffer.array(), buffer.arrayOffset(), buffer.limit());
-      // read file statistics
-      Statistics[] fileStats = new Statistics[buffer.getInt()];
-      for (int i = 0; i < fileStats.length; i++) {
-        fileStats[i] = Statistics.readExternal(buffer);
-        LOG.debug("Read file statistics {}", fileStats[i]);
+        state = new PredicateState(filter, fileHeader.getTypeDescription());
       }
       // if predicate state is available - evaluate tree and decide on whether or not to read the
       // file any further.
       boolean skipFile = false;
       if (state != null) {
         if (state.hasIndexedTreeOnly()) {
-          skipFile = !state.indexTree().evaluateState(fileStats);
+          skipFile = !state.indexTree().evaluateState(fileHeader.getFileStatistics());
         } else {
-          skipFile = !state.tree().evaluateState(fileStats);
+          skipFile = !state.tree().evaluateState(fileHeader.getFileStatistics());
         }
       }
       if (skipFile) {
         LOG.info("Skip file {}", filePath);
-        in.close();
-        return Buffers.emptyRowBuffer();
+        return Buffers.emptyRowBuffer(in);
       }
       // read stripe information until no bytes are available in buffer
-      final int contentLen = in.readInt();
+      long meta = in.readLong();
+      final int contentLen = (int) (meta >>> 32);
+      final int stripeLen = (int) (meta & 0x7fffffff);
       LOG.debug("Read content of {} bytes", contentLen);
-      buffer = ByteBuffer.allocate(contentLen);
+      LOG.debug("Found {} stripes in the file", stripeLen);
+      ByteBuffer buffer = ByteBuffer.allocate(contentLen);
       // do not flip buffer after this operation as we write directly into underlying array
       in.readFully(buffer.array(), buffer.arrayOffset(), buffer.limit());
-      StripeInformation[] stripes = new StripeInformation[buffer.getInt()];
+      StripeInformation[] stripes = new StripeInformation[stripeLen];
       for (int i = 0; i < stripes.length; i++) {
         stripes[i] = StripeInformation.readExternal(buffer);
       }
@@ -173,7 +153,8 @@ public class FileReader {
       stripes = evaluateStripes(stripes, state);
       LOG.debug("Prepare to read {} stripes", stripes.length);
       readPrepared = true;
-      return Buffers.prepareRowBuffer(in, stripes, td, codec, bufferSize, state);
+      return Buffers.prepareRowBuffer(in, stripes, fileHeader.getTypeDescription(), codec,
+        bufferSize, state);
     } catch (IOException ioe) {
       if (in != null) {
         in.close();
@@ -183,69 +164,40 @@ public class FileReader {
   }
 
   /**
-   * Type description for this reader.
-   * Only available after calling prepareRead() method, since it deserializes type description as
-   * part of that call, otherwise exception is thrown.
-   * @return type description
+   * File header information for this reader.
+   * Only available after calling prepareRead() or `readFileHeader` methods, since it file header
+   * as part of that call, otherwise exception is thrown.
+   * @return file header
    * @throws IllegalStateException if not set
    */
-  public TypeDescription getTypeDescription() {
-    if (td == null) {
-      throw new IllegalStateException("Type description is not set, did you call `prepareRead()` " +
-        "or `readTypeDescription` methods?");
+  public FileHeader getFileHeader() {
+    if (fileHeader == null) {
+      throw new IllegalStateException("File header is not set, did you call `prepareRead()` " +
+        "or `readFileHeader` methods?");
     }
-    return td;
+    return fileHeader;
   }
 
   /**
-   * Read type description from file header, type description is cached by this reader.
+   * Read file header that is cached by this reader for subsequent requests.
    * This method should be invoked separately from `prepareRead()`, and after this call type
-   * description is available with `getTypeDescription()` call.
-   *
-   * TODO: this method should be in sync with `readHeader`.
-   *
-   * @return type description and set it internally, so there is no need to call it again
+   * header is available with `getFileHeader()` call.
+   * @return file header
    * @throws FileNotFoundException if header file does not exist
    * @throws IOException if IO error occurs
    */
-  public TypeDescription readTypeDescription() throws FileNotFoundException, IOException {
+  public FileHeader readFileHeader() throws FileNotFoundException, IOException {
     if (readPrepared) throw new IOException("Reader reuse");
     FSDataInputStream in = null;
     try {
       in = fs.open(filePath, hdfsBufferSize);
-      // we skip header (4 bytes magic + 12 bytes state/flags)
-      in.skipBytes(4 + 12);
-      td = TypeDescription.readFrom(in);
+      fileHeader = FileHeader.readFrom(in);
       readPrepared = true;
-      return td;
+      return fileHeader;
     } finally {
       if (in != null) {
         in.close();
       }
-    }
-  }
-
-  /**
-   * Read header and return byte array of state.
-   * @param in input stream
-   * @return byte array with state information
-   * @throws IOException
-   */
-  private static byte[] readHeader(FSDataInputStream in) throws IOException {
-    // in total we read 16 bytes of header, this includes 4 bytes of magic and 12 bytes of state
-    try {
-      byte[] headerMetadata = new byte[16];
-      in.readFully(headerMetadata);
-      // copy and assert magic
-      byte[] magic1 = new byte[4];
-      System.arraycopy(headerMetadata, 0, magic1, 0, magic1.length);
-      assertBytes(magic1, Riff.MAGIC.getBytes(), "Wrong magic");
-      // copy state
-      byte[] state = new byte[12];
-      System.arraycopy(headerMetadata, magic1.length, state, 0, state.length);
-      return state;
-    } catch (Exception ioe) {
-      throw new IOException("Could not read header bytes", ioe);
     }
   }
 
@@ -300,27 +252,6 @@ public class FileReader {
     }
     Arrays.sort(stripes);
     return stripes;
-  }
-
-  /**
-   * Assert bytes based on provided expected bytes. Both arrays are assumed to be non-null.
-   * @param arr1 array of bytes, non-null
-   * @param arr2 array of bytes to compare to, non-null
-   * @throws AssertionError if byte arrays do not match
-   */
-  protected static void assertBytes(byte[] arr1, byte[] arr2, String prefix) {
-    boolean failed = arr1 == null || arr2 == null || arr1.length != arr2.length;
-    if (!failed) {
-      for (int i = 0; i < arr1.length; i++) {
-        failed = failed || arr1[i] != arr2[i];
-      }
-    }
-    // construct message only when assertion failed
-    if (failed) {
-      String msg = prefix + ": " + ((arr1 == null) ? "null" : Arrays.toString(arr1)) + " != " +
-        ((arr2 == null) ? "null" : Arrays.toString(arr2));
-      throw new AssertionError(msg);
-    }
   }
 
   /**

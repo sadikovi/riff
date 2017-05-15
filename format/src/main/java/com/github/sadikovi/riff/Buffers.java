@@ -82,11 +82,12 @@ public class Buffers {
   }
 
   /**
-   * Return empty row buffer directly without any stream.
+   * Return empty row buffer directly, buffer will close stream.
+   * @param in input stream, can be null
    * @return empty row buffer
    */
-  public static RowBuffer emptyRowBuffer() {
-    return new EmptyRowBuffer(null);
+  public static RowBuffer emptyRowBuffer(FSDataInputStream in) {
+    return new EmptyRowBuffer(in);
   }
 
   /**
