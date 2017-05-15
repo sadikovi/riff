@@ -22,7 +22,6 @@
 
 package com.github.sadikovi.riff;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
@@ -32,6 +31,7 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.github.sadikovi.riff.io.ByteBufferStream;
 import com.github.sadikovi.riff.io.OutputBuffer;
 
 /**
@@ -161,13 +161,10 @@ public class FileHeader {
     byte[] state = new byte[STATE_LENGTH];
     buffer.get(state);
     // read type description
-    // currently type description supports serde from stream, therefore we create byte array stream
-    // that wraps byte buffer, stream sets array directly, no copy is done
-    ByteArrayInputStream byteStream = new ByteArrayInputStream(buffer.array(),
-      buffer.arrayOffset() + buffer.position(), buffer.remaining());
+    // currently type description supports serde from stream, therefore we create stream that
+    // wraps byte buffer, stream updates position of buffer
+    ByteBufferStream byteStream = new ByteBufferStream(buffer);
     TypeDescription td = TypeDescription.readFrom(byteStream);
-    // update byte buffer position after reads
-    buffer.position(buffer.position() + (buffer.remaining() - byteStream.available()));
     // read file statistics
     Statistics[] fileStats = new Statistics[buffer.getInt()];
     int i = 0;

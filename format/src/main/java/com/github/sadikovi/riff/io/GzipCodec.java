@@ -22,11 +22,12 @@
 
 package com.github.sadikovi.riff.io;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
+
+import com.github.sadikovi.riff.io.ByteBufferStream;
 
 /**
  * Gzip compression codec.
@@ -72,8 +73,7 @@ public class GzipCodec implements CompressionCodec {
 
   @Override
   public void decompress(ByteBuffer in, ByteBuffer out) throws IOException {
-    ByteArrayInputStream stream = new ByteArrayInputStream(in.array(),
-      in.arrayOffset() + in.position(), in.remaining());
+    ByteBufferStream stream = new ByteBufferStream(in);
     GZIPInputStream compressedStream = new GZIPInputStream(stream, GZIP_BUFFER_SIZE);
     int bytes = 0;
     while (bytes != -1) {
