@@ -313,7 +313,7 @@ public class FileWriter {
       fileHeader.writeTo(outputStream);
       // write stripe information
       OutputBuffer buffer = new OutputBuffer();
-      LOG.info("Writing {} stripes", stripes.size());
+      LOG.info("Write {} stripes", stripes.size());
       // when we save stripes they contain relative offset to the first stripe, when reading each
       // stripe, we would correct on current stream position.
       for (int i = 0; i < stripes.size(); i++) {
@@ -322,6 +322,7 @@ public class FileWriter {
       // flush buffer into output stream, close output stream similar to writing temporary data file
       // and report when it is done. In case of exceptions out will be closed in `finally` block
       buffer.align();
+      LOG.info("Write metadata content of {} bytes", buffer.bytesWritten());
       outputStream.writeLong(((long) buffer.bytesWritten() << 32) + stripes.size());
       buffer.writeExternal(outputStream);
       // write bytes from temporary data path into final file; we use append stream to do it more

@@ -42,8 +42,6 @@ public class FileHeader {
   private static final Logger LOG = LoggerFactory.getLogger(FileHeader.class);
   // magic for Riff file, "RIFF" bytes in UTF8 charset
   private static final int MAGIC = 1380533830;
-  // default size in bytes for output buffer, selected to avoid buffer resizing
-  private static final int DEFAULT_OUTPUT_BUFFER_SIZE = 1024;
   // state length in bytes
   private static final int STATE_LENGTH = 8;
 
@@ -121,7 +119,7 @@ public class FileHeader {
    * @throws IOException
    */
   public void writeTo(FSDataOutputStream out) throws IOException {
-    OutputBuffer buffer = new OutputBuffer(DEFAULT_OUTPUT_BUFFER_SIZE);
+    OutputBuffer buffer = new OutputBuffer();
     // record file header
     buffer.write(state);
     td.writeTo(buffer);
