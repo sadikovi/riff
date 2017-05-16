@@ -99,7 +99,7 @@ public class Metadata {
      * Create instance of metadata wrtier for a Riff file.
      * @param fs file system to use
      * @param conf hadoop configuration with riff settings
-     * @param filepath Riff filepath to a valid header file
+     * @param filepath filepath to a valid Riff file
      */
     public MetadataWriter(FileSystem fs, Configuration conf, Path filepath) throws IOException {
       // infer metadata path and read header file

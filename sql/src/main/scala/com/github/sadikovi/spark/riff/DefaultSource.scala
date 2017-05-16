@@ -22,8 +22,6 @@
 
 package com.github.sadikovi.spark.riff
 
-import java.net.URI
-
 import scala.collection.JavaConverters._
 
 import org.apache.hadoop.conf.Configuration
@@ -137,8 +135,7 @@ class DefaultSource
         val hdfsPath = new Path(path)
         val fs = hdfsPath.getFileSystem(hadoopConf)
         val qualifiedPath = hdfsPath.makeQualified(fs.getUri, fs.getWorkingDirectory)
-        val reader = Riff.metadataReader.setFileSystem(fs).setConf(hadoopConf)
-          .create(qualifiedPath)
+        val reader = Riff.metadataReader(fs, hadoopConf, qualifiedPath)
         reader.readMetadataFile(true)
       }
 
@@ -156,7 +153,7 @@ class DefaultSource
           }
           val headerFile = headerFileStatus.get.getPath
           val fs = headerFile.getFileSystem(hadoopConf)
-          val reader = Riff.reader.setFileSystem(fs).setConf(hadoopConf).create(headerFile)
+          val reader = Riff.reader(fs, hadoopConf, headerFile)
           typeDescription = reader.readFileHeader().getTypeDescription()
       }
       Option(typeDescription).map(_.toStructType)
@@ -212,10 +209,9 @@ class DefaultSource
     // right now, riff does not support column pruning, hence we ignore required schema and just
     // return iterator of rows
     (file: PartitionedFile) => {
-      assert(file.partitionValues.numFields == partitionSchema.size)
-      val path = new Path(new URI(file.filePath))
+      val path = new Path(file.filePath)
       val hadoopConf = broadcastedHadoopConf.value.value
-      val reader = Riff.reader.setConf(hadoopConf).create(path)
+      val reader = Riff.reader(hadoopConf, path)
       val iter = reader.prepareRead(predicate)
       Option(TaskContext.get()).foreach(_.addTaskCompletionListener(_ => iter.close()))
       // TODO: this is inefficient, it would be better to apply projection directly on indexed row

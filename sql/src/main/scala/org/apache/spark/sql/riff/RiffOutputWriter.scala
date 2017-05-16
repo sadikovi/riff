@@ -99,10 +99,7 @@ class RiffOutputWriter(
     new Path(path)
   }
   // prepare riff writer, all options should be set through hadoop configuration
-  val writer = Riff.writer
-    .setTypeDesc(typeDesc)
-    .setConf(configuration)
-    .create(filepath)
+  val writer = Riff.writer(configuration, filepath, typeDesc)
   writer.prepareWrite()
 
   override def write(row: Row): Unit = {
