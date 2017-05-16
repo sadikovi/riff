@@ -33,11 +33,12 @@ class MetadataSuite extends UnitTestSuite {
   test("write metadata for a file with provided file path as output") {
     withTempDir { dir =>
       val schema = StructType(StructField("a", IntegerType) :: Nil)
-      val writer = Riff.writer.setTypeDesc(schema).create(dir / "file")
+      val td = new TypeDescription(schema)
+      val writer = Riff.writer(dir / "file", td)
       writer.prepareWrite()
       writer.finishWrite()
       // create metadata for a file
-      val mwriter = Riff.metadataWriter.create(dir / "file")
+      val mwriter = Riff.metadataWriter(dir / "file")
       mwriter.writeMetadataFile(dir / "file")
 
       fs.exists(dir / Metadata.METADATA_FILENAME) should be (true)
@@ -47,11 +48,12 @@ class MetadataSuite extends UnitTestSuite {
   test("write metadata for a file with provided file directory as output") {
     withTempDir { dir =>
       val schema = StructType(StructField("a", IntegerType) :: Nil)
-      val writer = Riff.writer.setTypeDesc(schema).create(dir / "file")
+      val td = new TypeDescription(schema)
+      val writer = Riff.writer(dir / "file", td)
       writer.prepareWrite()
       writer.finishWrite()
       // create metadata for a file
-      val mwriter = Riff.metadataWriter.create(dir / "file")
+      val mwriter = Riff.metadataWriter(dir / "file")
       mwriter.writeMetadataFile(dir)
 
       fs.exists(dir / Metadata.METADATA_FILENAME) should be (true)
@@ -61,14 +63,15 @@ class MetadataSuite extends UnitTestSuite {
   test("write/read metadata for a file") {
     withTempDir { dir =>
       val schema = StructType(StructField("a", IntegerType) :: Nil)
-      val writer = Riff.writer.setTypeDesc(schema).create(dir / "file")
+      val td = new TypeDescription(schema)
+      val writer = Riff.writer(dir / "file", td)
       writer.prepareWrite()
       writer.finishWrite()
       // create metadata for a file
-      val mwriter = Riff.metadataWriter.create(dir / "file")
+      val mwriter = Riff.metadataWriter(dir / "file")
       mwriter.writeMetadataFile(dir)
 
-      val mreader = Riff.metadataReader.create(dir)
+      val mreader = Riff.metadataReader(dir)
       val metadata = mreader.readMetadataFile(false)
 
       metadata.getTypeDescription should be (new TypeDescription(schema))
@@ -78,14 +81,15 @@ class MetadataSuite extends UnitTestSuite {
   test("write/read metadata for a file, direct path") {
     withTempDir { dir =>
       val schema = StructType(StructField("a", IntegerType) :: Nil)
-      val writer = Riff.writer.setTypeDesc(schema).create(dir / "file")
+      val td = new TypeDescription(schema)
+      val writer = Riff.writer(dir / "file", td)
       writer.prepareWrite()
       writer.finishWrite()
       // create metadata for a file
-      val mwriter = Riff.metadataWriter.create(dir / "file")
+      val mwriter = Riff.metadataWriter(dir / "file")
       mwriter.writeMetadataFile(dir)
 
-      val mreader = Riff.metadataReader.create(dir / Metadata.METADATA_FILENAME)
+      val mreader = Riff.metadataReader(dir / Metadata.METADATA_FILENAME)
       val metadata = mreader.readMetadataFile(false)
 
       metadata.getTypeDescription should be (new TypeDescription(schema))
@@ -94,7 +98,7 @@ class MetadataSuite extends UnitTestSuite {
 
   test("ignore metadata if file is not found in directory") {
     withTempDir { dir =>
-      val mreader = Riff.metadataReader.create(dir)
+      val mreader = Riff.metadataReader(dir)
       val metadata = mreader.readMetadataFile(true)
       metadata should be (null)
     }
@@ -102,7 +106,7 @@ class MetadataSuite extends UnitTestSuite {
 
   test("ignore metadata if file is not found, direct path") {
     withTempDir { dir =>
-      val mreader = Riff.metadataReader.create(dir / Metadata.METADATA_FILENAME)
+      val mreader = Riff.metadataReader(dir / Metadata.METADATA_FILENAME)
       val metadata = mreader.readMetadataFile(true)
       metadata should be (null)
     }
@@ -110,7 +114,7 @@ class MetadataSuite extends UnitTestSuite {
 
   test("fail to read metadata if file is not found and ignoreNotFound is false") {
     withTempDir { dir =>
-      val mreader = Riff.metadataReader.create(dir / Metadata.METADATA_FILENAME)
+      val mreader = Riff.metadataReader(dir / Metadata.METADATA_FILENAME)
       val err = intercept[IOException] {
         mreader.readMetadataFile(false)
       }

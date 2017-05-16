@@ -23,14 +23,10 @@
 package com.github.sadikovi.riff;
 
 import java.io.IOException;
-import java.util.Iterator;
-import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-
-import org.apache.spark.sql.types.StructType;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,9 +42,10 @@ import com.github.sadikovi.riff.io.CompressionCodecFactory;
  * Example of writing/reading simple file:
  * {{{
  * // writing ".gz" file
- * FileWriter writer = Riff.writer
- *   .setTypeDesc(structType, "indexField")
- *   .create(new org.apache.hadoop.fs.Path("file.gz"));
+ * org.apache.hadoop.conf.Configuration conf = ...
+ * org.apache.hadoop.fs.Path path = new org.apache.hadoop.fs.Path("file.gz");
+ * TypeDescription td = new TypeDescription(structType, indexFields);
+ * FileWriter writer = Riff.writer(conf, path, td);
  *
  * writer.prepareWrite();
  * while (rows.hasNext()) {
@@ -58,8 +55,7 @@ import com.github.sadikovi.riff.io.CompressionCodecFactory;
  *
  * // reading file
  * TreeNode filter = eqt("indexField", "abc");
- * FileReader reader = Riff.reader
- *   .create(new org.apache.hadoop.fs.Path("file.gz"));
+ * FileReader reader = Riff.reader(conf, new org.apache.hadoop.fs.Path("file.gz"));
  * RowBuffer rowbuf = reader.prepareRead(filter);
  * while (rowbuf.hasNext()) {
  *   process(rowbuf.next()); // user-specific processing of an InternalRow
@@ -72,8 +68,6 @@ import com.github.sadikovi.riff.io.CompressionCodecFactory;
  */
 public class Riff {
   private static final Logger LOG = LoggerFactory.getLogger(Riff.class);
-
-  public static final String MAGIC = "RIFF";
 
   /**
    * Internal riff options that can be set in hadoop configuration.
@@ -171,7 +165,7 @@ public class Riff {
    * @param path file path
    * @return temporary data path
    */
-  static Path makeDataPath(Path path) {
+  protected static Path makeDataPath(Path path) {
     // prefix file name with "." and append ".data" suffix
     return new Path(path.getParent(), new Path("." + path.getName() + ".data"));
   }
@@ -181,7 +175,7 @@ public class Riff {
    * @param codec compression codec, can be null
    * @return byte encoded flag
    */
-  static byte encodeCompressionCodec(CompressionCodec codec) {
+  protected static byte encodeCompressionCodec(CompressionCodec codec) {
     return CompressionCodecFactory.encode(codec);
   }
 
@@ -191,318 +185,195 @@ public class Riff {
    * @param flag byte flag
    * @return compression codec or null for uncompressed stream
    */
-  static CompressionCodec decodeCompressionCodec(byte flag) {
+  protected static CompressionCodec decodeCompressionCodec(byte flag) {
     return CompressionCodecFactory.decode(flag);
   }
 
   /**
-   * Base builder class.
-   * Provides access to set most of the options. For additional specific to write/read options see
-   * either [[WriterBuilder]] or [[ReaderBuilder]].
+   * Infer compression codec from file name.
+   * @param path path to the file
+   * @return compression codec or null for uncompressed
    */
-  protected static abstract class Builder<T, R> {
-    // instance to return
-    protected T instance;
-    // file system to use
-    protected FileSystem fs;
-    // internal configuration, used to set riff options, is not intended to hold other hadoop
-    // settings, but it can be set as such. It is recommended to use external hadoop configuration
-    // to initialize file system
-    protected Configuration conf;
-
-    protected Builder() {
-      this.fs = null;
-      this.conf = new Configuration();
-    }
-
-    /**
-     * Set file system.
-     * @param fs file system, must not be null
-     * @return this instance
-     */
-    public T setFileSystem(FileSystem fs) {
-      if (fs == null) throw new NullPointerException("File system is null");
-      this.fs = fs;
-      return this.instance;
-    }
-
-    /**
-     * Set configuration and copies all keys from previous configuration into new one;
-     * the motivation is that configuration might set additional resources.
-     * @param conf configuration, must not be null
-     * @return this instance
-     */
-    public T setConf(Configuration conf) {
-      if (conf == null) throw new NullPointerException("Configuration is null");
-      // we should set keys from previous configuration only if they do not exist
-      // unfortunately, cannot use `addResource` because of compilation errors
-      Iterator<Map.Entry<String, String>> iter = this.conf.iterator();
-      while (iter.hasNext()) {
-        Map.Entry<String, String> entry = iter.next();
-        conf.setIfUnset(entry.getKey(), entry.getValue());
-      }
-      this.conf = conf;
-      return this.instance;
-    }
-
-    /**
-     * Set buffer size in bytes.
-     * @param bytes buffer size
-     * @return this instance
-     */
-    public T setBufferSize(int bytes) {
-      this.conf.setInt(Options.BUFFER_SIZE, bytes);
-      return this.instance;
-    }
-
-    /**
-     * Set buffer size for Hadoop input or output stream.
-     * @param bytes buffer size
-     * @return this instance
-     */
-    public T setHadoopStreamBufferSize(int bytes) {
-      this.conf.setInt(Options.HDFS_BUFFER_SIZE, bytes);
-      return this.instance;
-    }
-
-    /**
-     * Set number of rows in stripe.
-     * @param rows number of rows
-     * @return this instance
-     */
-    public T setRowsInStripe(int rows) {
-      this.conf.setInt(Options.STRIPE_ROWS, rows);
-      return this.instance;
-    }
-
-    /**
-     * Create final instance of either writer or reader depending on param type for provided path.
-     * @param path path to a file for specified file system
-     * @return R instance
-     * @throws IOException if any IO error occurs
-     */
-    public abstract R create(Path path) throws IOException;
-
-    /**
-     * Create instance using path as string, done mainly for testing.
-     * @param path string path
-     * @return R instance
-     * @throws IOException
-     */
-    public R create(String path) throws IOException {
-      return create(new Path(path));
-    }
-  }
-
-  /**
-   * Writer settings builder.
-   */
-  public static class WriterBuilder extends Builder<WriterBuilder, FileWriter> {
-    private CompressionCodec codec;
-    private boolean codecSet;
-    private TypeDescription td;
-
-    protected WriterBuilder() {
-      super();
-      this.instance = this;
-      this.codec = null;
-      this.codecSet = false;
-      this.td = null;
-    }
-
-    /**
-     * Force compression codec for writer.
-     * @param codecName string name of the codec {DEFLATE, GZIP, NONE}
-     * @return this instance
-     */
-    public WriterBuilder setCodec(String codecName) {
-      return setCodec(CompressionCodecFactory.forShortName(codecName));
-    }
-
-    /**
-     * Force compression codec for writer.
-     * @param codec codec to use, can be null
-     * @return this instance
-     */
-    public WriterBuilder setCodec(CompressionCodec codec) {
-      this.codec = codec;
-      this.codecSet = true;
-      return this;
-    }
-
-    /**
-     * Enable or disable column filters when writing file.
-     * They are used by reader automatically if available.
-     * @param enable true to write filters, false otherwise
-     * @return this instance
-     */
-    public WriterBuilder enableColumnFilter(boolean enable) {
-      this.conf.setBoolean(Options.COLUMN_FILTER_ENABLED, enable);
-      return this;
-    }
-
-    /**
-     * Set type description for writer.
-     * @param td type description to use, must not be null
-     * @return this instance
-     */
-    public WriterBuilder setTypeDesc(TypeDescription td) {
-      if (td == null) throw new NullPointerException("Type description is null");
-      this.td = td;
-      return this;
-    }
-
-    /**
-     * Set type description using Spark SQL schema and list of index fields that should be
-     * indexed in this schema.
-     * @param schema Spark SQL schema
-     * @param indexFields list of potential index fields
-     * @return this instance
-     */
-    public WriterBuilder setTypeDesc(StructType schema, String... indexFields) {
-      return setTypeDesc(new TypeDescription(schema, indexFields));
-    }
-
-    /**
-     * Set type description using Spark SQL schema.
-     * This method does not set any index fields for schema.
-     * @param schema Spark SQL schema
-     * @return this instance
-     */
-    public WriterBuilder setTypeDesc(StructType schema) {
-      return setTypeDesc(new TypeDescription(schema));
-    }
-
-    /**
-     * Infer compression codec from file name.
-     * @param path path to the file
-     * @return compression codec or null for uncompressed
-     */
-    protected CompressionCodec inferCompressionCodec(Path path) {
-      String name = path.getName();
-      int start = name.lastIndexOf('.');
-      String ext = (start <= 0) ? "" : name.substring(start);
-      return CompressionCodecFactory.forFileExt(ext);
-    }
-
-    @Override
-    public FileWriter create(Path path) throws IOException {
-      // compression codec is either set manually through methods or through configuration
-      // first, we check if is set manullay, then whether or not it is set in configuration and
-      // then fall back to the inferring codec from file extension
-      if (!codecSet) {
-        if (Options.compressionCodecName(conf) != null) {
-          codec = CompressionCodecFactory.forShortName(Options.compressionCodecName(conf));
-        } else {
-          codec = inferCompressionCodec(path);
-        }
-      }
-      // set file system if none found
-      if (fs == null) {
-        fs = path.getFileSystem(conf);
-      }
-      // type description is required
-      if (td == null) {
-        throw new RuntimeException("Type description is not set");
-      }
-      FileWriter writer = new FileWriter(fs, conf, path, td, codec);
-      LOG.info("Created writer {}", writer);
-      return writer;
-    }
-  }
-
-  /**
-   * Reader settings builder.
-   */
-  public static class ReaderBuilder extends Builder<ReaderBuilder, FileReader> {
-    protected ReaderBuilder() {
-      super();
-      this.instance = this;
-    }
-
-    @Override
-    public FileReader create(Path path) throws IOException {
-      // set file system if none found
-      if (fs == null) {
-        fs = path.getFileSystem(conf);
-      }
-      FileReader reader = new FileReader(fs, conf, path);
-      LOG.info("Created reader {}", reader);
-      return reader;
-    }
-  }
-
-  /**
-   * Metadata writer settings builder.
-   */
-  public static class MetadataWriterBuilder
-      extends Builder<MetadataWriterBuilder, Metadata.MetadataWriter> {
-    protected MetadataWriterBuilder() {
-      super();
-      this.instance = this;
-    }
-
-    @Override
-    public Metadata.MetadataWriter create(Path path) throws IOException {
-      // set file system if none found
-      if (fs == null) {
-        fs = path.getFileSystem(conf);
-      }
-      return new Metadata.MetadataWriter(fs, conf, path);
-    }
-  }
-
-  /**
-   * Metadata reader settings builder.
-   */
-  public static class MetadataReaderBuilder
-      extends Builder<MetadataReaderBuilder, Metadata.MetadataReader> {
-    protected MetadataReaderBuilder() {
-      super();
-      this.instance = this;
-    }
-
-    @Override
-    public Metadata.MetadataReader create(Path path) throws IOException {
-      // set file system if none found
-      if (fs == null) {
-        fs = path.getFileSystem(conf);
-      }
-      return new Metadata.MetadataReader(fs, conf, path);
-    }
+  protected static CompressionCodec inferCompressionCodec(Path path) {
+    String name = path.getName();
+    int start = name.lastIndexOf('.');
+    String ext = (start <= 0) ? "" : name.substring(start);
+    return CompressionCodecFactory.forFileExt(ext);
   }
 
   private Riff() { /* no-op */ }
 
+  //////////////////////////////////////////////////////////////
+  // Public API for file writer
+  //////////////////////////////////////////////////////////////
+
   /**
    * Get new writer.
-   * @return writer builder
+   * Compression codec, if not set, is inferred from the file path.
+   * @param fs file system to use
+   * @param conf configuration with Riff options
+   * @param path path to write
+   * @param td type description (schema)
+   * @return file writer
    */
-  public static WriterBuilder writer() {
-    return new WriterBuilder();
+  public static FileWriter writer(
+      FileSystem fs,
+      Configuration conf,
+      Path path,
+      TypeDescription td) {
+    // check if compression codec is set in configuration, otherwise fall back to the inferring
+    // codec from file extension
+    CompressionCodec codec;
+    if (Options.compressionCodecName(conf) != null) {
+      codec = CompressionCodecFactory.forShortName(Options.compressionCodecName(conf));
+    } else {
+      codec = inferCompressionCodec(path);
+    }
+    try {
+      return new FileWriter(fs, conf, path, td, codec);
+    } catch (IOException err) {
+      throw new RuntimeException("Error occured: " + err.getMessage(), err);
+    }
+  }
+
+  /**
+   * Get new writer.
+   * Compression codec, if not set, is inferred from the file path.
+   * @param conf configuration with Riff options
+   * @param path path to write
+   * @param td type description
+   * @return file writer
+   */
+  public static FileWriter writer(Configuration conf, Path path, TypeDescription td) {
+    try {
+      return writer(path.getFileSystem(conf), conf, path, td);
+    } catch (IOException err) {
+      throw new RuntimeException("Error occured: " + err.getMessage(), err);
+    }
+  }
+
+  /**
+   * Get new writer.
+   * Compression codec, if not set, is inferred from the file path.
+   * @param path path to write
+   * @param td type description
+   * @return file writer
+   */
+  public static FileWriter writer(Path path, TypeDescription td) {
+    return writer(new Configuration(), path, td);
+  }
+
+  //////////////////////////////////////////////////////////////
+  // Public API for file reader
+  //////////////////////////////////////////////////////////////
+
+  /**
+   * Get new reader.
+   * @param fs file system to use
+   * @param conf configuration with Riff options
+   * @param path file path to read
+   * @return file reader
+   */
+  public static FileReader reader(FileSystem fs, Configuration conf, Path path) {
+    return new FileReader(fs, conf, path);
   }
 
   /**
    * Get new reader.
-   * @return reader builder
+   * @param conf configuration with Riff options
+   * @param path file path to read
+   * @return file reader
    */
-  public static ReaderBuilder reader() {
-    return new ReaderBuilder();
+  public static FileReader reader(Configuration conf, Path path) {
+    try {
+      return reader(path.getFileSystem(conf), conf, path);
+    } catch (IOException err) {
+      throw new RuntimeException("Error occured: " + err.getMessage(), err);
+    }
   }
 
   /**
-   * Get new metadata writer.
-   * @return metadata writer builder
+   * Get new reader.
+   * @param path file path to read
+   * @return file reader
    */
-  public static MetadataWriterBuilder metadataWriter() {
-    return new MetadataWriterBuilder();
+  public static FileReader reader(Path path) {
+    return reader(new Configuration(), path);
+  }
+
+  //////////////////////////////////////////////////////////////
+  // Public API for metadata write/read
+  //////////////////////////////////////////////////////////////
+
+  /**
+   * Get metadata reader.
+   * @param fs file system to use
+   * @param conf configuration with Riff options
+   * @param metadataPath path to the metadata file or directory where metadata is stored
+   */
+  public static Metadata.MetadataReader metadataReader(
+      FileSystem fs,
+      Configuration conf,
+      Path metadataPath) {
+    return new Metadata.MetadataReader(fs, conf, metadataPath);
   }
 
   /**
-   * Get new metadata reader.
-   * @return metadata reader builder
+   * Get metadata reader.
+   * @param conf configuration with Riff options
+   * @param metadataPath path to the metadata file or directory where metadata is stored
    */
-  public static MetadataReaderBuilder metadataReader() {
-    return new MetadataReaderBuilder();
+  public static Metadata.MetadataReader metadataReader(Configuration conf, Path metadataPath) {
+    try {
+      return metadataReader(metadataPath.getFileSystem(conf), conf, metadataPath);
+    } catch (IOException err) {
+      throw new RuntimeException("Error occured: " + err.getMessage(), err);
+    }
+  }
+
+  /**
+   * Get metadata reader.
+   * @param metadataPath path to the metadata file or directory where metadata is stored
+   */
+  public static Metadata.MetadataReader metadataReader(Path metadataPath) {
+    return metadataReader(new Configuration(), metadataPath);
+  }
+
+  /**
+   * Get metadata writer.
+   * @param fs file system to use
+   * @param conf hadoop configuration with riff settings
+   * @param filepath filepath to a valid Riff file
+   */
+  public static Metadata.MetadataWriter metadataWriter(
+      FileSystem fs,
+      Configuration conf,
+      Path filepath) {
+    try {
+      return new Metadata.MetadataWriter(fs, conf, filepath);
+    } catch (IOException err) {
+      throw new RuntimeException("Error occured: " + err.getMessage(), err);
+    }
+  }
+
+  /**
+   * Get metadata writer.
+   * @param conf hadoop configuration with riff settings
+   * @param filepath filepath to a valid Riff file
+   */
+  public static Metadata.MetadataWriter metadataWriter(Configuration conf, Path filepath) {
+    try {
+      return metadataWriter(filepath.getFileSystem(conf), conf, filepath);
+    } catch (IOException err) {
+      throw new RuntimeException("Error occured: " + err.getMessage(), err);
+    }
+  }
+
+  /**
+   * Get metadata writer.
+   * @param filepath filepath to a valid Riff file
+   */
+  public static Metadata.MetadataWriter metadataWriter(Path filepath) {
+    return metadataWriter(new Configuration(), filepath);
   }
 }

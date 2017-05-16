@@ -128,148 +128,86 @@ class RiffSuite extends UnitTestSuite {
     Riff.Options.columnFilterEnabled(conf) should be (true)
   }
 
-  test("fail writer if type description is not set") {
-    withTempDir { dir =>
-      val err = intercept[RuntimeException] {
-        Riff.writer.create(new Path(s"file:$dir"))
-      }
-      err.getMessage should be ("Type description is not set")
-    }
-  }
-
   test("set conf should include previously set options") {
     withTempDir { dir =>
+      val td = new TypeDescription(StructType(StructField("a", IntegerType) :: Nil))
       val conf = new Configuration()
-      val writer = Riff.writer
-        .setTypeDesc(StructType(StructField("a", IntegerType) :: Nil))
-        .setCodec("gzip")
-        .setRowsInStripe(128)
-        .setBufferSize(4 * 1024)
-        .setConf(conf)
-        .create(dir / "path")
+      conf.set(Riff.Options.COMPRESSION_CODEC, "gzip")
+      conf.setInt(Riff.Options.STRIPE_ROWS, 128)
+      conf.setInt(Riff.Options.BUFFER_SIZE, 4 * 1024)
+      val writer = Riff.writer(conf, dir / "path", td)
       writer.numRowsInStripe should be (128)
       writer.bufferSize should be (4 * 1024)
       writer.codec.isInstanceOf[GzipCodec] should be (true)
     }
   }
 
-  test("set conf should overwrite previously set options") {
+  test("set different codecs") {
+    val td = new TypeDescription(StructType(StructField("a", IntegerType) :: Nil))
+
     withTempDir { dir =>
       val conf = new Configuration()
-      conf.setInt(Riff.Options.STRIPE_ROWS, 1024)
-      val writer = Riff.writer
-        .setTypeDesc(StructType(StructField("a", IntegerType) :: Nil))
-        .setCodec("gzip")
-        .setRowsInStripe(128)
-        .setBufferSize(4 * 1024)
-        .setConf(conf)
-        .create(dir / "path")
-      writer.numRowsInStripe should be (1024)
-      writer.bufferSize should be (4 * 1024)
-      writer.codec.isInstanceOf[GzipCodec] should be (true)
-    }
-  }
-
-  test("set codec manually") {
-    withTempDir { dir =>
-      val writer = Riff.writer
-        .setTypeDesc(StructType(StructField("a", IntegerType) :: Nil))
-        .setCodec(new ZlibCodec())
-        .create(dir / "path")
+      conf.set(Riff.Options.COMPRESSION_CODEC, "deflate")
+      val writer = Riff.writer(conf, dir / "path", td)
       assert(writer.codec.isInstanceOf[ZlibCodec])
-    }
-
-    withTempDir { dir =>
-      val writer = Riff.writer
-        .setTypeDesc(StructType(StructField("a", IntegerType) :: Nil))
-        .setCodec("gzip").create(dir / "path")
-      assert(writer.codec.isInstanceOf[GzipCodec])
-    }
-
-    withTempDir { dir =>
-      val writer = Riff.writer
-        .setTypeDesc(StructType(StructField("a", IntegerType) :: Nil))
-        .setCodec("deflate")
-        .create(dir / "path.gz")
-      assert(writer.codec.isInstanceOf[ZlibCodec])
-    }
-
-    withTempDir { dir =>
-      val writer = Riff.writer
-        .setTypeDesc(StructType(StructField("a", IntegerType) :: Nil))
-        .setCodec("none")
-        .create(dir / "path.deflate")
-      assert(writer.codec == null)
-    }
-  }
-
-  test("infer codec from path") {
-    withTempDir { dir =>
-      val writer = Riff.writer
-        .setTypeDesc(StructType(StructField("a", IntegerType) :: Nil))
-        .create(dir / "path.gz")
-      assert(writer.codec.isInstanceOf[GzipCodec])
-    }
-
-    withTempDir { dir =>
-      val writer = Riff.writer
-        .setTypeDesc(StructType(StructField("a", IntegerType) :: Nil))
-        .create(dir / "path.deflate")
-      assert(writer.codec.isInstanceOf[ZlibCodec])
-    }
-
-    // this case should have uncompressed codec, since ".deflate" is treated as filename
-    withTempDir { dir =>
-      val writer = Riff.writer
-        .setTypeDesc(StructType(StructField("a", IntegerType) :: Nil))
-        .create(dir / ".deflate")
-      assert(writer.codec == null)
-    }
-  }
-
-  test("read codec from configuration") {
-    withTempDir { dir =>
-      val conf = new Configuration()
-      conf.set(Riff.Options.COMPRESSION_CODEC, "none")
-      val writer = Riff.writer
-        .setConf(conf)
-        .setTypeDesc(StructType(StructField("a", IntegerType) :: Nil))
-        .create(dir / "path.gz")
-      assert(writer.codec == null)
     }
 
     withTempDir { dir =>
       val conf = new Configuration()
       conf.set(Riff.Options.COMPRESSION_CODEC, "gzip")
-      val writer = Riff.writer
-        .setConf(conf)
-        .setTypeDesc(StructType(StructField("a", IntegerType) :: Nil))
-        .create(dir / "path.deflate")
+      val writer = Riff.writer(conf, dir / "path", td)
       assert(writer.codec.isInstanceOf[GzipCodec])
     }
 
-    // even though ".deflate" is treated as filename we force deflate compression through conf
+    // use compression codec from configuration, do not infer from path
     withTempDir { dir =>
       val conf = new Configuration()
       conf.set(Riff.Options.COMPRESSION_CODEC, "deflate")
-      val writer = Riff.writer
-        .setConf(conf)
-        .setTypeDesc(StructType(StructField("a", IntegerType) :: Nil))
-        .create(dir / ".deflate")
+      val writer = Riff.writer(conf, dir / "path.gz", td)
       assert(writer.codec.isInstanceOf[ZlibCodec])
+    }
+
+    // use compression codec from configuration, do not infer from path
+    withTempDir { dir =>
+      val conf = new Configuration()
+      conf.set(Riff.Options.COMPRESSION_CODEC, "none")
+      val writer = Riff.writer(conf, dir / "path.deflate", td)
+      assert(writer.codec == null)
+    }
+  }
+
+  test("infer codec from path") {
+    val td = new TypeDescription(StructType(StructField("a", IntegerType) :: Nil))
+
+    withTempDir { dir =>
+      val conf = new Configuration()
+      val writer = Riff.writer(conf, dir / "path.gz", td)
+      assert(writer.codec.isInstanceOf[GzipCodec])
+    }
+
+    withTempDir { dir =>
+      val conf = new Configuration()
+      val writer = Riff.writer(conf, dir / "path.deflate", td)
+      assert(writer.codec.isInstanceOf[ZlibCodec])
+    }
+
+    withTempDir { dir =>
+      val conf = new Configuration()
+      val writer = Riff.writer(conf, dir / "path.snappy", td)
+      assert(writer.codec.isInstanceOf[SnappyCodec])
+    }
+
+    // this case should have uncompressed codec, since ".deflate" is treated as filename
+    withTempDir { dir =>
+      val conf = new Configuration()
+      val writer = Riff.writer(conf, dir / ".deflate", td)
+      assert(writer.codec == null)
     }
   }
 
   test("create file reader") {
     withTempDir { dir =>
-      val reader = Riff.reader.create(dir / "file")
-      assert(reader.filePath.toString == s"file:${dir / "file"}")
-    }
-  }
-
-  test("create file reader using path as string") {
-    withTempDir { dir =>
-      val reader = Riff.reader.create(s"${dir / "file"}")
+      val reader = Riff.reader(dir / "file")
       assert(reader.filePath.toString == s"file:${dir / "file"}")
     }
   }
@@ -291,17 +229,20 @@ class RiffSuite extends UnitTestSuite {
     InternalRow(5, UTF8String.fromString("xyz"), 5L))
 
   def writeReadTest(
-      codec: CompressionCodec,
+      codec: String,
       path: Path,
       filter: Tree = null): Seq[InternalRow] = {
-    val writer = Riff.writer.setCodec(codec).setTypeDesc(schema, "col2").create(path)
+    val conf = new Configuration()
+    conf.set(Riff.Options.COMPRESSION_CODEC, codec)
+    val td = new TypeDescription(schema, Array("col2"))
+    val writer = Riff.writer(conf, path, td)
     writer.prepareWrite()
     for (row <- batch) {
       writer.write(row)
     }
     writer.finishWrite()
 
-    val reader = Riff.reader.create(path)
+    val reader = Riff.reader(conf, path)
     val rowbuf = reader.prepareRead(filter)
     var seq: Seq[InternalRow] = Nil
     while (rowbuf.hasNext) {
@@ -316,19 +257,17 @@ class RiffSuite extends UnitTestSuite {
       // disable column filters for this write
       val conf = new Configuration(false)
       conf.set(Riff.Options.COLUMN_FILTER_ENABLED, "false")
-      val writer = Riff.writer
-        .setConf(conf)
-        .setCodec("gzip")
-        .setRowsInStripe(1)
-        .setTypeDesc(schema, "col2")
-        .create(dir / "file")
+      conf.set(Riff.Options.COMPRESSION_CODEC, "gzip")
+      conf.setInt(Riff.Options.STRIPE_ROWS, 1)
+      val td = new TypeDescription(schema, Array("col2"))
+      val writer = Riff.writer(conf, dir / "file", td)
       writer.prepareWrite()
       for (row <- batch) {
         writer.write(row)
       }
       writer.finishWrite()
 
-      val reader = Riff.reader.create(dir / "file")
+      val reader = Riff.reader(dir / "file")
       val rowbuf = reader.prepareRead().asInstanceOf[Buffers.InternalRowBuffer]
       // previous 616 bytes are 8-byte aligned
       rowbuf.offset() should be (616)
@@ -362,7 +301,7 @@ class RiffSuite extends UnitTestSuite {
 
   test("write/read with snappy, direct scan") {
     withTempDir { dir =>
-      val res = writeReadTest(new SnappyCodec(), dir / "file")
+      val res = writeReadTest("snappy", dir / "file")
       res.length should be (batch.length)
       for (i <- 0 until res.length) {
         val row1 = res(i)
@@ -376,7 +315,7 @@ class RiffSuite extends UnitTestSuite {
 
   test("write/read with gzip, direct scan") {
     withTempDir { dir =>
-      val res = writeReadTest(new GzipCodec(), dir / "file")
+      val res = writeReadTest("gzip", dir / "file")
       res.length should be (batch.length)
       for (i <- 0 until res.length) {
         val row1 = res(i)
@@ -390,7 +329,7 @@ class RiffSuite extends UnitTestSuite {
 
   test("write/read with deflate, direct scan") {
     withTempDir { dir =>
-      val res = writeReadTest(new ZlibCodec(), dir / "file")
+      val res = writeReadTest("deflate", dir / "file")
       res.length should be (batch.length)
       for (i <- 0 until res.length) {
         val row1 = res(i)
@@ -404,7 +343,7 @@ class RiffSuite extends UnitTestSuite {
 
   test("write/read with no compression, direct scan") {
     withTempDir { dir =>
-      val res = writeReadTest(null, dir / "file")
+      val res = writeReadTest("none", dir / "file")
       res.length should be (batch.length)
       for (i <- 0 until res.length) {
         val row1 = res(i)
@@ -421,7 +360,7 @@ class RiffSuite extends UnitTestSuite {
   test("write/read with snappy, filter scan") {
     withTempDir { dir =>
       val filter = eqt("col2", "def")
-      val res = writeReadTest(new SnappyCodec(), dir / "file", filter)
+      val res = writeReadTest("snappy", dir / "file", filter)
       res.length should be (1)
       res(0).getUTF8String(0) should be (UTF8String.fromString("def"))
       res(0).getInt(1) should be (2)
@@ -432,7 +371,7 @@ class RiffSuite extends UnitTestSuite {
   test("write/read with gzip, filter scan") {
     withTempDir { dir =>
       val filter = eqt("col2", "def")
-      val res = writeReadTest(new GzipCodec(), dir / "file", filter)
+      val res = writeReadTest("gzip", dir / "file", filter)
       res.length should be (1)
       res(0).getUTF8String(0) should be (UTF8String.fromString("def"))
       res(0).getInt(1) should be (2)
@@ -443,7 +382,7 @@ class RiffSuite extends UnitTestSuite {
   test("write/read with deflate, filter scan") {
     withTempDir { dir =>
       val filter = eqt("col2", "def")
-      val res = writeReadTest(new ZlibCodec(), dir / "file", filter)
+      val res = writeReadTest("deflate", dir / "file", filter)
       res.length should be (1)
       res(0).getUTF8String(0) should be (UTF8String.fromString("def"))
       res(0).getInt(1) should be (2)
@@ -454,7 +393,7 @@ class RiffSuite extends UnitTestSuite {
   test("write/read with no compression, filter scan") {
     withTempDir { dir =>
       val filter = eqt("col2", "def")
-      val res = writeReadTest(null, dir / "file", filter)
+      val res = writeReadTest("none", dir / "file", filter)
       res.length should be (1)
       res(0).getUTF8String(0) should be (UTF8String.fromString("def"))
       res(0).getInt(1) should be (2)
@@ -467,19 +406,17 @@ class RiffSuite extends UnitTestSuite {
       // disable column filters for this write
       val conf = new Configuration(false)
       conf.set(Riff.Options.COLUMN_FILTER_ENABLED, "false")
-      val writer = Riff.writer
-        .setConf(conf)
-        .setCodec("gzip")
-        .setRowsInStripe(1)
-        .setTypeDesc(schema, "col2")
-        .create(dir / "file")
+      conf.set(Riff.Options.COMPRESSION_CODEC, "gzip")
+      conf.setInt(Riff.Options.STRIPE_ROWS, 1)
+      val td = new TypeDescription(schema, Array("col2"))
+      val writer = Riff.writer(conf, dir / "file", td)
       writer.prepareWrite()
       for (row <- batch) {
         writer.write(row)
       }
       writer.finishWrite()
 
-      val reader = Riff.reader.create(dir / "file")
+      val reader = Riff.reader(dir / "file")
       val rowbuf = reader.prepareRead(eqt("col2", "def")).asInstanceOf[Buffers.InternalRowBuffer]
       rowbuf.getStripes().length should be (1)
       rowbuf.getStripes()(0).id() should be (1)
@@ -505,11 +442,11 @@ class RiffSuite extends UnitTestSuite {
 
   test("write/read, skip file because of statistics") {
     withTempDir { dir =>
-      val writer = Riff.writer
-        .setCodec("gzip")
-        .setRowsInStripe(1)
-        .setTypeDesc(schema, "col2")
-        .create(dir / "file")
+      val conf = new Configuration(false)
+      conf.set(Riff.Options.COMPRESSION_CODEC, "gzip")
+      conf.setInt(Riff.Options.STRIPE_ROWS, 1)
+      val td = new TypeDescription(schema, Array("col2"))
+      val writer = Riff.writer(conf, dir / "file", td)
       writer.prepareWrite()
       for (row <- batch) {
         writer.write(row)
@@ -517,7 +454,7 @@ class RiffSuite extends UnitTestSuite {
       writer.finishWrite()
 
       // this should skip based on header only
-      val reader = Riff.reader.create(dir / "file")
+      val reader = Riff.reader(dir / "file")
       val rowbuf = reader.prepareRead(eqt("col2", "<none>"))
       rowbuf.isInstanceOf[Buffers.EmptyRowBuffer] should be (true)
       rowbuf.hasNext should be (false)
@@ -526,19 +463,19 @@ class RiffSuite extends UnitTestSuite {
 
   test("write/read with column filters") {
     withTempDir { dir =>
-      val writer = Riff.writer
-        .setCodec("gzip")
-        .setRowsInStripe(2)
-        .enableColumnFilter(true)
-        .setTypeDesc(schema, "col2")
-        .create(dir / "file")
+      val conf = new Configuration(false)
+      conf.set(Riff.Options.COLUMN_FILTER_ENABLED, "true")
+      conf.set(Riff.Options.COMPRESSION_CODEC, "gzip")
+      conf.setInt(Riff.Options.STRIPE_ROWS, 2)
+      val td = new TypeDescription(schema, Array("col2"))
+      val writer = Riff.writer(conf, dir / "file", td)
       writer.prepareWrite()
       for (row <- batch) {
         writer.write(row)
       }
       writer.finishWrite()
 
-      val reader = Riff.reader.create(dir / "file")
+      val reader = Riff.reader(dir / "file")
       val rowbuf = reader.prepareRead()
       var cnt = 0
       while (rowbuf.hasNext) {
@@ -553,10 +490,13 @@ class RiffSuite extends UnitTestSuite {
 
   test("write/read empty file, gzip") {
     withTempDir { dir =>
-      val writer = Riff.writer.setCodec("gzip").setTypeDesc(schema, "col2").create(dir / "file")
+      val conf = new Configuration(false)
+      conf.set(Riff.Options.COMPRESSION_CODEC, "gzip")
+      val td = new TypeDescription(schema, Array("col2"))
+      val writer = Riff.writer(conf, dir / "file", td)
       writer.prepareWrite()
       writer.finishWrite()
-      val reader = Riff.reader.create(dir / "file")
+      val reader = Riff.reader(dir / "file")
       val rowbuf = reader.prepareRead()
       rowbuf.hasNext should be (false)
     }
@@ -564,13 +504,14 @@ class RiffSuite extends UnitTestSuite {
 
   test("write/read empty file, gzip, column filters enabled") {
     withTempDir { dir =>
-      val writer = Riff.writer
-        .setCodec("gzip")
-        .setTypeDesc(schema, "col2")
-        .enableColumnFilter(true).create(dir / "file")
+      val conf = new Configuration(false)
+      conf.set(Riff.Options.COMPRESSION_CODEC, "gzip")
+      conf.set(Riff.Options.COLUMN_FILTER_ENABLED, "true")
+      val td = new TypeDescription(schema, Array("col2"))
+      val writer = Riff.writer(conf, dir / "file", td)
       writer.prepareWrite()
       writer.finishWrite()
-      val reader = Riff.reader.create(dir / "file")
+      val reader = Riff.reader(dir / "file")
       val rowbuf = reader.prepareRead()
       rowbuf.hasNext should be (false)
     }
@@ -578,10 +519,13 @@ class RiffSuite extends UnitTestSuite {
 
   test("write/read empty file, deflate") {
     withTempDir { dir =>
-      val writer = Riff.writer.setCodec("deflate").setTypeDesc(schema, "col2").create(dir / "file")
+      val conf = new Configuration(false)
+      conf.set(Riff.Options.COMPRESSION_CODEC, "deflate")
+      val td = new TypeDescription(schema, Array("col2"))
+      val writer = Riff.writer(conf, dir / "file", td)
       writer.prepareWrite()
       writer.finishWrite()
-      val reader = Riff.reader.create(dir / "file")
+      val reader = Riff.reader(dir / "file")
       val rowbuf = reader.prepareRead()
       rowbuf.hasNext should be (false)
     }
@@ -589,10 +533,13 @@ class RiffSuite extends UnitTestSuite {
 
   test("write/read empty file, no compression") {
     withTempDir { dir =>
-      val writer = Riff.writer.setCodec("none").setTypeDesc(schema, "col2").create(dir / "file")
+      val conf = new Configuration(false)
+      conf.set(Riff.Options.COMPRESSION_CODEC, "none")
+      val td = new TypeDescription(schema, Array("col2"))
+      val writer = Riff.writer(conf, dir / "file", td)
       writer.prepareWrite()
       writer.finishWrite()
-      val reader = Riff.reader.create(dir / "file")
+      val reader = Riff.reader(dir / "file")
       val rowbuf = reader.prepareRead()
       rowbuf.hasNext should be (false)
     }

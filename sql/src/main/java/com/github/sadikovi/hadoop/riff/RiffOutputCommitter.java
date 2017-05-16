@@ -84,8 +84,7 @@ public class RiffOutputCommitter extends FileOutputCommitter {
     if (partFiles.isEmpty()) {
       LOG.warn("Could not find any part files for path {}, metadata is ignored", outputPath);
     } else {
-      Metadata.MetadataWriter writer = Riff.metadataWriter().setFileSystem(fs).setConf(conf)
-        .create(partFiles.get(0).getPath());
+      Metadata.MetadataWriter writer = Riff.metadataWriter(fs, conf, partFiles.get(0).getPath());
       writer.writeMetadataFile(outputPath);
       LOG.info("Finished writing metadata file for {}", outputPath);
     }

@@ -137,12 +137,12 @@ class FileReaderSuite extends UnitTestSuite {
 
   test("file reader reuse") {
     withTempDir { dir =>
-      val writer = Riff.writer.setTypeDesc(td).create(dir / "path")
+      val writer = Riff.writer(dir / "path", td)
       writer.prepareWrite()
       writer.finishWrite()
 
       // test prepareRead
-      val reader1 = Riff.reader.create(dir / "path")
+      val reader1 = Riff.reader(dir / "path")
       reader1.prepareRead()
       var err = intercept[IOException] { reader1.prepareRead() }
       err.getMessage should be ("Reader reuse")
@@ -150,7 +150,7 @@ class FileReaderSuite extends UnitTestSuite {
       err.getMessage should be ("Reader reuse")
 
       // test readTypeDescription
-      val reader2 = Riff.reader.create(dir / "path")
+      val reader2 = Riff.reader(dir / "path")
       reader2.readFileHeader()
       err = intercept[IOException] { reader2.readFileHeader() }
       err.getMessage should be ("Reader reuse")
@@ -161,11 +161,11 @@ class FileReaderSuite extends UnitTestSuite {
 
   test("read file header") {
     withTempDir { dir =>
-      val writer = Riff.writer.setTypeDesc(td).create(dir / "path")
+      val writer = Riff.writer(dir / "path", td)
       writer.prepareWrite()
       writer.finishWrite()
 
-      val reader = Riff.reader.create(dir / "path")
+      val reader = Riff.reader(dir / "path")
       val td1 = reader.readFileHeader()
       val td2 = reader.getFileHeader()
       td1.getTypeDescription() should be (td)
@@ -177,7 +177,7 @@ class FileReaderSuite extends UnitTestSuite {
 
   test("fail to get type description if it is not set") {
     withTempDir { dir =>
-      val reader = Riff.reader.create(dir / "path")
+      val reader = Riff.reader(dir / "path")
       val err = intercept[IllegalStateException] {
         reader.getFileHeader()
       }
