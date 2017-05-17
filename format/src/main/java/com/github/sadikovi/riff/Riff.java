@@ -230,9 +230,7 @@ public class Riff {
       codec = inferCompressionCodec(path);
     }
     try {
-      FileWriter writer = new FileWriter(fs, conf, path, td, codec);
-      LOG.info("Created writer {}", writer);
-      return writer;
+      return new FileWriter(fs, conf, path, td, codec);
     } catch (IOException err) {
       throw new RuntimeException("Error occured: " + err.getMessage(), err);
     }
@@ -277,9 +275,7 @@ public class Riff {
    * @return file reader
    */
   public static FileReader reader(FileSystem fs, Configuration conf, Path path) {
-    FileReader reader = new FileReader(fs, conf, path);
-    LOG.info("Created reader {}", reader);
-    return reader;
+    return new FileReader(fs, conf, path);
   }
 
   /**

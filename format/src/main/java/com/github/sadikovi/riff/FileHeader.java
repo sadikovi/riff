@@ -126,7 +126,7 @@ public class FileHeader {
     buffer.writeInt(fileStats.length);
     int i = 0;
     while (i < fileStats.length) {
-      LOG.info("Write file statistics {}", fileStats[i]);
+      LOG.debug("Write file statistics {}", fileStats[i]);
       fileStats[i].writeExternal(buffer);
       ++i;
     }
@@ -150,7 +150,7 @@ public class FileHeader {
     int magic = (int) (meta >>> 32);
     if (magic != MAGIC) throw new IOException("Wrong magic: " + magic + " != " + MAGIC);
     int len = (int) (meta & 0x7fffffff);
-    LOG.info("Read header content of {} bytes", len);
+    LOG.debug("Read header content of {} bytes", len);
     // read full header bytes
     ByteBuffer buffer = ByteBuffer.allocate(len);
     in.readFully(buffer.array(), buffer.arrayOffset(), buffer.limit());
@@ -168,7 +168,7 @@ public class FileHeader {
     int i = 0;
     while (i < fileStats.length) {
       fileStats[i] = Statistics.readExternal(buffer);
-      LOG.info("Read file statistics {}", fileStats[i]);
+      LOG.debug("Read file statistics {}", fileStats[i]);
       ++i;
     }
     return new FileHeader(state, td, fileStats);

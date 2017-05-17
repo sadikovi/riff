@@ -292,7 +292,7 @@ public class FileWriter {
       // finished writing temporary data file, close stream, we will reopen it for append
       temporaryStream.close();
       temporaryStream = null;
-      LOG.info("Finished writing temporary data file {}", tmpDataPath);
+      LOG.debug("Finished writing temporary data file {}", tmpDataPath);
 
       LOG.debug("Merge stripe statistics");
       // combine all statistics for a file
@@ -330,7 +330,7 @@ public class FileWriter {
       long start = System.nanoTime();
       appendDataStream(outputStream);
       long end = System.nanoTime();
-      LOG.info("Append took {} ms", (end - start) / 1e6);
+      LOG.debug("Append took {} ms", (end - start) / 1e6);
     } finally {
       // close temporary stream
       if (temporaryStream != null) {

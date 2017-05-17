@@ -133,7 +133,7 @@ public class FileReader {
         }
       }
       if (skipFile) {
-        LOG.info("Skip file {}", filePath);
+        LOG.debug("Skip file {}", filePath);
         return Buffers.emptyRowBuffer(in);
       }
       // read stripe information until no bytes are available in buffer
