@@ -89,7 +89,7 @@ object QueryBenchmark {
 
   def main(args: Array[String]): Unit = {
     val sparkConf = new SparkConf().
-      setMaster("local[4]").
+      setMaster("local[1]").
       setAppName("spark-query-benchmark")
     val spark = SparkSession.builder().config(sparkConf).getOrCreate()
     queryBenchmark(spark)

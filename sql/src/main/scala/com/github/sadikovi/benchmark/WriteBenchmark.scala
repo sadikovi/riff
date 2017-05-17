@@ -57,6 +57,13 @@ object WriteBenchmark {
       df.write.mode("overwrite").parquet("./temp/parquet-table")
     }
 
+    writeBenchmark.addCase("Parquet write, snappy") { iter =>
+      spark.conf.set("spark.sql.parquet.compression.codec", "snappy")
+      val df = spark.createDataFrame(
+        spark.sparkContext.parallelize(0 until valuesPerIteration, numPartitions).map(row), schema)
+      df.write.mode("overwrite").parquet("./temp/parquet-table")
+    }
+
     writeBenchmark.addCase("ORC write, zlib/deflate") { iter =>
       val df = spark.createDataFrame(
         spark.sparkContext.parallelize(0 until valuesPerIteration, numPartitions).map(row), schema)
@@ -89,7 +96,7 @@ object WriteBenchmark {
 
   def main(args: Array[String]): Unit = {
     val sparkConf = new SparkConf().
-      setMaster("local[4]").
+      setMaster("local[1]").
       setAppName("spark-write-benchmark")
     val spark = SparkSession.builder().config(sparkConf).getOrCreate()
     writeBenchmark(spark)

@@ -80,7 +80,7 @@ object ProjectBenchmark {
 
   def main(args: Array[String]): Unit = {
     val sparkConf = new SparkConf().
-      setMaster("local[4]").
+      setMaster("local[1]").
       setAppName("spark-project-benchmark")
     val spark = SparkSession.builder().config(sparkConf).getOrCreate()
     projectBenchmark(spark)
