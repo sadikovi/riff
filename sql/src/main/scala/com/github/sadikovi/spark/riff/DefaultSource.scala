@@ -256,7 +256,7 @@ object RiffFileFormat {
   val SQL_RIFF_STRIPE_ROWS = "spark.sql.riff.stripe.rows"
   // enable column filters for index fields
   val SQL_RIFF_COLUMN_FILTER_ENABLED = "spark.sql.riff.column.filter.enabled"
-  // set buffer size in bytes for outstream
+  // set buffer size in bytes for instream/outstream
   val SQL_RIFF_BUFFER_SIZE = "spark.sql.riff.buffer.size"
   // enable/disable filter pushdown for the format
   val SQL_RIFF_FILTER_PUSHDOWN = "spark.sql.riff.filterPushdown"
