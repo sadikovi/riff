@@ -3,6 +3,11 @@ Spark SQL row-oriented file format
 
 [![Build Status](https://travis-ci.org/sadikovi/riff.svg?branch=master)](https://travis-ci.org/sadikovi/riff)
 
+Riff is a Spark SQL row-oriented file format designed for faster writes and point queries, and
+reasonable range queries compare to Parquet. It is built to work _natively_ with Spark SQL
+eliminating row values conversion, performing predicate pushdown and indexing. You can see benchmark
+results in [this gist](https://gist.github.com/sadikovi/41c07e9f76177820b7f9894c79a2efa1).
+
 ## Requirements
 | Spark version | riff latest version |
 |---------------|------------------------------|
@@ -97,8 +102,6 @@ Run `sbt test` from project root. See `.travis.yml` for CI build matrix.
 
 Run `sbt package` to package project, next run `spark-submit` for following benchmarks. All data
 created during benchmarks is stored in `./temp` folder.
-
-Benchmark results are here (https://gist.github.com/sadikovi/41c07e9f76177820b7f9894c79a2efa1).
 
 - Write benchmark
 ```
