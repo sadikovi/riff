@@ -36,11 +36,13 @@ import java.util.HashSet;
 import java.util.NoSuchElementException;
 
 import org.apache.spark.sql.types.DataType;
+import org.apache.spark.sql.types.DateType;
 import org.apache.spark.sql.types.IntegerType;
 import org.apache.spark.sql.types.LongType;
 import org.apache.spark.sql.types.StringType;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
+import org.apache.spark.sql.types.TimestampType;
 
 /**
  * Internal schema specification based on Spark SQL schema, that acts as proxy to write and read
@@ -156,7 +158,9 @@ public class TypeDescription implements Externalizable {
     return
       (dataType instanceof IntegerType) ||
       (dataType instanceof LongType) ||
-      (dataType instanceof StringType);
+      (dataType instanceof StringType) ||
+      (dataType instanceof DateType) ||
+      (dataType instanceof TimestampType);
   }
 
   /**

@@ -27,9 +27,11 @@ import java.nio.ByteBuffer;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.types.DataType;
+import org.apache.spark.sql.types.DateType;
 import org.apache.spark.sql.types.IntegerType;
 import org.apache.spark.sql.types.LongType;
 import org.apache.spark.sql.types.StringType;
+import org.apache.spark.sql.types.TimestampType;
 import org.apache.spark.unsafe.types.UTF8String;
 
 import com.github.sadikovi.riff.io.OutputBuffer;
@@ -164,6 +166,10 @@ public abstract class Statistics extends GenericInternalRow {
       return new LongStatistics();
     } else if (dataType instanceof StringType) {
       return new UTF8StringStatistics();
+    } else if (dataType instanceof DateType) {
+      return new IntStatistics();
+    } else if (dataType instanceof TimestampType) {
+      return new LongStatistics();
     } else {
       return new NoopStatistics();
     }

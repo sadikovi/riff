@@ -52,18 +52,28 @@ class StatisticsSuite extends UnitTestSuite {
     intStats.id should be (IntStatistics.ID)
     intStats.hasNulls should be (false)
 
+    val dateStats = Statistics.sqlTypeToStatistics(DateType)
+    dateStats.getClass should be (classOf[IntStatistics])
+    dateStats.id should be (IntStatistics.ID)
+    dateStats.hasNulls should be (false)
+
     val longStats = Statistics.sqlTypeToStatistics(LongType)
     longStats.getClass should be (classOf[LongStatistics])
     longStats.id should be (LongStatistics.ID)
     longStats.hasNulls should be (false)
+
+    val timestampStats = Statistics.sqlTypeToStatistics(TimestampType)
+    timestampStats.getClass should be (classOf[LongStatistics])
+    timestampStats.id should be (LongStatistics.ID)
+    timestampStats.hasNulls should be (false)
 
     val utfStats = Statistics.sqlTypeToStatistics(StringType)
     utfStats.getClass should be (classOf[UTF8StringStatistics])
     utfStats.id should be (UTF8StringStatistics.ID)
     utfStats.hasNulls should be (false)
 
-    // date type is not supported
-    val noopStats = Statistics.sqlTypeToStatistics(DateType)
+    // null type is not supported
+    val noopStats = Statistics.sqlTypeToStatistics(NullType)
     noopStats.getClass should be (classOf[NoopStatistics])
     noopStats.id should be (NoopStatistics.ID)
     noopStats.hasNulls should be (false)

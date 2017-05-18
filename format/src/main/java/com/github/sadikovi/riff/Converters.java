@@ -26,9 +26,11 @@ import java.io.IOException;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.types.DataType;
+import org.apache.spark.sql.types.DateType;
 import org.apache.spark.sql.types.IntegerType;
 import org.apache.spark.sql.types.LongType;
 import org.apache.spark.sql.types.StringType;
+import org.apache.spark.sql.types.TimestampType;
 
 import com.github.sadikovi.riff.io.OutputBuffer;
 
@@ -48,6 +50,10 @@ public class Converters {
       return new IndexedRowLongConverter();
     } else if (dataType instanceof StringType) {
       return new IndexedRowUTF8Converter();
+    } else if (dataType instanceof DateType) {
+      return new IndexedRowIntConverter();
+    } else if (dataType instanceof TimestampType) {
+      return new IndexedRowLongConverter();
     } else {
       throw new RuntimeException("No converter registered for type " + dataType);
     }

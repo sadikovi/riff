@@ -22,6 +22,7 @@
 
 package com.github.sadikovi.riff.tree
 
+import java.sql.{Date, Timestamp}
 import java.util.NoSuchElementException
 
 import org.apache.spark.sql.catalyst.InternalRow
@@ -71,6 +72,14 @@ class FilterSuite extends UnitTestSuite {
     expr = FilterApi.objToExpression("3")
     expr.isInstanceOf[UTF8StringExpression] should be (true)
     expr.prettyString should be ("'3'")
+
+    expr = FilterApi.objToExpression(new Date(1234567890L))
+    expr.isInstanceOf[DateExpression] should be (true)
+    expr.prettyString should be ("DATE(14)")
+
+    expr = FilterApi.objToExpression(new Timestamp(1234567890L))
+    expr.isInstanceOf[TimestampExpression] should be (true)
+    expr.prettyString should be ("TIMESTAMP(1234567890000)")
   }
 
   test("FilterApi - objToExpression, exceptions") {

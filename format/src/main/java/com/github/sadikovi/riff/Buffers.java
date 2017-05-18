@@ -77,7 +77,7 @@ public class Buffers {
         rowbuf = new EmptyRowBuffer(in);
       }
     }
-    LOG.info("Select row buffer {}", rowbuf);
+    LOG.debug("Select row buffer {}", rowbuf);
     return rowbuf;
   }
 
@@ -300,7 +300,7 @@ public class Buffers {
         int bufferSize) throws IOException {
       super(in, stripes, codec, bufferSize);
       this.reader = new IndexedRowReader(td);
-      LOG.info("Created reader {}", reader);
+      LOG.debug("Created reader {}", reader);
     }
 
     @Override
@@ -351,7 +351,7 @@ public class Buffers {
         PredicateState state) throws IOException {
       super(in, stripes, codec, bufferSize);
       this.reader = new IndexedRowReader(td);
-      LOG.info("Created reader {}", reader);
+      LOG.debug("Created reader {}", reader);
       this.state = state;
       this.found = false;
       this.currentRow = null;

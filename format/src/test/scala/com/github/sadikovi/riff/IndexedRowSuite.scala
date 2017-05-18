@@ -434,4 +434,32 @@ class IndexedRowSuite extends UnitTestSuite {
     ind(3) should be (null)
     ind(4) should be (null)
   }
+
+  test("write/read date type and timestamp type") {
+    val schema = StructType(
+      StructField("col1", DateType) ::
+      StructField("col2", TimestampType) :: Nil)
+    val row = InternalRow(24, 1234567890L)
+
+    val td = new TypeDescription(schema, Array("col1"))
+    val writer = new IndexedRowWriter(td)
+    val reader = new IndexedRowReader(td)
+    val stripe = new StripeOutputBuffer(1.toByte)
+    val out = new OutStream(64, null, stripe)
+    writer.writeRow(row, out)
+    out.flush()
+    val in = new InStream(64, null, new StripeInputBuffer(1.toByte, stripe.array()))
+    val ind = reader.readRow(in).asInstanceOf[IndexedRow]
+
+    ind.hasIndexRegion() should be (true)
+    ind.hasDataRegion() should be (true)
+
+    ind.isNullAt(0) should be (false)
+    ind.getInt(0) should be (24)
+    ind.get(0, DateType) should be (24)
+
+    ind.isNullAt(1) should be (false)
+    ind.getLong(1) should be (1234567890L)
+    ind.get(1, TimestampType) should be (1234567890L)
+  }
 }

@@ -72,6 +72,23 @@ class ColumnFilterSuite extends UnitTestSuite {
     filter3.mightContain(row.getUTF8String(2)) should be (false)
     filter3.update(row, 2)
     filter3.mightContain(row.getUTF8String(2)) should be (true)
+
+    // DateType is backed by integer type in Spark SQL
+    val filter4 = ColumnFilter.sqlTypeToColumnFilter(DateType, 64)
+    filter4.mightContain(row.getInt(0)) should be (false)
+    filter4.update(row, 0)
+    filter4.mightContain(row.getInt(0)) should be (true)
+
+    // TimestampType is backed by long type in Spark SQL
+    val filter5 = ColumnFilter.sqlTypeToColumnFilter(TimestampType, 64)
+    filter5.mightContain(row.getLong(1)) should be (false)
+    filter5.update(row, 1)
+    filter5.mightContain(row.getLong(1)) should be (true)
+  }
+
+  test("select bloom filters for date type and timestamp type") {
+    val filter1 = ColumnFilter.sqlTypeToColumnFilter(DateType, 64)
+    val filter2 = ColumnFilter.sqlTypeToColumnFilter(TimestampType, 64)
   }
 
   test("bloom filter write/read") {
