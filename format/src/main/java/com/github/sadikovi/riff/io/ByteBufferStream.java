@@ -45,7 +45,7 @@ public class ByteBufferStream extends InputStream {
 
   @Override
   public int read() {
-    return buf.hasRemaining() ? (buf.get() & 255) : -1;
+    return buf.hasRemaining() ? (buf.get() & 0xff) : -1;
   }
 
   @Override
