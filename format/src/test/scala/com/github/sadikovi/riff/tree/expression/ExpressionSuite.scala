@@ -22,8 +22,10 @@
 
 package com.github.sadikovi.riff.tree.expression
 
+import java.sql.{Date, Timestamp}
+
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.types.{IntegerType, LongType, StringType}
+import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
 import com.github.sadikovi.riff.ColumnFilter
@@ -229,5 +231,49 @@ class ExpressionSuite extends UnitTestSuite {
     filter.update(InternalRow(UTF8String.fromString("ttt")), 0)
     new UTF8StringExpression(UTF8String.fromString("ttt")).containsExpr(filter) should be (true)
     new UTF8StringExpression(UTF8String.fromString("zzz")).containsExpr(filter) should be (false)
+  }
+
+  test("DateExpression - check expression") {
+    // inherits comparison methods from IntegerExpression
+    val time = 1234567890L
+    val expr = new DateExpression(new Date(time))
+    expr.dataType should be (DateType)
+    expr.prettyString should be ("DATE(14)")
+    // equals
+    expr.equals(null) should be (false)
+    expr.equals(expr) should be (true)
+    expr.equals(new DateExpression(new Date(time))) should be (true)
+    expr.equals(new DateExpression(new Date(System.currentTimeMillis))) should be (false)
+    // hashCode
+    expr.hashCode should be (14)
+    // compareTo
+    expr.compareTo(expr) should be (0)
+    expr.compareTo(new DateExpression(new Date(1L))) should be (1)
+    expr.compareTo(new DateExpression(new Date(System.currentTimeMillis))) should be (-1)
+    // copy
+    assert(expr.copy().isInstanceOf[DateExpression])
+    expr.copy() should be (expr)
+  }
+
+  test("TimestampExpression - check expression") {
+    // inherits comparison methods from LongExpression
+    val time = 1234567890L
+    val expr = new TimestampExpression(new Timestamp(time))
+    expr.dataType should be (TimestampType)
+    expr.prettyString should be (s"TIMESTAMP(1234567890000)")
+    // equals
+    expr.equals(null) should be (false)
+    expr.equals(expr) should be (true)
+    expr.equals(new TimestampExpression(new Timestamp(time))) should be (true)
+    expr.equals(new TimestampExpression(new Timestamp(System.currentTimeMillis))) should be (false)
+    // hashCode
+    expr.hashCode should be (1912276303)
+    // compareTo
+    expr.compareTo(expr) should be (0)
+    expr.compareTo(new TimestampExpression(new Timestamp(1L))) should be (1)
+    expr.compareTo(new TimestampExpression(new Timestamp(System.currentTimeMillis))) should be (-1)
+    // copy
+    assert(expr.copy().isInstanceOf[TimestampExpression])
+    expr.copy() should be (expr)
   }
 }

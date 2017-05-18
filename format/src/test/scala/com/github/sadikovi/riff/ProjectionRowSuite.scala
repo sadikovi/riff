@@ -22,6 +22,7 @@
 
 package com.github.sadikovi.riff
 
+import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
 import com.github.sadikovi.testutil.UnitTestSuite
@@ -71,5 +72,11 @@ class ProjectionRowSuite extends UnitTestSuite {
     row.getInt(0) should be (1)
     row.getLong(1) should be (2L)
     row.getUTF8String(2) should be (UTF8String.fromString("abc"))
+
+    row.get(0, IntegerType) should be (1)
+    row.get(1, LongType) should be (2L)
+    row.get(2, StringType) should be (UTF8String.fromString("abc"))
+    row.get(0, DateType) should be (1)
+    row.get(1, TimestampType) should be (2L)
   }
 }

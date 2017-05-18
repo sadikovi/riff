@@ -26,10 +26,12 @@ import java.util.Arrays;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.types.DataType;
+import org.apache.spark.sql.types.DateType;
 import org.apache.spark.sql.types.IntegerType;
 import org.apache.spark.sql.types.LongType;
 import org.apache.spark.sql.types.NullType;
 import org.apache.spark.sql.types.StringType;
+import org.apache.spark.sql.types.TimestampType;
 import org.apache.spark.unsafe.types.UTF8String;
 
 /**
@@ -147,6 +149,10 @@ public class ProjectionRow extends GenericInternalRow {
       return getLongValue(ordinal);
     } else if (dataType instanceof StringType) {
       return getUTF8String(ordinal);
+    } else if (dataType instanceof DateType) {
+      return getIntegerValue(ordinal);
+    } else if (dataType instanceof TimestampType) {
+      return getLongValue(ordinal);
     } else {
       throw new UnsupportedOperationException("Unsupported data type " + dataType.simpleString());
     }

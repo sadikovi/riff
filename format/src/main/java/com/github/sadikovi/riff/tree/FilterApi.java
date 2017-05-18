@@ -22,10 +22,15 @@
 
 package com.github.sadikovi.riff.tree;
 
+import java.sql.Date;
+import java.sql.Timestamp;
+
 import org.apache.spark.unsafe.types.UTF8String;
 
+import com.github.sadikovi.riff.tree.expression.DateExpression;
 import com.github.sadikovi.riff.tree.expression.IntegerExpression;
 import com.github.sadikovi.riff.tree.expression.LongExpression;
+import com.github.sadikovi.riff.tree.expression.TimestampExpression;
 import com.github.sadikovi.riff.tree.expression.UTF8StringExpression;
 
 import com.github.sadikovi.riff.tree.expression.EqualTo;
@@ -73,6 +78,10 @@ public class FilterApi {
       return new UTF8StringExpression(UTF8String.fromString((String) obj));
     } else if (obj instanceof UTF8String) {
       return new UTF8StringExpression((UTF8String) obj);
+    } else if (obj instanceof Date) {
+      return new DateExpression((Date) obj);
+    } else if (obj instanceof Timestamp) {
+      return new TimestampExpression((Timestamp) obj);
     } else {
       throw new UnsupportedOperationException("Object " + obj + " of " + obj.getClass());
     }

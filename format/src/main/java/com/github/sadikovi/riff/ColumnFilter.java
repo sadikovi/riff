@@ -27,9 +27,11 @@ import java.nio.ByteBuffer;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.types.DataType;
+import org.apache.spark.sql.types.DateType;
 import org.apache.spark.sql.types.IntegerType;
 import org.apache.spark.sql.types.LongType;
 import org.apache.spark.sql.types.StringType;
+import org.apache.spark.sql.types.TimestampType;
 import org.apache.spark.unsafe.types.UTF8String;
 import org.apache.spark.util.sketch.BloomFilter;
 
@@ -116,6 +118,22 @@ public abstract class ColumnFilter {
         @Override
         public void update(InternalRow row, int ordinal) {
           filter.putBinary(row.getUTF8String(ordinal).getBytes());
+        }
+      };
+    } else if (dataType instanceof DateType) {
+      // date type is kept as integer in Spark SQL
+      return new BloomColumnFilter(numItems) {
+        @Override
+        public void update(InternalRow row, int ordinal) {
+          filter.putLong(row.getInt(ordinal));
+        }
+      };
+    } else if (dataType instanceof TimestampType) {
+      // timestamp type is kept as long in Spark SQL
+      return new BloomColumnFilter(numItems) {
+        @Override
+        public void update(InternalRow row, int ordinal) {
+          filter.putLong(row.getLong(ordinal));
         }
       };
     } else {

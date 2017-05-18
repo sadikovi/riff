@@ -34,6 +34,8 @@ class ConvertersSuite extends UnitTestSuite {
   test("converter for sql type") {
     Converters.sqlTypeToConverter(IntegerType) should be (new IndexedRowIntConverter())
     Converters.sqlTypeToConverter(LongType) should be (new IndexedRowLongConverter())
+    Converters.sqlTypeToConverter(DateType) should be (new IndexedRowIntConverter())
+    Converters.sqlTypeToConverter(TimestampType) should be (new IndexedRowLongConverter())
     Converters.sqlTypeToConverter(StringType) should be (new IndexedRowUTF8Converter())
   }
 

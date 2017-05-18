@@ -53,6 +53,8 @@ class TypeDescriptionSuite extends UnitTestSuite {
     TypeDescription.isSupportedDataType(IntegerType) should be (true)
     TypeDescription.isSupportedDataType(LongType) should be (true)
     TypeDescription.isSupportedDataType(StringType) should be (true)
+    TypeDescription.isSupportedDataType(DateType) should be (true)
+    TypeDescription.isSupportedDataType(TimestampType) should be (true)
   }
 
   test("unsupported types") {
@@ -61,8 +63,6 @@ class TypeDescriptionSuite extends UnitTestSuite {
     TypeDescription.isSupportedDataType(ByteType) should be (false)
     TypeDescription.isSupportedDataType(DoubleType) should be (false)
     TypeDescription.isSupportedDataType(NullType) should be (false)
-    TypeDescription.isSupportedDataType(DateType) should be (false)
-    TypeDescription.isSupportedDataType(TimestampType) should be (false)
   }
 
   test("assert schema - unsupported type") {

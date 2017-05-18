@@ -22,7 +22,11 @@
 
 package com.github.sadikovi.spark.riff
 
+import java.sql.{Date, Timestamp}
+
+import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types._
 
 import com.github.sadikovi.testutil.implicits._
 import com.github.sadikovi.testutil.{SparkLocal, UnitTestSuite}
@@ -199,6 +203,65 @@ class RiffSQLSuite extends UnitTestSuite with SparkLocal {
       val right = df.select("col4", "col2", "col1", "col5")
       checkAnswer(left, right)
     }
+  }
+
+  //////////////////////////////////////////////////////////////
+  // == Write/read tests for different datatypes
+  //////////////////////////////////////////////////////////////
+
+  /**
+   * Method to check write/read for a provided data type and set of values.
+   * Also allows to provide generic transformation that is applied on actual and expected results.
+   */
+  def checkDataType(
+      dataType: DataType,
+      rows: Seq[Row],
+      func: DataFrame => DataFrame = null): Unit = {
+    withTempDir { dir =>
+      val schema = StructType(StructField("col", dataType) :: Nil)
+      val df = spark.createDataFrame(spark.sparkContext.parallelize(rows), schema)
+      df.write.riff(dir.toString / "table")
+      val res = spark.read.riff(dir.toString / "table")
+      if (func == null) {
+        checkAnswer(res, df)
+      } else {
+        checkAnswer(func(res), func(df))
+      }
+    }
+  }
+
+  test("write/read dataframe, IntegerType") {
+    val seq = Row(0) :: Row(2) :: Row(3) :: Row(4) :: Row(null) :: Nil
+    checkDataType(IntegerType, seq)
+    checkDataType(IntegerType, seq, _.filter("col = 4"))
+  }
+
+  test("write/read dataframe, LongType") {
+    val seq = Row(0L) :: Row(2L) :: Row(3L) :: Row(4L) :: Row(null) :: Nil
+    checkDataType(LongType, seq)
+    checkDataType(LongType, seq, _.filter("col = 4"))
+  }
+
+  test("write/read dataframe, StringType") {
+    val seq = Row("a") :: Row("b") :: Row("c") :: Row("d") :: Row(null) :: Nil
+    checkDataType(StringType, seq)
+    checkDataType(StringType, seq, _.filter("col = 'c'"))
+  }
+
+  test("write/read dataframe, DateType") {
+    val seq = Row(new Date(1000000L)) :: Row(new Date(2000000L)) :: Row(new Date(3000000L)) ::
+      Row(null) :: Nil
+    checkDataType(DateType, seq)
+    checkDataType(DateType, seq, _.filter("col is null"))
+    checkDataType(DateType, seq, _.filter(col("col") === new Date(1000000L)))
+  }
+
+  test("write/read dataframe, TimestampType") {
+    val seq = Row(new Timestamp(10000L)) :: Row(new Timestamp(20000L)) ::
+      Row(new Timestamp(30000L)) :: Row(null) :: Nil
+    checkDataType(TimestampType, seq)
+    checkDataType(TimestampType, seq, _.filter("col is null"))
+    checkDataType(TimestampType, seq, _.filter(col("col") === new Timestamp(20000L)))
   }
 
   //////////////////////////////////////////////////////////////
