@@ -260,7 +260,7 @@ class ExpressionSuite extends UnitTestSuite {
     val time = 1234567890L
     val expr = new TimestampExpression(new Timestamp(time))
     expr.dataType should be (TimestampType)
-    expr.prettyString should be (s"TIMESTAMP(1234567890000)")
+    expr.prettyString should be ("TIMESTAMP(1234567890000)")
     // equals
     expr.equals(null) should be (false)
     expr.equals(expr) should be (true)
@@ -275,5 +275,47 @@ class ExpressionSuite extends UnitTestSuite {
     // copy
     assert(expr.copy().isInstanceOf[TimestampExpression])
     expr.copy() should be (expr)
+  }
+
+  test("BooleanExpression - misc methods") {
+    val expr = new BooleanExpression(true)
+    expr.dataType should be (BooleanType)
+    expr.prettyString should be ("true")
+    // equals
+    expr.equals(null) should be (false)
+    expr.equals(expr) should be (true)
+    expr.equals(new BooleanExpression(true)) should be (true)
+    expr.equals(new BooleanExpression(false)) should be (false)
+    // hashCode
+    expr.hashCode should be (1)
+    // compareTo
+    expr.compareTo(expr) should be (0)
+    expr.compareTo(new BooleanExpression(false)) should be (1)
+    new BooleanExpression(false).compareTo(expr) should be (-1)
+    // copy
+    assert(expr.copy().isInstanceOf[BooleanExpression])
+    expr.copy() should be (expr)
+  }
+
+  test("BooleanExpression - check expression") {
+    val expr = new BooleanExpression(true)
+    // equality
+    expr.eqExpr(InternalRow(true), 0) should be (true)
+    expr.eqExpr(InternalRow(false), 0) should be (false)
+    // greater than
+    expr.gtExpr(InternalRow(true), 0) should be (false)
+    expr.gtExpr(InternalRow(false), 0) should be (false)
+    new BooleanExpression(false).gtExpr(InternalRow(true), 0) should be (true)
+    // less than
+    expr.ltExpr(InternalRow(true), 0) should be (false)
+    expr.ltExpr(InternalRow(false), 0) should be (true)
+    // greater than or equal
+    expr.geExpr(InternalRow(true), 0) should be (true)
+    expr.geExpr(InternalRow(false), 0) should be (false)
+    new BooleanExpression(false).geExpr(InternalRow(true), 0) should be (true)
+    // less than or equal
+    expr.leExpr(InternalRow(true), 0) should be (true)
+    expr.leExpr(InternalRow(false), 0) should be (true)
+    new BooleanExpression(false).leExpr(InternalRow(true), 0) should be (false)
   }
 }

@@ -25,6 +25,7 @@ package com.github.sadikovi.riff;
 import java.io.IOException;
 
 import org.apache.spark.sql.catalyst.InternalRow;
+import org.apache.spark.sql.types.BooleanType;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DateType;
 import org.apache.spark.sql.types.IntegerType;
@@ -54,6 +55,8 @@ public class Converters {
       return new IndexedRowIntConverter();
     } else if (dataType instanceof TimestampType) {
       return new IndexedRowLongConverter();
+    } else if (dataType instanceof BooleanType) {
+      return new IndexedRowBooleanConverter();
     } else {
       throw new RuntimeException("No converter registered for type " + dataType);
     }
@@ -131,6 +134,24 @@ public class Converters {
     public int byteOffset() {
       // metadata size (offset + length)
       return 8;
+    }
+  }
+
+  public static class IndexedRowBooleanConverter extends IndexedRowValueConverter {
+    @Override
+    public void writeDirect(
+        InternalRow row,
+        int ordinal,
+        OutputBuffer fixedBuffer,
+        int fixedOffset,
+        OutputBuffer variableBuffer) throws IOException {
+      fixedBuffer.writeBoolean(row.getBoolean(ordinal));
+    }
+
+    @Override
+    public int byteOffset() {
+      // boolean is written into single byte
+      return 1;
     }
   }
 }

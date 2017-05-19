@@ -25,6 +25,7 @@ package com.github.sadikovi.riff;
 import java.util.Arrays;
 
 import org.apache.spark.sql.catalyst.InternalRow;
+import org.apache.spark.sql.types.BooleanType;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DateType;
 import org.apache.spark.sql.types.IntegerType;
@@ -134,6 +135,16 @@ public class ProjectionRow extends GenericInternalRow {
     return getLongValue(ordinal).longValue();
   }
 
+  /** Method to cast and retrieve boolean value */
+  private Boolean getBooleanValue(int ordinal) {
+    return (Boolean) values[ordinal];
+  }
+
+  @Override
+  public boolean getBoolean(int ordinal) {
+    return getBooleanValue(ordinal).booleanValue();
+  }
+
   @Override
   public UTF8String getUTF8String(int ordinal) {
     return (UTF8String) values[ordinal];
@@ -153,6 +164,8 @@ public class ProjectionRow extends GenericInternalRow {
       return getIntegerValue(ordinal);
     } else if (dataType instanceof TimestampType) {
       return getLongValue(ordinal);
+    } else if (dataType instanceof BooleanType) {
+      return getBooleanValue(ordinal);
     } else {
       throw new UnsupportedOperationException("Unsupported data type " + dataType.simpleString());
     }

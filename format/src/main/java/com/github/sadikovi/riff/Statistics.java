@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import org.apache.spark.sql.catalyst.InternalRow;
+import org.apache.spark.sql.types.BooleanType;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DateType;
 import org.apache.spark.sql.types.IntegerType;
@@ -145,6 +146,8 @@ public abstract class Statistics extends GenericInternalRow {
       stats = new LongStatistics();
     } else if (id == UTF8StringStatistics.ID) {
       stats = new UTF8StringStatistics();
+    } else if (id == BooleanStatistics.ID) {
+      stats = new BooleanStatistics();
     } else {
       throw new IOException("Unrecognized statistics id: " + id);
     }
@@ -170,6 +173,8 @@ public abstract class Statistics extends GenericInternalRow {
       return new IntStatistics();
     } else if (dataType instanceof TimestampType) {
       return new LongStatistics();
+    } else if (dataType instanceof BooleanType) {
+      return new BooleanStatistics();
     } else {
       return new NoopStatistics();
     }
@@ -470,6 +475,109 @@ public abstract class Statistics extends GenericInternalRow {
     @Override
     public String toString() {
       return "UTF8[hasNulls=" + hasNulls() + ", min=" + min + ", max=" + max + "]";
+    }
+  }
+
+  /**
+   * Boolean values statistics.
+   */
+  static class BooleanStatistics extends Statistics {
+    public static final byte ID = 16;
+
+    // whether or not statistics have min/max set
+    protected boolean hasValues = false;
+    // associated with min value
+    protected boolean min = true;
+    // associated with max value
+    protected boolean max = false;
+
+    BooleanStatistics() {
+      super(ID);
+    }
+
+    @Override
+    protected void updateState(InternalRow row, int ordinal) {
+      // value is guaranteed to be non-null
+      boolean value = row.getBoolean(ordinal);
+      if (hasValues) {
+        // if value is true, set max to true, otherwise set min to false
+        if (value) {
+          max = value;
+        } else {
+          min = value;
+        }
+      } else {
+        // for this update we have situation when min = max = true or min = max = false
+        min = value;
+        max = value;
+        hasValues = true;
+      }
+    }
+
+    @Override
+    protected void writeState(OutputBuffer buf) throws IOException {
+      // write 3 most significant bits as state of statistics
+      int flags = hasValues ? 1 : 0;
+      // set flags anyway, we will only read them if hasValues is set
+      flags |= min ? 2 : 0;
+      flags |= max ? 4 : 0;
+      buf.writeByte(flags);
+    }
+
+    @Override
+    protected void readState(ByteBuffer buf) throws IOException {
+      byte flags = buf.get();
+      hasValues = (flags & 1) != 0;
+      // flags are not considered if hasValues is set to false
+      min = (flags & 2) != 0;
+      max = (flags & 4) != 0;
+    }
+
+    @Override
+    protected void merge(Statistics obj) {
+      BooleanStatistics that = (BooleanStatistics) obj;
+      if (this.hasValues) {
+        this.min = that.hasValues ? (that.min && this.min) : this.min;
+        this.max = that.hasValues ? (that.max || this.max) : this.max;
+      } else {
+        // at this point values we assign do not really matter, because in case that.hasValues is
+        // false, then we will never check min/max values, otherwise they will be set correctly
+        this.min = that.min;
+        this.max = that.max;
+      }
+      this.hasValues = this.hasValues || that.hasValues;
+      // update nulls
+      this.hasNulls = this.hasNulls || that.hasNulls;
+    }
+
+    @Override
+    public boolean getBoolean(int ordinal) {
+      if (ordinal == ORD_MIN) return min;
+      if (ordinal == ORD_MAX) return max;
+      throw new UnsupportedOperationException("Invalid ordinal " + ordinal);
+    }
+
+    @Override
+    public boolean isNullAt(int ordinal) {
+      // if boolean statistics are not set, return false, because there is no distinction between
+      // states for boolean statistics
+      return !hasValues;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (obj == null || !(obj instanceof BooleanStatistics)) return false;
+      BooleanStatistics that = (BooleanStatistics) obj;
+      if (that == this) return true;
+      return this.hasNulls == that.hasNulls &&
+        this.hasValues == that.hasValues &&
+        this.min == that.min &&
+        this.max == that.max;
+    }
+
+    @Override
+    public String toString() {
+      return "BOOL[hasNulls=" + hasNulls() + ", min=" + min + ", max=" + max + "]";
     }
   }
 }

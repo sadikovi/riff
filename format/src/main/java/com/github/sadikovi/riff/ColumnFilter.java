@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import org.apache.spark.sql.catalyst.InternalRow;
+import org.apache.spark.sql.types.BooleanType;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DateType;
 import org.apache.spark.sql.types.IntegerType;
@@ -57,6 +58,7 @@ public abstract class ColumnFilter {
    * @param value
    * @return true if node passes filter or unknown, false if node does not pass filter.
    */
+  public abstract boolean mightContain(boolean value);
   public abstract boolean mightContain(int value);
   public abstract boolean mightContain(long value);
   public abstract boolean mightContain(UTF8String value);
@@ -136,6 +138,8 @@ public abstract class ColumnFilter {
           filter.putLong(row.getLong(ordinal));
         }
       };
+    } else if (dataType instanceof BooleanType) {
+      return new BooleanColumnFilter();
     } else {
       return noopFilter();
     }
@@ -154,6 +158,8 @@ public abstract class ColumnFilter {
       filter = new NoopColumnFilter();
     } else if (id == BloomColumnFilter.ID) {
       filter = new BloomColumnFilter();
+    } else if (id == BooleanColumnFilter.ID) {
+      filter = new BooleanColumnFilter();
     } else {
       throw new IOException("Unknown column filter id: " + id);
     }
@@ -185,6 +191,11 @@ public abstract class ColumnFilter {
     @Override
     public void update(InternalRow row, int ordinal) {
       // NoopColumnFilter does not update internal state
+    }
+
+    @Override
+    public boolean mightContain(boolean value) {
+      return true;
     }
 
     @Override
@@ -258,6 +269,11 @@ public abstract class ColumnFilter {
     }
 
     @Override
+    public boolean mightContain(boolean value) {
+      throw new RuntimeException("Column filter does not support boolean values");
+    }
+
+    @Override
     public boolean mightContain(int value) {
       return filter.mightContainLong(value);
     }
@@ -295,6 +311,79 @@ public abstract class ColumnFilter {
     @Override
     public String toString() {
       return "BloomColumnFilter";
+    }
+  }
+
+  /**
+   * Simple boolean statistics as column filter.
+   */
+  static class BooleanColumnFilter extends ColumnFilter {
+    public static final byte ID = 4;
+
+    // whether or not filter contains "true"
+    protected boolean containsTrue;
+    // whether or not filter contains "false"
+    protected boolean containsFalse;
+
+    BooleanColumnFilter() {
+      super(ID);
+      containsTrue = false;
+      containsFalse = false;
+    }
+
+    @Override
+    public void update(InternalRow row, int ordinal) {
+      boolean value = row.getBoolean(ordinal);
+      if (value) {
+        containsTrue = true;
+      } else {
+        containsFalse = true;
+      }
+    }
+
+    @Override
+    public boolean mightContain(boolean value) {
+      return value ? containsTrue : containsFalse;
+    }
+
+    @Override
+    public boolean mightContain(int value) {
+      throw new RuntimeException("Column filter does not support integer values");
+    }
+
+    @Override
+    public boolean mightContain(long value) {
+      throw new RuntimeException("Column filter does not support long values");
+    }
+
+    @Override
+    public boolean mightContain(UTF8String value) {
+      throw new RuntimeException("Column filter does not support UTF8String values");
+    }
+
+    @Override
+    protected void writeState(OutputBuffer buffer) throws IOException {
+      int flags = 0;
+      flags |= containsTrue ? 1 : 0;
+      flags |= containsFalse ? 2 : 0;
+      buffer.writeByte(flags);
+    }
+
+    @Override
+    protected void readState(ByteBuffer buffer) throws IOException {
+      byte flags = buffer.get();
+      containsTrue = (flags & 1) != 0;
+      containsFalse = (flags & 2) != 0;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      return obj != null && obj instanceof BooleanColumnFilter;
+    }
+
+    @Override
+    public String toString() {
+      return "BooleanColumnFilter";
     }
   }
 }

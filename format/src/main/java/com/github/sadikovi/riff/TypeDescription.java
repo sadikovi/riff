@@ -35,6 +35,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.NoSuchElementException;
 
+import org.apache.spark.sql.types.BooleanType;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DateType;
 import org.apache.spark.sql.types.IntegerType;
@@ -160,7 +161,8 @@ public class TypeDescription implements Externalizable {
       (dataType instanceof LongType) ||
       (dataType instanceof StringType) ||
       (dataType instanceof DateType) ||
-      (dataType instanceof TimestampType);
+      (dataType instanceof TimestampType) ||
+      (dataType instanceof BooleanType);
   }
 
   /**

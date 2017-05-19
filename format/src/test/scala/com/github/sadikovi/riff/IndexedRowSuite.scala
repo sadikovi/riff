@@ -462,4 +462,32 @@ class IndexedRowSuite extends UnitTestSuite {
     ind.getLong(1) should be (1234567890L)
     ind.get(1, TimestampType) should be (1234567890L)
   }
+
+  test("write/read boolean type") {
+    val schema = StructType(
+      StructField("col1", BooleanType) ::
+      StructField("col2", BooleanType) :: Nil)
+    val row = InternalRow(true, false)
+
+    val td = new TypeDescription(schema, Array("col1"))
+    val writer = new IndexedRowWriter(td)
+    val reader = new IndexedRowReader(td)
+    val stripe = new StripeOutputBuffer(1.toByte)
+    val out = new OutStream(64, null, stripe)
+    writer.writeRow(row, out)
+    out.flush()
+    val in = new InStream(64, null, new StripeInputBuffer(1.toByte, stripe.array()))
+    val ind = reader.readRow(in).asInstanceOf[IndexedRow]
+
+    ind.hasIndexRegion() should be (true)
+    ind.hasDataRegion() should be (true)
+
+    ind.isNullAt(0) should be (false)
+    ind.getBoolean(0) should be (true)
+    assert(ind.get(0, BooleanType) === true)
+
+    ind.isNullAt(1) should be (false)
+    ind.getBoolean(1) should be (false)
+    assert(ind.get(1, BooleanType) === false)
+  }
 }

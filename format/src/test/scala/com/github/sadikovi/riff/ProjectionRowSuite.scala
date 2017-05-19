@@ -64,10 +64,12 @@ class ProjectionRowSuite extends UnitTestSuite {
   }
 
   test("get values") {
-    val row = new ProjectionRow(3)
+    val row = new ProjectionRow(5)
     row.update(0, 1)
     row.update(1, 2L)
     row.update(2, UTF8String.fromString("abc"))
+    row.update(3, true)
+    row.update(4, false)
 
     row.getInt(0) should be (1)
     row.getLong(1) should be (2L)
@@ -78,5 +80,7 @@ class ProjectionRowSuite extends UnitTestSuite {
     row.get(2, StringType) should be (UTF8String.fromString("abc"))
     row.get(0, DateType) should be (1)
     row.get(1, TimestampType) should be (2L)
+    assert(row.get(3, BooleanType) === true)
+    assert(row.get(4, BooleanType) === false)
   }
 }

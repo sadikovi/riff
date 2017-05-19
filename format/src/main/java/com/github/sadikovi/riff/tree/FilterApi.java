@@ -27,6 +27,7 @@ import java.sql.Timestamp;
 
 import org.apache.spark.unsafe.types.UTF8String;
 
+import com.github.sadikovi.riff.tree.expression.BooleanExpression;
 import com.github.sadikovi.riff.tree.expression.DateExpression;
 import com.github.sadikovi.riff.tree.expression.IntegerExpression;
 import com.github.sadikovi.riff.tree.expression.LongExpression;
@@ -82,6 +83,8 @@ public class FilterApi {
       return new DateExpression((Date) obj);
     } else if (obj instanceof Timestamp) {
       return new TimestampExpression((Timestamp) obj);
+    } else if (obj instanceof Boolean) {
+      return new BooleanExpression((Boolean) obj);
     } else {
       throw new UnsupportedOperationException("Object " + obj + " of " + obj.getClass());
     }
