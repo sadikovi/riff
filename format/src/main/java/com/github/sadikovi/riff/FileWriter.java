@@ -207,7 +207,7 @@ public class FileWriter {
   public void prepareWrite() throws IOException {
     if (writeFinished) throw new IOException("Writer reuse");
     if (writePrepared) return;
-    LOG.debug("Prepare file's type description {}", td);
+    LOG.debug("Prepare file writer {}", this);
     stripeId = 0;
     currentOffset = 0L;
     stripes = new ArrayList<StripeInformation>();
@@ -280,7 +280,7 @@ public class FileWriter {
       // flush the last stripe into output stream
       stripeStream.flush();
       StripeInformation stripeInfo =
-        new StripeInformation(stripe, currentOffset, stripeStats);
+        new StripeInformation(stripe, currentOffset, stripeStats, stripeFilters);
       stripe.flush(temporaryStream);
       LOG.debug("Finished writing stripe {}, records={}", stripeInfo,
         numRowsInStripe - stripeCurrentRecords);
