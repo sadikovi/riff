@@ -102,7 +102,6 @@ class ConvertersSuite extends UnitTestSuite {
     val variableBuffer = new OutputBuffer()
 
     val cnv = new IndexedRowBooleanConverter()
-    // 8 bytes for long value
     cnv.byteOffset() should be (1)
     cnv.writeDirect(row, 1, fixedBuffer, 4, variableBuffer)
     cnv.writeDirect(row, 2, fixedBuffer, 4, variableBuffer)

@@ -152,8 +152,8 @@ class StatisticsSuite extends UnitTestSuite {
     val booleanStats = Statistics.sqlTypeToStatistics(BooleanType)
     booleanStats.isNullAt(Statistics.ORD_MIN) should be (true)
     booleanStats.isNullAt(Statistics.ORD_MAX) should be (true)
-    booleanStats.getBoolean(Statistics.ORD_MIN) should be (true)
-    booleanStats.getBoolean(Statistics.ORD_MAX) should be (false)
+    intercept[IllegalStateException] { booleanStats.getBoolean(Statistics.ORD_MIN) }
+    intercept[IllegalStateException] { booleanStats.getBoolean(Statistics.ORD_MAX) }
 
     booleanStats.update(InternalRow(false), 0)
     booleanStats.isNullAt(Statistics.ORD_MIN) should be (false)

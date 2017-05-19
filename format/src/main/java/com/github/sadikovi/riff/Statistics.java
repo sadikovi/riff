@@ -552,6 +552,7 @@ public abstract class Statistics extends GenericInternalRow {
 
     @Override
     public boolean getBoolean(int ordinal) {
+      if (!hasValues) throw new IllegalStateException("Boolean statistics are not set");
       if (ordinal == ORD_MIN) return min;
       if (ordinal == ORD_MAX) return max;
       throw new UnsupportedOperationException("Invalid ordinal " + ordinal);
