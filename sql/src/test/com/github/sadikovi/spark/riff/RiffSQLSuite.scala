@@ -264,6 +264,13 @@ class RiffSQLSuite extends UnitTestSuite with SparkLocal {
     checkDataType(TimestampType, seq, _.filter(col("col") === new Timestamp(20000L)))
   }
 
+  test("write/read dataframe, BooleanType") {
+    val seq = Row(true) :: Row(false) :: Row(null) :: Nil
+    checkDataType(BooleanType, seq)
+    checkDataType(BooleanType, seq, _.filter("col is null"))
+    checkDataType(BooleanType, seq, _.filter(col("col") === true))
+  }
+
   //////////////////////////////////////////////////////////////
   // == Write/read checks for compression codecs
   //////////////////////////////////////////////////////////////

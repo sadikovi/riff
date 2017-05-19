@@ -95,4 +95,17 @@ class ConvertersSuite extends UnitTestSuite {
       98, 99, 100, 101
     ))
   }
+
+  test("indexed row boolean converter") {
+    val row = InternalRow(123, true, false)
+    val fixedBuffer = new OutputBuffer()
+    val variableBuffer = new OutputBuffer()
+
+    val cnv = new IndexedRowBooleanConverter()
+    cnv.byteOffset() should be (1)
+    cnv.writeDirect(row, 1, fixedBuffer, 4, variableBuffer)
+    cnv.writeDirect(row, 2, fixedBuffer, 4, variableBuffer)
+    fixedBuffer.array() should be (Array[Byte](1, 0))
+    assert(variableBuffer.array().isEmpty)
+  }
 }

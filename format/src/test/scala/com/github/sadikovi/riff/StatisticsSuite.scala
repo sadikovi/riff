@@ -72,6 +72,11 @@ class StatisticsSuite extends UnitTestSuite {
     utfStats.id should be (UTF8StringStatistics.ID)
     utfStats.hasNulls should be (false)
 
+    val booleanStats = Statistics.sqlTypeToStatistics(BooleanType)
+    booleanStats.getClass should be (classOf[BooleanStatistics])
+    booleanStats.id should be (BooleanStatistics.ID)
+    booleanStats.hasNulls should be (false)
+
     // null type is not supported
     val noopStats = Statistics.sqlTypeToStatistics(NullType)
     noopStats.getClass should be (classOf[NoopStatistics])
@@ -141,6 +146,26 @@ class StatisticsSuite extends UnitTestSuite {
     utfStats.isNullAt(Statistics.ORD_MAX) should be (false)
     utfStats.getUTF8String(Statistics.ORD_MIN) should be (UTF8String.fromString("123"))
     utfStats.getUTF8String(Statistics.ORD_MAX) should be (UTF8String.fromString("abc"))
+  }
+
+  test("update state for boolean stats") {
+    val booleanStats = Statistics.sqlTypeToStatistics(BooleanType)
+    booleanStats.isNullAt(Statistics.ORD_MIN) should be (true)
+    booleanStats.isNullAt(Statistics.ORD_MAX) should be (true)
+    intercept[IllegalStateException] { booleanStats.getBoolean(Statistics.ORD_MIN) }
+    intercept[IllegalStateException] { booleanStats.getBoolean(Statistics.ORD_MAX) }
+
+    booleanStats.update(InternalRow(false), 0)
+    booleanStats.isNullAt(Statistics.ORD_MIN) should be (false)
+    booleanStats.isNullAt(Statistics.ORD_MAX) should be (false)
+    booleanStats.getBoolean(Statistics.ORD_MIN) should be (false)
+    booleanStats.getBoolean(Statistics.ORD_MAX) should be (false)
+
+    booleanStats.update(InternalRow(true), 0)
+    booleanStats.isNullAt(Statistics.ORD_MIN) should be (false)
+    booleanStats.isNullAt(Statistics.ORD_MAX) should be (false)
+    booleanStats.getBoolean(Statistics.ORD_MIN) should be (false)
+    booleanStats.getBoolean(Statistics.ORD_MAX) should be (true)
   }
 
   test("ensure copy when updating state for utf8 stats") {
@@ -234,6 +259,26 @@ class StatisticsSuite extends UnitTestSuite {
     Statistics.readExternal(in) should be (utfStats)
   }
 
+  test("write/read for empty boolean stats") {
+    val buf = new OutputBuffer()
+    val booleanStats = Statistics.sqlTypeToStatistics(BooleanType)
+    booleanStats.writeExternal(buf)
+    val in = ByteBuffer.wrap(buf.array())
+    Statistics.readExternal(in) should be (booleanStats)
+  }
+
+  test("write/read for non-empty boolean stats") {
+    val buf = new OutputBuffer()
+    val booleanStats = Statistics.sqlTypeToStatistics(BooleanType)
+    booleanStats.update(InternalRow(true), 0)
+    booleanStats.update(InternalRow(null), 0)
+    booleanStats.update(InternalRow(false), 0)
+    booleanStats.writeExternal(buf)
+
+    val in = ByteBuffer.wrap(buf.array())
+    Statistics.readExternal(in) should be (booleanStats)
+  }
+
   test("merge int stats") {
     val s1 = new IntStatistics()
     s1.update(InternalRow(100), 0)
@@ -291,6 +336,46 @@ class StatisticsSuite extends UnitTestSuite {
     s1.merge(s2)
     s1.getUTF8String(Statistics.ORD_MIN) should be (UTF8String.fromString("bbb"))
     s1.getUTF8String(Statistics.ORD_MAX) should be (UTF8String.fromString("ddd"))
+    s1.hasNulls should be (false)
+  }
+
+  test("merge boolean stats 1") {
+    val s1 = new BooleanStatistics()
+    s1.update(InternalRow(false), 0)
+    val s2 = new BooleanStatistics()
+    s2.update(InternalRow(true), 0)
+    s2.update(InternalRow(null), 0)
+
+    s1.merge(s2)
+    assert(s1 != s2)
+    s1.isNullAt(Statistics.ORD_MIN) should be (false)
+    s1.isNullAt(Statistics.ORD_MAX) should be (false)
+    s1.getBoolean(Statistics.ORD_MIN) should be (false)
+    s1.getBoolean(Statistics.ORD_MAX) should be (true)
+    s1.hasNulls should be (true)
+  }
+
+  test("merge boolean stats 2") {
+    val s1 = new BooleanStatistics()
+    val s2 = new BooleanStatistics()
+    s2.update(InternalRow(true), 0)
+    s2.update(InternalRow(null), 0)
+
+    s1.merge(s2)
+    s1.isNullAt(Statistics.ORD_MIN) should be (false)
+    s1.isNullAt(Statistics.ORD_MAX) should be (false)
+    s1.getBoolean(Statistics.ORD_MIN) should be (true)
+    s1.getBoolean(Statistics.ORD_MAX) should be (true)
+    s1.hasNulls should be (true)
+  }
+
+  test("merge boolean stats 3") {
+    val s1 = new BooleanStatistics()
+    val s2 = new BooleanStatistics()
+
+    s1.merge(s2)
+    s1.isNullAt(Statistics.ORD_MIN) should be (true)
+    s1.isNullAt(Statistics.ORD_MAX) should be (true)
     s1.hasNulls should be (false)
   }
 }

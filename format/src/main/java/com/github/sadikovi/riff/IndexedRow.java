@@ -26,6 +26,7 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 import org.apache.spark.sql.catalyst.InternalRow;
+import org.apache.spark.sql.types.BooleanType;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DateType;
 import org.apache.spark.sql.types.IntegerType;
@@ -218,6 +219,16 @@ final class IndexedRow extends GenericInternalRow {
   }
 
   @Override
+  public boolean getBoolean(int ordinal) {
+    // boolean value `true` is encoded as byte 1, `false` as byte 0
+    if (isIndexed(ordinal)) {
+      return this.indexBuffer.get(this.offsets[ordinal]) == 1;
+    } else {
+      return this.dataBuffer.get(this.offsets[ordinal]) == 1;
+    }
+  }
+
+  @Override
   public Object get(int ordinal, DataType dataType) {
     if (isNullAt(ordinal) || dataType instanceof NullType) {
       return null;
@@ -231,6 +242,8 @@ final class IndexedRow extends GenericInternalRow {
       return getInt(ordinal);
     } else if (dataType instanceof TimestampType) {
       return getLong(ordinal);
+    } else if (dataType instanceof BooleanType) {
+      return getBoolean(ordinal);
     } else {
       throw new UnsupportedOperationException("Unsupported data type " + dataType.simpleString());
     }

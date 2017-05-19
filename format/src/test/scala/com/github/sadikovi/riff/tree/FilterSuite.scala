@@ -80,13 +80,17 @@ class FilterSuite extends UnitTestSuite {
     expr = FilterApi.objToExpression(new Timestamp(1234567890L))
     expr.isInstanceOf[TimestampExpression] should be (true)
     expr.prettyString should be ("TIMESTAMP(1234567890000)")
+
+    expr = FilterApi.objToExpression(true)
+    expr.isInstanceOf[BooleanExpression] should be (true)
+    expr.prettyString should be ("true")
   }
 
   test("FilterApi - objToExpression, exceptions") {
     val err1 = intercept[NullPointerException] { FilterApi.objToExpression(null) }
     err1.getMessage should be ("Cannot convert null into typed expression")
-    val err2 = intercept[UnsupportedOperationException] { FilterApi.objToExpression(true) }
-    err2.getMessage should be ("Object true of class java.lang.Boolean")
+    val err2 = intercept[UnsupportedOperationException] { FilterApi.objToExpression(Map.empty) }
+    err2.getMessage should be ("Object Map() of class scala.collection.immutable.Map$EmptyMap$")
   }
 
   test("Trivial predicate") {

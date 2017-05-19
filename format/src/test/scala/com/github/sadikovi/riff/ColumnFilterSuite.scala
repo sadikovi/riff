@@ -102,6 +102,32 @@ class ColumnFilterSuite extends UnitTestSuite {
     filter2.mightContain(row.getInt(0)) should be (true)
   }
 
+  test("boolean filter - update/mightContain") {
+    val filter = ColumnFilter.sqlTypeToColumnFilter(BooleanType, 0)
+    filter.mightContain(false) should be (false)
+    filter.mightContain(true) should be (false)
+    // update true values only
+    filter.update(InternalRow(true), 0)
+    filter.mightContain(false) should be (false)
+    filter.mightContain(true) should be (true)
+    // filter should contain both values
+    filter.update(InternalRow(false), 0)
+    filter.mightContain(false) should be (true)
+    filter.mightContain(true) should be (true)
+  }
+
+  test("boolean filter write/read") {
+    val row = InternalRow(true)
+    val out = new OutputBuffer()
+    val filter1 = ColumnFilter.sqlTypeToColumnFilter(BooleanType, 0)
+    filter1.update(row, 0)
+    filter1.writeExternal(out)
+    val filter2 = ColumnFilter.readExternal(ByteBuffer.wrap(out.array))
+    filter2 should be (filter1)
+    filter2.mightContain(true) should be (true)
+    filter2.mightContain(false) should be (false)
+  }
+
   test("select noop filter for unsupported data type") {
     val filter = ColumnFilter.sqlTypeToColumnFilter(NullType, 10)
     filter should be (ColumnFilter.noopFilter)
