@@ -379,8 +379,11 @@ class ExpressionSuite extends UnitTestSuite {
   }
 
   test("ShortExpression - column filter check") {
-    // column filter is always evaluated to true for short types
     val filter = ColumnFilter.sqlTypeToColumnFilter(ShortType, 16)
+    new ShortExpression(512.toShort).containsExpr(filter) should be (false)
+    new ShortExpression(999.toShort).containsExpr(filter) should be (false)
+    filter.update(InternalRow(512.toShort), 0)
+    filter.update(InternalRow(999.toShort), 0)
     new ShortExpression(512.toShort).containsExpr(filter) should be (true)
     new ShortExpression(999.toShort).containsExpr(filter) should be (true)
   }
@@ -445,8 +448,11 @@ class ExpressionSuite extends UnitTestSuite {
   }
 
   test("ByteExpression - column filter check") {
-    // column filter is always evaluated to true for byte types
     val filter = ColumnFilter.sqlTypeToColumnFilter(ByteType, 16)
+    new ByteExpression(43.toByte).containsExpr(filter) should be (false)
+    new ByteExpression(-56.toByte).containsExpr(filter) should be (false)
+    filter.update(InternalRow(43.toByte), 0)
+    filter.update(InternalRow(-56.toByte), 0)
     new ByteExpression(43.toByte).containsExpr(filter) should be (true)
     new ByteExpression(-56.toByte).containsExpr(filter) should be (true)
   }

@@ -205,6 +205,30 @@ class RiffSQLSuite extends UnitTestSuite with SparkLocal {
     }
   }
 
+  test("write/read dataframe with null values + column filter") {
+    // this test checks that column filters are updated without errors when null values are
+    // present for indexed columns
+    val implicits = spark.implicits
+    withTempDir { dir =>
+      import implicits._
+      val df = Seq[(String, java.lang.Integer, java.lang.Long)](
+        ("a", 1, 2L),
+        (null, null, null),
+        ("c", -1, 4L)
+      ).toDF("col1", "col2", "col3").coalesce(1)
+
+      df.write.option("index", "col1,col2,col3").riff(dir.toString / "table")
+      val res = spark.read.riff(dir.toString / "table")
+
+      checkAnswer(res.filter("col2 = 1"), df.filter("col2 = 1"))
+      checkAnswer(res.filter("col2 = -1"), df.filter("col2 = -1"))
+      checkAnswer(res.filter("col2 is null"), df.filter("col2 is null"))
+      checkAnswer(res.filter("col3 = 2"), df.filter("col3 = 2"))
+      checkAnswer(res.filter("col3 = 4"), df.filter("col3 = 4"))
+      checkAnswer(res.filter("col3 is null"), df.filter("col3 is null"))
+    }
+  }
+
   //////////////////////////////////////////////////////////////
   // == Write/read tests for different datatypes
   //////////////////////////////////////////////////////////////
