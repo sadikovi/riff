@@ -26,11 +26,13 @@ import java.util.Arrays;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.types.BooleanType;
+import org.apache.spark.sql.types.ByteType;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DateType;
 import org.apache.spark.sql.types.IntegerType;
 import org.apache.spark.sql.types.LongType;
 import org.apache.spark.sql.types.NullType;
+import org.apache.spark.sql.types.ShortType;
 import org.apache.spark.sql.types.StringType;
 import org.apache.spark.sql.types.TimestampType;
 import org.apache.spark.unsafe.types.UTF8String;
@@ -150,6 +152,26 @@ public class ProjectionRow extends GenericInternalRow {
     return (UTF8String) values[ordinal];
   }
 
+  /** Method to cast and retrieve short value */
+  private Short getShortValue(int ordinal) {
+    return (Short) values[ordinal];
+  }
+
+  @Override
+  public short getShort(int ordinal) {
+    return getShortValue(ordinal).shortValue();
+  }
+
+  /** Method to cast and retrieve short value */
+  private Byte getByteValue(int ordinal) {
+    return (Byte) values[ordinal];
+  }
+
+  @Override
+  public byte getByte(int ordinal) {
+    return getByteValue(ordinal).byteValue();
+  }
+
   @Override
   public Object get(int ordinal, DataType dataType) {
     if (isNullAt(ordinal) || dataType instanceof NullType) {
@@ -166,6 +188,10 @@ public class ProjectionRow extends GenericInternalRow {
       return getLongValue(ordinal);
     } else if (dataType instanceof BooleanType) {
       return getBooleanValue(ordinal);
+    } else if (dataType instanceof ShortType) {
+      return getShortValue(ordinal);
+    } else if (dataType instanceof ByteType) {
+      return getByteValue(ordinal);
     } else {
       throw new UnsupportedOperationException("Unsupported data type " + dataType.simpleString());
     }
