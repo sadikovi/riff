@@ -36,8 +36,8 @@ import com.github.sadikovi.riff.io.CompressionCodecFactory;
 
 /**
  * [[Riff]] class is the main entrypoint of working with Riff file format.
- * It exposes two primary methods to create either writer or reader as builders with set methods
- * for different options.
+ * It exposes several primary methods to create either writer or reader (including metadata) with
+ * configuration options.
  *
  * Example of writing/reading simple file:
  * {{{
