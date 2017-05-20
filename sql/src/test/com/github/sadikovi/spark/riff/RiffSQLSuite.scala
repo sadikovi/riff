@@ -40,7 +40,7 @@ class RiffSQLSuite extends UnitTestSuite with SparkLocal {
     stopSparkSession
   }
 
-  ignore("parse index fields for option") {
+  test("parse index fields for option") {
     RiffFileFormat.parseIndexFields(null) should be (Array.empty)
     RiffFileFormat.parseIndexFields("") should be (Array.empty)
     RiffFileFormat.parseIndexFields(",") should be (Array.empty)
@@ -51,7 +51,7 @@ class RiffSQLSuite extends UnitTestSuite with SparkLocal {
     RiffFileFormat.parseIndexFields("col1, , col3") should be (Array("col1", "col3"))
   }
 
-  ignore("write/read riff non-partitioned table") {
+  test("write/read riff non-partitioned table") {
     val implicits = spark.implicits
     withTempDir { dir =>
       import implicits._
@@ -72,7 +72,7 @@ class RiffSQLSuite extends UnitTestSuite with SparkLocal {
     }
   }
 
-  ignore("write/read riff partitioned table") {
+  test("write/read riff partitioned table") {
     val implicits = spark.implicits
     withTempDir { dir =>
       import implicits._
@@ -92,7 +92,7 @@ class RiffSQLSuite extends UnitTestSuite with SparkLocal {
     }
   }
 
-  ignore("fail to index partition column") {
+  test("fail to index partition column") {
     val implicits = spark.implicits
     withTempDir { dir =>
       import implicits._
@@ -108,7 +108,7 @@ class RiffSQLSuite extends UnitTestSuite with SparkLocal {
     }
   }
 
-  ignore("filter single row") {
+  test("filter single row") {
     val implicits = spark.implicits
     withTempDir { dir =>
       import implicits._
@@ -135,7 +135,7 @@ class RiffSQLSuite extends UnitTestSuite with SparkLocal {
     }
   }
 
-  ignore("filter range") {
+  test("filter range") {
     val implicits = spark.implicits
     withTempDir { dir =>
       import implicits._
@@ -167,7 +167,7 @@ class RiffSQLSuite extends UnitTestSuite with SparkLocal {
     }
   }
 
-  ignore("filter with result of empty rows") {
+  test("filter with result of empty rows") {
     val implicits = spark.implicits
     withTempDir { dir =>
       import implicits._
@@ -186,7 +186,7 @@ class RiffSQLSuite extends UnitTestSuite with SparkLocal {
     }
   }
 
-  ignore("project correct column order") {
+  test("project correct column order") {
     val implicits = spark.implicits
     withTempDir { dir =>
       import implicits._
@@ -255,25 +255,25 @@ class RiffSQLSuite extends UnitTestSuite with SparkLocal {
     }
   }
 
-  ignore("write/read dataframe, IntegerType") {
+  test("write/read dataframe, IntegerType") {
     val seq = Row(0) :: Row(2) :: Row(3) :: Row(4) :: Row(null) :: Nil
     checkDataType(IntegerType, seq)
     checkDataType(IntegerType, seq, _.filter("col = 4"))
   }
 
-  ignore("write/read dataframe, LongType") {
+  test("write/read dataframe, LongType") {
     val seq = Row(0L) :: Row(2L) :: Row(3L) :: Row(4L) :: Row(null) :: Nil
     checkDataType(LongType, seq)
     checkDataType(LongType, seq, _.filter("col = 4"))
   }
 
-  ignore("write/read dataframe, StringType") {
+  test("write/read dataframe, StringType") {
     val seq = Row("a") :: Row("b") :: Row("c") :: Row("d") :: Row(null) :: Nil
     checkDataType(StringType, seq)
     checkDataType(StringType, seq, _.filter("col = 'c'"))
   }
 
-  ignore("write/read dataframe, DateType") {
+  test("write/read dataframe, DateType") {
     val seq = Row(new Date(1000000L)) :: Row(new Date(2000000L)) :: Row(new Date(3000000L)) ::
       Row(null) :: Nil
     checkDataType(DateType, seq)
@@ -281,7 +281,7 @@ class RiffSQLSuite extends UnitTestSuite with SparkLocal {
     checkDataType(DateType, seq, _.filter(col("col") === new Date(1000000L)))
   }
 
-  ignore("write/read dataframe, TimestampType") {
+  test("write/read dataframe, TimestampType") {
     val seq = Row(new Timestamp(10000L)) :: Row(new Timestamp(20000L)) ::
       Row(new Timestamp(30000L)) :: Row(null) :: Nil
     checkDataType(TimestampType, seq)
@@ -289,21 +289,21 @@ class RiffSQLSuite extends UnitTestSuite with SparkLocal {
     checkDataType(TimestampType, seq, _.filter(col("col") === new Timestamp(20000L)))
   }
 
-  ignore("write/read dataframe, BooleanType") {
+  test("write/read dataframe, BooleanType") {
     val seq = Row(true) :: Row(false) :: Row(null) :: Nil
     checkDataType(BooleanType, seq)
     checkDataType(BooleanType, seq, _.filter("col is null"))
     checkDataType(BooleanType, seq, _.filter(col("col") === true))
   }
 
-  ignore("write/read dataframe, ShortType") {
+  test("write/read dataframe, ShortType") {
     val seq = Row(12345.toShort) :: Row(-671.toShort) :: Row(null) :: Nil
     checkDataType(ShortType, seq)
     checkDataType(ShortType, seq, _.filter("col is null"))
     checkDataType(ShortType, seq, _.filter(col("col") === -671.toShort))
   }
 
-  ignore("write/read dataframe, ByteType") {
+  test("write/read dataframe, ByteType") {
     val seq = Row(51.toByte) :: Row(-67.toByte) :: Row(null) :: Nil
     checkDataType(ByteType, seq)
     checkDataType(ByteType, seq, _.filter("col is null"))
@@ -314,7 +314,7 @@ class RiffSQLSuite extends UnitTestSuite with SparkLocal {
   // == Write/read checks for compression codecs
   //////////////////////////////////////////////////////////////
 
-  ignore("write/read dataframe, snappy") {
+  test("write/read dataframe, snappy") {
     withSQLConf(RiffFileFormat.SQL_RIFF_COMPRESSION_CODEC -> "snappy") {
       withTempDir { dir =>
         val df = spark.range(1237).select(
@@ -333,7 +333,7 @@ class RiffSQLSuite extends UnitTestSuite with SparkLocal {
     }
   }
 
-  ignore("write/read dataframe, gzip") {
+  test("write/read dataframe, gzip") {
     withSQLConf(RiffFileFormat.SQL_RIFF_COMPRESSION_CODEC -> "gzip") {
       withTempDir { dir =>
         val df = spark.range(1237).select(
@@ -351,7 +351,7 @@ class RiffSQLSuite extends UnitTestSuite with SparkLocal {
     }
   }
 
-  ignore("write/read dataframe, deflate") {
+  test("write/read dataframe, deflate") {
     withSQLConf(RiffFileFormat.SQL_RIFF_COMPRESSION_CODEC -> "deflate") {
       withTempDir { dir =>
         val df = spark.range(1237).select(
