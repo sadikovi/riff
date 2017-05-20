@@ -117,7 +117,8 @@ public abstract class ColumnFilter {
       };
     } else if (dataType instanceof ShortType) {
       // TODO: Replace bloom filter with dictionary filter for short values
-      return new BloomColumnFilter(numItems) {
+      // check numItems against 65536 total short values
+      return new BloomColumnFilter(Math.min(numItems, 65536)) {
         @Override
         public void update(InternalRow row, int ordinal) {
           // discard null values, predicate expression is never null
@@ -128,7 +129,8 @@ public abstract class ColumnFilter {
       };
     } else if (dataType instanceof ByteType) {
       // TODO: Replace bloom filter with dictionary filter for byte values
-      return new BloomColumnFilter(numItems) {
+      // byte values are fixed number, check numItems with 256 total byte values
+      return new BloomColumnFilter(Math.min(numItems, 256)) {
         @Override
         public void update(InternalRow row, int ordinal) {
           // discard null values, predicate expression is never null
