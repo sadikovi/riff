@@ -57,7 +57,7 @@ class ColumnFilterSuite extends UnitTestSuite {
   }
 
   test("select bloom filter for different types") {
-    val row = InternalRow(1, 2L, UTF8String.fromString("3"))
+    val row = InternalRow(1, 2L, UTF8String.fromString("3"), 5.toShort, 6.toByte)
     val filter1 = ColumnFilter.sqlTypeToColumnFilter(IntegerType, 64)
     filter1.mightContain(row.getInt(0)) should be (false)
     filter1.update(row, 0)
@@ -84,11 +84,16 @@ class ColumnFilterSuite extends UnitTestSuite {
     filter5.mightContain(row.getLong(1)) should be (false)
     filter5.update(row, 1)
     filter5.mightContain(row.getLong(1)) should be (true)
-  }
 
-  test("select bloom filters for date type and timestamp type") {
-    val filter1 = ColumnFilter.sqlTypeToColumnFilter(DateType, 64)
-    val filter2 = ColumnFilter.sqlTypeToColumnFilter(TimestampType, 64)
+    val filter6 = ColumnFilter.sqlTypeToColumnFilter(ShortType, 64)
+    filter6.mightContain(row.getShort(3)) should be (false)
+    filter6.update(row, 3)
+    filter6.mightContain(row.getShort(3)) should be (true)
+
+    val filter7 = ColumnFilter.sqlTypeToColumnFilter(ByteType, 64)
+    filter7.mightContain(row.getByte(4)) should be (false)
+    filter7.update(row, 4)
+    filter7.mightContain(row.getByte(4)) should be (true)
   }
 
   test("bloom filter write/read") {

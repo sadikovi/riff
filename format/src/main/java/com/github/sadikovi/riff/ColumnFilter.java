@@ -27,10 +27,12 @@ import java.nio.ByteBuffer;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.types.BooleanType;
+import org.apache.spark.sql.types.ByteType;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DateType;
 import org.apache.spark.sql.types.IntegerType;
 import org.apache.spark.sql.types.LongType;
+import org.apache.spark.sql.types.ShortType;
 import org.apache.spark.sql.types.StringType;
 import org.apache.spark.sql.types.TimestampType;
 import org.apache.spark.unsafe.types.UTF8String;
@@ -59,6 +61,8 @@ public abstract class ColumnFilter {
    * @return true if node passes filter or unknown, false if node does not pass filter.
    */
   public abstract boolean mightContain(boolean value);
+  public abstract boolean mightContain(byte value);
+  public abstract boolean mightContain(short value);
   public abstract boolean mightContain(int value);
   public abstract boolean mightContain(long value);
   public abstract boolean mightContain(UTF8String value);
@@ -105,21 +109,52 @@ public abstract class ColumnFilter {
       return new BloomColumnFilter(numItems) {
         @Override
         public void update(InternalRow row, int ordinal) {
-          filter.putLong(row.getInt(ordinal));
+          // discard null values, predicate expression is never null
+          if (!row.isNullAt(ordinal)) {
+            filter.putLong(row.getInt(ordinal));
+          }
+        }
+      };
+    } else if (dataType instanceof ShortType) {
+      // TODO: Replace bloom filter with dictionary filter for short values
+      return new BloomColumnFilter(numItems) {
+        @Override
+        public void update(InternalRow row, int ordinal) {
+          // discard null values, predicate expression is never null
+          if (!row.isNullAt(ordinal)) {
+            filter.putLong(row.getShort(ordinal));
+          }
+        }
+      };
+    } else if (dataType instanceof ByteType) {
+      // TODO: Replace bloom filter with dictionary filter for byte values
+      return new BloomColumnFilter(numItems) {
+        @Override
+        public void update(InternalRow row, int ordinal) {
+          // discard null values, predicate expression is never null
+          if (!row.isNullAt(ordinal)) {
+            filter.putLong(row.getByte(ordinal));
+          }
         }
       };
     } else if (dataType instanceof LongType) {
       return new BloomColumnFilter(numItems) {
         @Override
         public void update(InternalRow row, int ordinal) {
-          filter.putLong(row.getLong(ordinal));
+          // discard null values, predicate expression is never null
+          if (!row.isNullAt(ordinal)) {
+            filter.putLong(row.getLong(ordinal));
+          }
         }
       };
     } else if (dataType instanceof StringType) {
       return new BloomColumnFilter(numItems) {
         @Override
         public void update(InternalRow row, int ordinal) {
-          filter.putBinary(row.getUTF8String(ordinal).getBytes());
+          // discard null values, predicate expression is never null
+          if (!row.isNullAt(ordinal)) {
+            filter.putBinary(row.getUTF8String(ordinal).getBytes());
+          }
         }
       };
     } else if (dataType instanceof DateType) {
@@ -127,7 +162,10 @@ public abstract class ColumnFilter {
       return new BloomColumnFilter(numItems) {
         @Override
         public void update(InternalRow row, int ordinal) {
-          filter.putLong(row.getInt(ordinal));
+          // discard null values, predicate expression is never null
+          if (!row.isNullAt(ordinal)) {
+            filter.putLong(row.getInt(ordinal));
+          }
         }
       };
     } else if (dataType instanceof TimestampType) {
@@ -135,7 +173,10 @@ public abstract class ColumnFilter {
       return new BloomColumnFilter(numItems) {
         @Override
         public void update(InternalRow row, int ordinal) {
-          filter.putLong(row.getLong(ordinal));
+          // discard null values, predicate expression is never null
+          if (!row.isNullAt(ordinal)) {
+            filter.putLong(row.getLong(ordinal));
+          }
         }
       };
     } else if (dataType instanceof BooleanType) {
@@ -195,6 +236,16 @@ public abstract class ColumnFilter {
 
     @Override
     public boolean mightContain(boolean value) {
+      return true;
+    }
+
+    @Override
+    public boolean mightContain(byte value) {
+      return true;
+    }
+
+    @Override
+    public boolean mightContain(short value) {
       return true;
     }
 
@@ -274,6 +325,16 @@ public abstract class ColumnFilter {
     }
 
     @Override
+    public boolean mightContain(byte value) {
+      return filter.mightContainLong(value);
+    }
+
+    @Override
+    public boolean mightContain(short value) {
+      return filter.mightContainLong(value);
+    }
+
+    @Override
     public boolean mightContain(int value) {
       return filter.mightContainLong(value);
     }
@@ -333,6 +394,8 @@ public abstract class ColumnFilter {
 
     @Override
     public void update(InternalRow row, int ordinal) {
+      // discard null values, predicate expression is never null
+      if (row.isNullAt(ordinal)) return;
       boolean value = row.getBoolean(ordinal);
       if (value) {
         containsTrue = true;
@@ -344,6 +407,16 @@ public abstract class ColumnFilter {
     @Override
     public boolean mightContain(boolean value) {
       return value ? containsTrue : containsFalse;
+    }
+
+    @Override
+    public boolean mightContain(byte value) {
+      throw new RuntimeException("Column filter does not support byte values");
+    }
+
+    @Override
+    public boolean mightContain(short value) {
+      throw new RuntimeException("Column filter does not support short values");
     }
 
     @Override

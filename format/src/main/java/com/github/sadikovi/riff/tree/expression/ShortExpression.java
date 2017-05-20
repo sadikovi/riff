@@ -72,9 +72,7 @@ public class ShortExpression implements TypedExpression<ShortExpression> {
 
   @Override
   public boolean containsExpr(ColumnFilter filter) {
-    // TODO: make short expression support column filter
-    // right now, we always return true
-    return true;
+    return filter.mightContain(value);
   }
 
   @Override

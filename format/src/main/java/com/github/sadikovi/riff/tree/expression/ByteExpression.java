@@ -72,9 +72,7 @@ public class ByteExpression implements TypedExpression<ByteExpression> {
 
   @Override
   public boolean containsExpr(ColumnFilter filter) {
-    // TODO: make byte expression support column filter
-    // right now, we always return true
-    return true;
+    return filter.mightContain(value);
   }
 
   @Override
