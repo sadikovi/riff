@@ -27,11 +27,13 @@ import java.util.Arrays;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.types.BooleanType;
+import org.apache.spark.sql.types.ByteType;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DateType;
 import org.apache.spark.sql.types.IntegerType;
 import org.apache.spark.sql.types.LongType;
 import org.apache.spark.sql.types.NullType;
+import org.apache.spark.sql.types.ShortType;
 import org.apache.spark.sql.types.StringType;
 import org.apache.spark.sql.types.TimestampType;
 import org.apache.spark.unsafe.types.UTF8String;
@@ -229,6 +231,24 @@ final class IndexedRow extends GenericInternalRow {
   }
 
   @Override
+  public short getShort(int ordinal) {
+    if (isIndexed(ordinal)) {
+      return this.indexBuffer.getShort(this.offsets[ordinal]);
+    } else {
+      return this.dataBuffer.getShort(this.offsets[ordinal]);
+    }
+  }
+
+  @Override
+  public byte getByte(int ordinal) {
+    if (isIndexed(ordinal)) {
+      return this.indexBuffer.get(this.offsets[ordinal]);
+    } else {
+      return this.dataBuffer.get(this.offsets[ordinal]);
+    }
+  }
+
+  @Override
   public Object get(int ordinal, DataType dataType) {
     if (isNullAt(ordinal) || dataType instanceof NullType) {
       return null;
@@ -244,6 +264,10 @@ final class IndexedRow extends GenericInternalRow {
       return getLong(ordinal);
     } else if (dataType instanceof BooleanType) {
       return getBoolean(ordinal);
+    } else if (dataType instanceof ShortType) {
+      return getShort(ordinal);
+    } else if (dataType instanceof ByteType) {
+      return getByte(ordinal);
     } else {
       throw new UnsupportedOperationException("Unsupported data type " + dataType.simpleString());
     }

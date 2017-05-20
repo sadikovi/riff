@@ -26,10 +26,12 @@ import java.io.IOException;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.types.BooleanType;
+import org.apache.spark.sql.types.ByteType;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DateType;
 import org.apache.spark.sql.types.IntegerType;
 import org.apache.spark.sql.types.LongType;
+import org.apache.spark.sql.types.ShortType;
 import org.apache.spark.sql.types.StringType;
 import org.apache.spark.sql.types.TimestampType;
 
@@ -57,6 +59,10 @@ public class Converters {
       return new IndexedRowLongConverter();
     } else if (dataType instanceof BooleanType) {
       return new IndexedRowBooleanConverter();
+    } else if (dataType instanceof ShortType) {
+      return new IndexedRowShortConverter();
+    } else if (dataType instanceof ByteType) {
+      return new IndexedRowByteConverter();
     } else {
       throw new RuntimeException("No converter registered for type " + dataType);
     }
@@ -151,6 +157,40 @@ public class Converters {
     @Override
     public int byteOffset() {
       // boolean is written into single byte
+      return 1;
+    }
+  }
+
+  public static class IndexedRowShortConverter extends IndexedRowValueConverter {
+    @Override
+    public void writeDirect(
+        InternalRow row,
+        int ordinal,
+        OutputBuffer fixedBuffer,
+        int fixedOffset,
+        OutputBuffer variableBuffer) throws IOException {
+      fixedBuffer.writeShort(row.getShort(ordinal));
+    }
+
+    @Override
+    public int byteOffset() {
+      return 2;
+    }
+  }
+
+  public static class IndexedRowByteConverter extends IndexedRowValueConverter {
+    @Override
+    public void writeDirect(
+        InternalRow row,
+        int ordinal,
+        OutputBuffer fixedBuffer,
+        int fixedOffset,
+        OutputBuffer variableBuffer) throws IOException {
+      fixedBuffer.writeByte(row.getByte(ordinal));
+    }
+
+    @Override
+    public int byteOffset() {
       return 1;
     }
   }

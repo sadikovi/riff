@@ -84,6 +84,14 @@ class FilterSuite extends UnitTestSuite {
     expr = FilterApi.objToExpression(true)
     expr.isInstanceOf[BooleanExpression] should be (true)
     expr.prettyString should be ("true")
+
+    expr = FilterApi.objToExpression(123.toShort)
+    expr.isInstanceOf[ShortExpression] should be (true)
+    expr.prettyString should be ("123s")
+
+    expr = FilterApi.objToExpression(67.toByte)
+    expr.isInstanceOf[ByteExpression] should be (true)
+    expr.prettyString should be ("67b")
   }
 
   test("FilterApi - objToExpression, exceptions") {

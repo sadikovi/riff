@@ -490,4 +490,60 @@ class IndexedRowSuite extends UnitTestSuite {
     ind.getBoolean(1) should be (false)
     assert(ind.get(1, BooleanType) === false)
   }
+
+  test("write/read short type") {
+    val schema = StructType(
+      StructField("col1", ShortType) ::
+      StructField("col2", ShortType) :: Nil)
+    val row = InternalRow(12345.toShort, -673.toShort)
+
+    val td = new TypeDescription(schema, Array("col1"))
+    val writer = new IndexedRowWriter(td)
+    val reader = new IndexedRowReader(td)
+    val stripe = new StripeOutputBuffer(1.toByte)
+    val out = new OutStream(64, null, stripe)
+    writer.writeRow(row, out)
+    out.flush()
+    val in = new InStream(64, null, new StripeInputBuffer(1.toByte, stripe.array()))
+    val ind = reader.readRow(in).asInstanceOf[IndexedRow]
+
+    ind.hasIndexRegion() should be (true)
+    ind.hasDataRegion() should be (true)
+
+    ind.isNullAt(0) should be (false)
+    ind.getShort(0) should be (12345)
+    assert(ind.get(0, ShortType) === 12345)
+
+    ind.isNullAt(1) should be (false)
+    ind.getShort(1) should be (-673)
+    assert(ind.get(1, ShortType) === -673)
+  }
+
+  test("write/read byte type") {
+    val schema = StructType(
+      StructField("col1", ByteType) ::
+      StructField("col2", ByteType) :: Nil)
+    val row = InternalRow(51.toByte, -67.toByte)
+
+    val td = new TypeDescription(schema, Array("col1"))
+    val writer = new IndexedRowWriter(td)
+    val reader = new IndexedRowReader(td)
+    val stripe = new StripeOutputBuffer(1.toByte)
+    val out = new OutStream(64, null, stripe)
+    writer.writeRow(row, out)
+    out.flush()
+    val in = new InStream(64, null, new StripeInputBuffer(1.toByte, stripe.array()))
+    val ind = reader.readRow(in).asInstanceOf[IndexedRow]
+
+    ind.hasIndexRegion() should be (true)
+    ind.hasDataRegion() should be (true)
+
+    ind.isNullAt(0) should be (false)
+    ind.getByte(0) should be (51)
+    assert(ind.get(0, ByteType) === 51)
+
+    ind.isNullAt(1) should be (false)
+    ind.getByte(1) should be (-67)
+    assert(ind.get(1, ByteType) === -67)
+  }
 }

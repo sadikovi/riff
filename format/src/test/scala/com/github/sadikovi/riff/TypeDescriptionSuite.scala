@@ -56,11 +56,12 @@ class TypeDescriptionSuite extends UnitTestSuite {
     TypeDescription.isSupportedDataType(DateType) should be (true)
     TypeDescription.isSupportedDataType(TimestampType) should be (true)
     TypeDescription.isSupportedDataType(BooleanType) should be (true)
+    TypeDescription.isSupportedDataType(ShortType) should be (true)
+    TypeDescription.isSupportedDataType(ByteType) should be (true)
   }
 
   test("unsupported types") {
-    TypeDescription.isSupportedDataType(ShortType) should be (false)
-    TypeDescription.isSupportedDataType(ByteType) should be (false)
+    TypeDescription.isSupportedDataType(FloatType) should be (false)
     TypeDescription.isSupportedDataType(DoubleType) should be (false)
     TypeDescription.isSupportedDataType(NullType) should be (false)
   }

@@ -318,4 +318,136 @@ class ExpressionSuite extends UnitTestSuite {
     expr.leExpr(InternalRow(false), 0) should be (true)
     new BooleanExpression(false).leExpr(InternalRow(true), 0) should be (false)
   }
+
+  test("ShortExpression - misc methods") {
+    val expr = new ShortExpression(512.toShort)
+    expr.dataType should be (ShortType)
+    expr.prettyString should be ("512s")
+    // equals
+    expr.equals(null) should be (false)
+    expr.equals(expr) should be (true)
+    expr.equals(new ShortExpression(457.toShort)) should be (false)
+    expr.equals(new ShortExpression(512.toShort)) should be (true)
+    expr.equals(new ShortExpression(-14.toShort)) should be (false)
+    // hashCode
+    expr.hashCode should be (512.toShort)
+    // compareTo
+    expr.compareTo(expr) should be (0)
+    expr.compareTo(new ShortExpression(-14.toShort)) should be (1)
+    expr.compareTo(new ShortExpression(617.toShort)) should be (-1)
+    // copy
+    expr.copy() should be (expr)
+  }
+
+  test("ShortExpression - check expression") {
+    val expr = new ShortExpression(512.toShort)
+    // equality
+    expr.eqExpr(InternalRow(512.toShort), 0) should be (true)
+    expr.eqExpr(InternalRow(617.toShort), 0) should be (false)
+    expr.eqExpr(InternalRow(-14.toShort), 0) should be (false)
+    expr.eqExpr(InternalRow(0.toShort), 0) should be (false)
+    expr.eqExpr(InternalRow(Short.MaxValue), 0) should be (false)
+    expr.eqExpr(InternalRow(Short.MinValue), 0) should be (false)
+    // greater than
+    expr.gtExpr(InternalRow(512.toShort), 0) should be (false)
+    expr.gtExpr(InternalRow(617.toShort), 0) should be (true)
+    expr.gtExpr(InternalRow(-14.toShort), 0) should be (false)
+    expr.gtExpr(InternalRow(0.toShort), 0) should be (false)
+    expr.gtExpr(InternalRow(Short.MaxValue), 0) should be (true)
+    expr.gtExpr(InternalRow(Short.MinValue), 0) should be (false)
+    // less than
+    expr.ltExpr(InternalRow(512.toShort), 0) should be (false)
+    expr.ltExpr(InternalRow(617.toShort), 0) should be (false)
+    expr.ltExpr(InternalRow(-14.toShort), 0) should be (true)
+    expr.ltExpr(InternalRow(0.toShort), 0) should be (true)
+    expr.ltExpr(InternalRow(Short.MaxValue), 0) should be (false)
+    expr.ltExpr(InternalRow(Short.MinValue), 0) should be (true)
+    // greater than or equal
+    expr.geExpr(InternalRow(512.toShort), 0) should be (true)
+    expr.geExpr(InternalRow(617.toShort), 0) should be (true)
+    expr.geExpr(InternalRow(-14.toShort), 0) should be (false)
+    expr.geExpr(InternalRow(0.toShort), 0) should be (false)
+    expr.geExpr(InternalRow(Short.MaxValue), 0) should be (true)
+    expr.geExpr(InternalRow(Short.MinValue), 0) should be (false)
+    // less than or equal
+    expr.leExpr(InternalRow(512.toShort), 0) should be (true)
+    expr.leExpr(InternalRow(617.toShort), 0) should be (false)
+    expr.leExpr(InternalRow(-14.toShort), 0) should be (true)
+    expr.leExpr(InternalRow(0.toShort), 0) should be (true)
+    expr.leExpr(InternalRow(Short.MaxValue), 0) should be (false)
+    expr.leExpr(InternalRow(Short.MinValue), 0) should be (true)
+  }
+
+  test("ShortExpression - column filter check") {
+    // column filter is always evaluated to true for short types
+    val filter = ColumnFilter.sqlTypeToColumnFilter(ShortType, 16)
+    new ShortExpression(512.toShort).containsExpr(filter) should be (true)
+    new ShortExpression(999.toShort).containsExpr(filter) should be (true)
+  }
+
+  test("ByteExpression - misc methods") {
+    val expr = new ByteExpression(51.toByte)
+    expr.dataType should be (ByteType)
+    expr.prettyString should be ("51b")
+    // equals
+    expr.equals(null) should be (false)
+    expr.equals(expr) should be (true)
+    expr.equals(new ByteExpression(45.toByte)) should be (false)
+    expr.equals(new ByteExpression(51.toByte)) should be (true)
+    expr.equals(new ByteExpression(-3.toByte)) should be (false)
+    // hashCode
+    expr.hashCode should be (51.toByte)
+    // compareTo
+    expr.compareTo(expr) should be (0)
+    expr.compareTo(new ByteExpression(-3.toByte)) should be (1)
+    expr.compareTo(new ByteExpression(61.toByte)) should be (-1)
+    // copy
+    expr.copy() should be (expr)
+  }
+
+  test("ByteExpression - check expression") {
+    val expr = new ByteExpression(51.toByte)
+    // equality
+    expr.eqExpr(InternalRow(51.toByte), 0) should be (true)
+    expr.eqExpr(InternalRow(61.toByte), 0) should be (false)
+    expr.eqExpr(InternalRow(-3.toByte), 0) should be (false)
+    expr.eqExpr(InternalRow(0.toByte), 0) should be (false)
+    expr.eqExpr(InternalRow(Byte.MaxValue), 0) should be (false)
+    expr.eqExpr(InternalRow(Byte.MinValue), 0) should be (false)
+    // greater than
+    expr.gtExpr(InternalRow(51.toByte), 0) should be (false)
+    expr.gtExpr(InternalRow(61.toByte), 0) should be (true)
+    expr.gtExpr(InternalRow(-3.toByte), 0) should be (false)
+    expr.gtExpr(InternalRow(0.toByte), 0) should be (false)
+    expr.gtExpr(InternalRow(Byte.MaxValue), 0) should be (true)
+    expr.gtExpr(InternalRow(Byte.MinValue), 0) should be (false)
+    // less than
+    expr.ltExpr(InternalRow(51.toByte), 0) should be (false)
+    expr.ltExpr(InternalRow(61.toByte), 0) should be (false)
+    expr.ltExpr(InternalRow(-3.toByte), 0) should be (true)
+    expr.ltExpr(InternalRow(0.toByte), 0) should be (true)
+    expr.ltExpr(InternalRow(Byte.MaxValue), 0) should be (false)
+    expr.ltExpr(InternalRow(Byte.MinValue), 0) should be (true)
+    // greater than or equal
+    expr.geExpr(InternalRow(51.toByte), 0) should be (true)
+    expr.geExpr(InternalRow(61.toByte), 0) should be (true)
+    expr.geExpr(InternalRow(-3.toByte), 0) should be (false)
+    expr.geExpr(InternalRow(0.toByte), 0) should be (false)
+    expr.geExpr(InternalRow(Byte.MaxValue), 0) should be (true)
+    expr.geExpr(InternalRow(Byte.MinValue), 0) should be (false)
+    // less than or equal
+    expr.leExpr(InternalRow(51.toByte), 0) should be (true)
+    expr.leExpr(InternalRow(61.toByte), 0) should be (false)
+    expr.leExpr(InternalRow(-3.toByte), 0) should be (true)
+    expr.leExpr(InternalRow(0.toByte), 0) should be (true)
+    expr.leExpr(InternalRow(Byte.MaxValue), 0) should be (false)
+    expr.leExpr(InternalRow(Byte.MinValue), 0) should be (true)
+  }
+
+  test("ByteExpression - column filter check") {
+    // column filter is always evaluated to true for byte types
+    val filter = ColumnFilter.sqlTypeToColumnFilter(ByteType, 16)
+    new ByteExpression(43.toByte).containsExpr(filter) should be (true)
+    new ByteExpression(-56.toByte).containsExpr(filter) should be (true)
+  }
 }

@@ -77,6 +77,16 @@ class StatisticsSuite extends UnitTestSuite {
     booleanStats.id should be (BooleanStatistics.ID)
     booleanStats.hasNulls should be (false)
 
+    val shortStats = Statistics.sqlTypeToStatistics(ShortType)
+    shortStats.getClass should be (classOf[ShortStatistics])
+    shortStats.id should be (ShortStatistics.ID)
+    shortStats.hasNulls should be (false)
+
+    val byteStats = Statistics.sqlTypeToStatistics(ByteType)
+    byteStats.getClass should be (classOf[ByteStatistics])
+    byteStats.id should be (ByteStatistics.ID)
+    byteStats.hasNulls should be (false)
+
     // null type is not supported
     val noopStats = Statistics.sqlTypeToStatistics(NullType)
     noopStats.getClass should be (classOf[NoopStatistics])
@@ -166,6 +176,34 @@ class StatisticsSuite extends UnitTestSuite {
     booleanStats.isNullAt(Statistics.ORD_MAX) should be (false)
     booleanStats.getBoolean(Statistics.ORD_MIN) should be (false)
     booleanStats.getBoolean(Statistics.ORD_MAX) should be (true)
+  }
+
+  test("update state for short stats") {
+    val shortStats = Statistics.sqlTypeToStatistics(ShortType)
+    shortStats.getShort(Statistics.ORD_MIN) should be (Short.MaxValue)
+    shortStats.getShort(Statistics.ORD_MAX) should be (Short.MinValue)
+
+    shortStats.update(InternalRow(51.toShort), 0)
+    shortStats.getShort(Statistics.ORD_MIN) should be (51)
+    shortStats.getShort(Statistics.ORD_MAX) should be (51)
+
+    shortStats.update(InternalRow(-67.toShort), 0)
+    shortStats.getShort(Statistics.ORD_MIN) should be (-67)
+    shortStats.getShort(Statistics.ORD_MAX) should be (51)
+  }
+
+  test("update state for byte stats") {
+    val byteStats = Statistics.sqlTypeToStatistics(ByteType)
+    byteStats.getByte(Statistics.ORD_MIN) should be (Byte.MaxValue)
+    byteStats.getByte(Statistics.ORD_MAX) should be (Byte.MinValue)
+
+    byteStats.update(InternalRow(51.toByte), 0)
+    byteStats.getByte(Statistics.ORD_MIN) should be (51)
+    byteStats.getByte(Statistics.ORD_MAX) should be (51)
+
+    byteStats.update(InternalRow(-67.toByte), 0)
+    byteStats.getByte(Statistics.ORD_MIN) should be (-67)
+    byteStats.getByte(Statistics.ORD_MAX) should be (51)
   }
 
   test("ensure copy when updating state for utf8 stats") {
@@ -279,6 +317,46 @@ class StatisticsSuite extends UnitTestSuite {
     Statistics.readExternal(in) should be (booleanStats)
   }
 
+  test("write/read for empty short stats") {
+    val buf = new OutputBuffer()
+    val shortStats = Statistics.sqlTypeToStatistics(ShortType)
+    shortStats.writeExternal(buf)
+    val in = ByteBuffer.wrap(buf.array())
+    Statistics.readExternal(in) should be (shortStats)
+  }
+
+  test("write/read for non-empty short stats") {
+    val buf = new OutputBuffer()
+    val shortStats = Statistics.sqlTypeToStatistics(ShortType)
+    shortStats.update(InternalRow(51.toShort), 0)
+    shortStats.update(InternalRow(null), 0)
+    shortStats.update(InternalRow(-67.toShort), 0)
+    shortStats.writeExternal(buf)
+
+    val in = ByteBuffer.wrap(buf.array())
+    Statistics.readExternal(in) should be (shortStats)
+  }
+
+  test("write/read for empty byte stats") {
+    val buf = new OutputBuffer()
+    val byteStats = Statistics.sqlTypeToStatistics(ByteType)
+    byteStats.writeExternal(buf)
+    val in = ByteBuffer.wrap(buf.array())
+    Statistics.readExternal(in) should be (byteStats)
+  }
+
+  test("write/read for non-empty byte stats") {
+    val buf = new OutputBuffer()
+    val byteStats = Statistics.sqlTypeToStatistics(ByteType)
+    byteStats.update(InternalRow(51.toByte), 0)
+    byteStats.update(InternalRow(null), 0)
+    byteStats.update(InternalRow(-67.toByte), 0)
+    byteStats.writeExternal(buf)
+
+    val in = ByteBuffer.wrap(buf.array())
+    Statistics.readExternal(in) should be (byteStats)
+  }
+
   test("merge int stats") {
     val s1 = new IntStatistics()
     s1.update(InternalRow(100), 0)
@@ -377,5 +455,37 @@ class StatisticsSuite extends UnitTestSuite {
     s1.isNullAt(Statistics.ORD_MIN) should be (true)
     s1.isNullAt(Statistics.ORD_MAX) should be (true)
     s1.hasNulls should be (false)
+  }
+
+  test("merge short stats") {
+    val s1 = new ShortStatistics()
+    s1.update(InternalRow(100.toShort), 0)
+    s1.update(InternalRow(400.toShort), 0)
+    val s2 = new ShortStatistics()
+    s2.update(InternalRow(-100.toShort), 0)
+    s2.update(InternalRow(300.toShort), 0)
+    s2.update(InternalRow(null), 0)
+
+    s1.merge(s2)
+    assert(s1 != s2)
+    s1.getShort(Statistics.ORD_MIN) should be (-100.toShort)
+    s1.getShort(Statistics.ORD_MAX) should be (400.toShort)
+    s1.hasNulls should be (true)
+  }
+
+  test("merge byte stats") {
+    val s1 = new ByteStatistics()
+    s1.update(InternalRow(10.toByte), 0)
+    s1.update(InternalRow(40.toByte), 0)
+    val s2 = new ByteStatistics()
+    s2.update(InternalRow(-10.toByte), 0)
+    s2.update(InternalRow(30.toByte), 0)
+    s2.update(InternalRow(null), 0)
+
+    s1.merge(s2)
+    assert(s1 != s2)
+    s1.getByte(Statistics.ORD_MIN) should be (-10.toByte)
+    s1.getByte(Statistics.ORD_MAX) should be (40.toByte)
+    s1.hasNulls should be (true)
   }
 }

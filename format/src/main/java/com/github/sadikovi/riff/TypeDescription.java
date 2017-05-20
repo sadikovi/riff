@@ -36,10 +36,12 @@ import java.util.HashSet;
 import java.util.NoSuchElementException;
 
 import org.apache.spark.sql.types.BooleanType;
+import org.apache.spark.sql.types.ByteType;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DateType;
 import org.apache.spark.sql.types.IntegerType;
 import org.apache.spark.sql.types.LongType;
+import org.apache.spark.sql.types.ShortType;
 import org.apache.spark.sql.types.StringType;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
@@ -162,7 +164,9 @@ public class TypeDescription implements Externalizable {
       (dataType instanceof StringType) ||
       (dataType instanceof DateType) ||
       (dataType instanceof TimestampType) ||
-      (dataType instanceof BooleanType);
+      (dataType instanceof BooleanType) ||
+      (dataType instanceof ShortType) ||
+      (dataType instanceof ByteType);
   }
 
   /**

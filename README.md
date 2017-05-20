@@ -49,6 +49,8 @@ These options that you can specify when writing DataFrame by calling `df.write.o
 - `DateType`
 - `TimestampType`
 - `BooleanType`
+- `ShortType`
+- `ByteType`
 
 ## Example
 Usage is very similar to other datasources for Spark, e.g. Parquet, ORC, JSON, etc. Riff allows to

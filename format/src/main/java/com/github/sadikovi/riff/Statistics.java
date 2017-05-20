@@ -27,10 +27,12 @@ import java.nio.ByteBuffer;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.types.BooleanType;
+import org.apache.spark.sql.types.ByteType;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DateType;
 import org.apache.spark.sql.types.IntegerType;
 import org.apache.spark.sql.types.LongType;
+import org.apache.spark.sql.types.ShortType;
 import org.apache.spark.sql.types.StringType;
 import org.apache.spark.sql.types.TimestampType;
 import org.apache.spark.unsafe.types.UTF8String;
@@ -148,6 +150,10 @@ public abstract class Statistics extends GenericInternalRow {
       stats = new UTF8StringStatistics();
     } else if (id == BooleanStatistics.ID) {
       stats = new BooleanStatistics();
+    } else if (id == ShortStatistics.ID) {
+      stats = new ShortStatistics();
+    } else if (id == ByteStatistics.ID) {
+      stats = new ByteStatistics();
     } else {
       throw new IOException("Unrecognized statistics id: " + id);
     }
@@ -175,6 +181,10 @@ public abstract class Statistics extends GenericInternalRow {
       return new LongStatistics();
     } else if (dataType instanceof BooleanType) {
       return new BooleanStatistics();
+    } else if (dataType instanceof ShortType) {
+      return new ShortStatistics();
+    } else if (dataType instanceof ByteType) {
+      return new ByteStatistics();
     } else {
       return new NoopStatistics();
     }
@@ -579,6 +589,140 @@ public abstract class Statistics extends GenericInternalRow {
     @Override
     public String toString() {
       return "BOOL[hasNulls=" + hasNulls() + ", min=" + min + ", max=" + max + "]";
+    }
+  }
+
+  /**
+   * Short values statistics.
+   */
+  static class ShortStatistics extends Statistics {
+    public static final byte ID = 32;
+
+    protected short min = Short.MAX_VALUE;
+    protected short max = Short.MIN_VALUE;
+
+    ShortStatistics() {
+      super(ID);
+    }
+
+    @Override
+    protected void updateState(InternalRow row, int ordinal) {
+      short value = row.getShort(ordinal);
+      min = (min > value) ? value : min;
+      max = (max < value) ? value : max;
+    }
+
+    @Override
+    protected void writeState(OutputBuffer buf) throws IOException {
+      buf.writeShort(min);
+      buf.writeShort(max);
+    }
+
+    @Override
+    protected void readState(ByteBuffer buf) throws IOException {
+      min = buf.getShort();
+      max = buf.getShort();
+    }
+
+    @Override
+    protected void merge(Statistics obj) {
+      ShortStatistics that = (ShortStatistics) obj;
+      this.min = (that.min < this.min) ? that.min : this.min;
+      this.max = (that.max > this.max) ? that.max : this.max;
+      this.hasNulls = this.hasNulls || that.hasNulls;
+    }
+
+    @Override
+    public short getShort(int ordinal) {
+      if (ordinal == ORD_MIN) return min;
+      if (ordinal == ORD_MAX) return max;
+      throw new UnsupportedOperationException("Invalid ordinal " + ordinal);
+    }
+
+    @Override
+    public boolean isNullAt(int ordinal) {
+      // short statistics values are never null
+      return false;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (obj == null || !(obj instanceof ShortStatistics)) return false;
+      ShortStatistics that = (ShortStatistics) obj;
+      if (that == this) return true;
+      return that.min == this.min && that.max == this.max && that.hasNulls == this.hasNulls;
+    }
+
+    @Override
+    public String toString() {
+      return "SHORT[hasNulls=" + hasNulls() + ", min=" + min + ", max=" + max + "]";
+    }
+  }
+
+  /**
+   * Byte values statistics.
+   */
+  static class ByteStatistics extends Statistics {
+    public static final byte ID = 64;
+
+    protected byte min = Byte.MAX_VALUE;
+    protected byte max = Byte.MIN_VALUE;
+
+    ByteStatistics() {
+      super(ID);
+    }
+
+    @Override
+    protected void updateState(InternalRow row, int ordinal) {
+      byte value = row.getByte(ordinal);
+      min = (min > value) ? value : min;
+      max = (max < value) ? value : max;
+    }
+
+    @Override
+    protected void writeState(OutputBuffer buf) throws IOException {
+      buf.writeByte(min);
+      buf.writeByte(max);
+    }
+
+    @Override
+    protected void readState(ByteBuffer buf) throws IOException {
+      min = buf.get();
+      max = buf.get();
+    }
+
+    @Override
+    protected void merge(Statistics obj) {
+      ByteStatistics that = (ByteStatistics) obj;
+      this.min = (that.min < this.min) ? that.min : this.min;
+      this.max = (that.max > this.max) ? that.max : this.max;
+      this.hasNulls = this.hasNulls || that.hasNulls;
+    }
+
+    @Override
+    public byte getByte(int ordinal) {
+      if (ordinal == ORD_MIN) return min;
+      if (ordinal == ORD_MAX) return max;
+      throw new UnsupportedOperationException("Invalid ordinal " + ordinal);
+    }
+
+    @Override
+    public boolean isNullAt(int ordinal) {
+      // byte statistics values are never null
+      return false;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (obj == null || !(obj instanceof ByteStatistics)) return false;
+      ByteStatistics that = (ByteStatistics) obj;
+      if (that == this) return true;
+      return that.min == this.min && that.max == this.max && that.hasNulls == this.hasNulls;
+    }
+
+    @Override
+    public String toString() {
+      return "BYTE[hasNulls=" + hasNulls() + ", min=" + min + ", max=" + max + "]";
     }
   }
 }

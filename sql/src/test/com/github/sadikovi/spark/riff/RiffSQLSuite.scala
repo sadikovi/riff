@@ -271,6 +271,20 @@ class RiffSQLSuite extends UnitTestSuite with SparkLocal {
     checkDataType(BooleanType, seq, _.filter(col("col") === true))
   }
 
+  test("write/read dataframe, ShortType") {
+    val seq = Row(12345.toShort) :: Row(-671.toShort) :: Row(null) :: Nil
+    checkDataType(ShortType, seq)
+    checkDataType(ShortType, seq, _.filter("col is null"))
+    checkDataType(ShortType, seq, _.filter(col("col") === -671.toShort))
+  }
+
+  test("write/read dataframe, ByteType") {
+    val seq = Row(51.toByte) :: Row(-67.toByte) :: Row(null) :: Nil
+    checkDataType(ByteType, seq)
+    checkDataType(ByteType, seq, _.filter("col is null"))
+    checkDataType(ByteType, seq, _.filter(col("col") === -67.toByte))
+  }
+
   //////////////////////////////////////////////////////////////
   // == Write/read checks for compression codecs
   //////////////////////////////////////////////////////////////

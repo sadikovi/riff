@@ -37,6 +37,9 @@ class ConvertersSuite extends UnitTestSuite {
     Converters.sqlTypeToConverter(DateType) should be (new IndexedRowIntConverter())
     Converters.sqlTypeToConverter(TimestampType) should be (new IndexedRowLongConverter())
     Converters.sqlTypeToConverter(StringType) should be (new IndexedRowUTF8Converter())
+    Converters.sqlTypeToConverter(BooleanType) should be (new IndexedRowBooleanConverter())
+    Converters.sqlTypeToConverter(ShortType) should be (new IndexedRowShortConverter())
+    Converters.sqlTypeToConverter(ByteType) should be (new IndexedRowByteConverter())
   }
 
   test("converter for unsupported sql type") {
@@ -106,6 +109,32 @@ class ConvertersSuite extends UnitTestSuite {
     cnv.writeDirect(row, 1, fixedBuffer, 4, variableBuffer)
     cnv.writeDirect(row, 2, fixedBuffer, 4, variableBuffer)
     fixedBuffer.array() should be (Array[Byte](1, 0))
+    assert(variableBuffer.array().isEmpty)
+  }
+
+  test("indexed row short converter") {
+    val row = InternalRow(12345.toShort, -67.toShort)
+    val fixedBuffer = new OutputBuffer()
+    val variableBuffer = new OutputBuffer()
+
+    val cnv = new IndexedRowShortConverter()
+    cnv.byteOffset() should be (2)
+    cnv.writeDirect(row, 0, fixedBuffer, 4, variableBuffer)
+    cnv.writeDirect(row, 1, fixedBuffer, 4, variableBuffer)
+    fixedBuffer.array() should be (Array[Byte](48, 57, -1, -67))
+    assert(variableBuffer.array().isEmpty)
+  }
+
+  test("indexed row byte converter") {
+    val row = InternalRow(51.toByte, -67.toByte)
+    val fixedBuffer = new OutputBuffer()
+    val variableBuffer = new OutputBuffer()
+
+    val cnv = new IndexedRowByteConverter()
+    cnv.byteOffset() should be (1)
+    cnv.writeDirect(row, 0, fixedBuffer, 4, variableBuffer)
+    cnv.writeDirect(row, 1, fixedBuffer, 4, variableBuffer)
+    fixedBuffer.array() should be (Array[Byte](51, -67))
     assert(variableBuffer.array().isEmpty)
   }
 }
