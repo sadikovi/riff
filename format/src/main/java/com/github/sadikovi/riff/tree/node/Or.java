@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-package com.github.sadikovi.riff.tree.expression;
+package com.github.sadikovi.riff.tree.node;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 
@@ -32,15 +32,14 @@ import com.github.sadikovi.riff.tree.State;
 import com.github.sadikovi.riff.tree.Tree;
 
 /**
- * [[And]] is binary logical predicate representing intersection of left and right subtrees -
- * only analyzed when both subtrees are analyzed. Evaluation for statistics and column filters
- * works the same way - if one of the children returns `false`, the result is `false`.
+ * [[Or]] is binary logical node representing union of child subtrees. Node is analyzed when both
+ * children are analyzed. Evaluated when either or both of the children yield `true` as a result.
  */
-public class And extends BinaryLogical {
+public class Or extends BinaryLogical {
   private final Tree left;
   private final Tree right;
 
-  public And(Tree left, Tree right) {
+  public Or(Tree left, Tree right) {
     this.left = left;
     this.right = right;
   }
@@ -57,17 +56,17 @@ public class And extends BinaryLogical {
 
   @Override
   public boolean evaluateState(InternalRow row) {
-    return left.evaluateState(row) && right.evaluateState(row);
+    return left.evaluateState(row) || right.evaluateState(row);
   }
 
   @Override
   public boolean evaluateState(Statistics[] stats) {
-    return left.evaluateState(stats) && right.evaluateState(stats);
+    return left.evaluateState(stats) || right.evaluateState(stats);
   }
 
   @Override
   public boolean evaluateState(ColumnFilter[] filters) {
-    return left.evaluateState(filters) && right.evaluateState(filters);
+    return left.evaluateState(filters) || right.evaluateState(filters);
   }
 
   @Override
@@ -77,16 +76,16 @@ public class And extends BinaryLogical {
 
   @Override
   public State state() {
-    return left.state().and(right.state());
+    return left.state().or(right.state());
   }
 
   @Override
   public Tree copy() {
-    return new And(left.copy(), right.copy());
+    return new Or(left.copy(), right.copy());
   }
 
   @Override
   public String toString() {
-    return "(" + left + ") && (" + right + ")";
+    return "(" + left + ") || (" + right + ")";
   }
 }

@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-package com.github.sadikovi.riff.tree.expression;
+package com.github.sadikovi.riff.tree.node;
 
 import java.util.Arrays;
 import java.util.HashSet;

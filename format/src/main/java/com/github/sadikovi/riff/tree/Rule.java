@@ -22,17 +22,17 @@
 
 package com.github.sadikovi.riff.tree;
 
-import com.github.sadikovi.riff.tree.expression.EqualTo;
-import com.github.sadikovi.riff.tree.expression.GreaterThan;
-import com.github.sadikovi.riff.tree.expression.LessThan;
-import com.github.sadikovi.riff.tree.expression.GreaterThanOrEqual;
-import com.github.sadikovi.riff.tree.expression.LessThanOrEqual;
-import com.github.sadikovi.riff.tree.expression.In;
-import com.github.sadikovi.riff.tree.expression.IsNull;
-import com.github.sadikovi.riff.tree.expression.Not;
-import com.github.sadikovi.riff.tree.expression.And;
-import com.github.sadikovi.riff.tree.expression.Or;
-import com.github.sadikovi.riff.tree.expression.Trivial;
+import com.github.sadikovi.riff.tree.node.EqualTo;
+import com.github.sadikovi.riff.tree.node.GreaterThan;
+import com.github.sadikovi.riff.tree.node.LessThan;
+import com.github.sadikovi.riff.tree.node.GreaterThanOrEqual;
+import com.github.sadikovi.riff.tree.node.LessThanOrEqual;
+import com.github.sadikovi.riff.tree.node.In;
+import com.github.sadikovi.riff.tree.node.IsNull;
+import com.github.sadikovi.riff.tree.node.Not;
+import com.github.sadikovi.riff.tree.node.And;
+import com.github.sadikovi.riff.tree.node.Or;
+import com.github.sadikovi.riff.tree.node.Trivial;
 
 /**
  * Rule allows to traverse tree and return updated/modified tree which contains either copies of

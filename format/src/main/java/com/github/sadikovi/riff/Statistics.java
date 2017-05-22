@@ -38,6 +38,7 @@ import org.apache.spark.sql.types.TimestampType;
 import org.apache.spark.unsafe.types.UTF8String;
 
 import com.github.sadikovi.riff.io.OutputBuffer;
+import com.github.sadikovi.riff.row.GenericInternalRow;
 
 /**
  * Stripe min/max statistics.

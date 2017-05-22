@@ -20,57 +20,59 @@
  * SOFTWARE.
  */
 
-package com.github.sadikovi.riff.tree.expression;
+package com.github.sadikovi.riff.tree.node;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 
 import com.github.sadikovi.riff.ColumnFilter;
 import com.github.sadikovi.riff.Statistics;
 import com.github.sadikovi.riff.tree.Rule;
-import com.github.sadikovi.riff.tree.State;
 import com.github.sadikovi.riff.tree.Tree;
-import com.github.sadikovi.riff.tree.UnaryLogical;
+import com.github.sadikovi.riff.tree.TypedBoundReference;
+import com.github.sadikovi.riff.tree.TypedExpression;
 
 /**
- * [[Not]] is unary logical node that inverses value of the child tree. Note that in some cases
- * we keep `true` instead of inversing child's value - this is done to avoid false reporting of
- * filters.
+ * [[GreaterThanOrEqual]] is inequality predicate for typed expression.
+ * Ordinal row value is greater than or equal to expression value.
  */
-public class Not extends UnaryLogical {
-  private final Tree child;
+public class GreaterThanOrEqual extends TypedBoundReference {
+  private final String name;
+  private final TypedExpression expr;
 
-  public Not(Tree child) {
-    this.child = child;
+  public GreaterThanOrEqual(String name, TypedExpression expr) {
+    this.name = name;
+    this.expr = expr;
   }
 
   @Override
-  public Tree child() {
-    return child;
+  public TypedExpression expression() {
+    return this.expr;
   }
 
   @Override
-  public boolean evaluateState(InternalRow row) {
-    return !child.evaluateState(row);
+  public String operator() {
+    return ">=";
   }
 
   @Override
-  public boolean evaluateState(Statistics[] stats) {
-    // `not` does not evaluate statistics, because child expression evaluation does not guarantee
-    // that records for inverse result will not exist in dataset
+  public String name() {
+    return name;
+  }
+
+  @Override
+  public boolean evaluateState(InternalRow row, int ordinal) {
+    return !row.isNullAt(ordinal) && expr.geExpr(row, ordinal);
+  }
+
+  @Override
+  public boolean evaluateState(Statistics stats) {
+    return !stats.isNullAt(Statistics.ORD_MAX) && expr.geExpr(stats, Statistics.ORD_MAX);
+  }
+
+  @Override
+  public boolean evaluateState(ColumnFilter filter) {
+    // column filter is not evaluated for GreaterThanOrEqual
     return true;
-  }
-
-  @Override
-  public boolean evaluateState(ColumnFilter[] filters) {
-    // `not` does not evaluate column filters, because child expression evaluation does not
-    // guarantee that records for inverse result will not exist in dataset
-    return true;
-  }
-
-  @Override
-  public State state() {
-    // state of not predicate is unknown similar to evaluation
-    return State.Unknown;
   }
 
   @Override
@@ -80,11 +82,6 @@ public class Not extends UnaryLogical {
 
   @Override
   public Tree copy() {
-    return new Not(child.copy());
-  }
-
-  @Override
-  public String toString() {
-    return "!(" + child + ")";
+    return new GreaterThanOrEqual(name, expr.copy()).copyOrdinal(this);
   }
 }

@@ -20,53 +20,59 @@
  * SOFTWARE.
  */
 
-package com.github.sadikovi.riff.tree.expression;
+package com.github.sadikovi.riff.tree.node;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 
 import com.github.sadikovi.riff.ColumnFilter;
 import com.github.sadikovi.riff.Statistics;
-import com.github.sadikovi.riff.tree.BinaryLogical;
 import com.github.sadikovi.riff.tree.Rule;
-import com.github.sadikovi.riff.tree.State;
 import com.github.sadikovi.riff.tree.Tree;
+import com.github.sadikovi.riff.tree.TypedBoundReference;
+import com.github.sadikovi.riff.tree.TypedExpression;
 
 /**
- * [[Or]] is binary logical node representing union of child subtrees. Node is analyzed when both
- * children are analyzed. Evaluated when either or both of the children yield `true` as a result.
+ * [[LessThanOrEqual]] is inequality predicate for typed expression.
+ * Ordinal row value is less than or equal to expression value.
  */
-public class Or extends BinaryLogical {
-  private final Tree left;
-  private final Tree right;
+public class LessThanOrEqual extends TypedBoundReference {
+  private final String name;
+  private final TypedExpression expr;
 
-  public Or(Tree left, Tree right) {
-    this.left = left;
-    this.right = right;
+  public LessThanOrEqual(String name, TypedExpression expr) {
+    this.name = name;
+    this.expr = expr;
   }
 
   @Override
-  public Tree left() {
-    return left;
+  public TypedExpression expression() {
+    return this.expr;
   }
 
   @Override
-  public Tree right() {
-    return right;
+  public String operator() {
+    return "<=";
   }
 
   @Override
-  public boolean evaluateState(InternalRow row) {
-    return left.evaluateState(row) || right.evaluateState(row);
+  public String name() {
+    return name;
   }
 
   @Override
-  public boolean evaluateState(Statistics[] stats) {
-    return left.evaluateState(stats) || right.evaluateState(stats);
+  public boolean evaluateState(InternalRow row, int ordinal) {
+    return !row.isNullAt(ordinal) && expr.leExpr(row, ordinal);
   }
 
   @Override
-  public boolean evaluateState(ColumnFilter[] filters) {
-    return left.evaluateState(filters) || right.evaluateState(filters);
+  public boolean evaluateState(Statistics stats) {
+    return !stats.isNullAt(Statistics.ORD_MIN) && expr.leExpr(stats, Statistics.ORD_MIN);
+  }
+
+  @Override
+  public boolean evaluateState(ColumnFilter filter) {
+    // column filter is not evaluated for LessThanOrEqual
+    return true;
   }
 
   @Override
@@ -75,17 +81,7 @@ public class Or extends BinaryLogical {
   }
 
   @Override
-  public State state() {
-    return left.state().or(right.state());
-  }
-
-  @Override
   public Tree copy() {
-    return new Or(left.copy(), right.copy());
-  }
-
-  @Override
-  public String toString() {
-    return "(" + left + ") || (" + right + ")";
+    return new LessThanOrEqual(name, expr.copy()).copyOrdinal(this);
   }
 }

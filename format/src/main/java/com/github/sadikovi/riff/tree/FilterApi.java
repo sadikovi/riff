@@ -36,17 +36,17 @@ import com.github.sadikovi.riff.tree.expression.ShortExpression;
 import com.github.sadikovi.riff.tree.expression.TimestampExpression;
 import com.github.sadikovi.riff.tree.expression.UTF8StringExpression;
 
-import com.github.sadikovi.riff.tree.expression.EqualTo;
-import com.github.sadikovi.riff.tree.expression.GreaterThan;
-import com.github.sadikovi.riff.tree.expression.LessThan;
-import com.github.sadikovi.riff.tree.expression.GreaterThanOrEqual;
-import com.github.sadikovi.riff.tree.expression.LessThanOrEqual;
-import com.github.sadikovi.riff.tree.expression.In;
-import com.github.sadikovi.riff.tree.expression.IsNull;
-import com.github.sadikovi.riff.tree.expression.Not;
-import com.github.sadikovi.riff.tree.expression.And;
-import com.github.sadikovi.riff.tree.expression.Or;
-import com.github.sadikovi.riff.tree.expression.Trivial;
+import com.github.sadikovi.riff.tree.node.EqualTo;
+import com.github.sadikovi.riff.tree.node.GreaterThan;
+import com.github.sadikovi.riff.tree.node.LessThan;
+import com.github.sadikovi.riff.tree.node.GreaterThanOrEqual;
+import com.github.sadikovi.riff.tree.node.LessThanOrEqual;
+import com.github.sadikovi.riff.tree.node.In;
+import com.github.sadikovi.riff.tree.node.IsNull;
+import com.github.sadikovi.riff.tree.node.Not;
+import com.github.sadikovi.riff.tree.node.And;
+import com.github.sadikovi.riff.tree.node.Or;
+import com.github.sadikovi.riff.tree.node.Trivial;
 
 /**
  * [[FilterApi]] is used to construct predicate tree. It is recommended to use this set of methods
