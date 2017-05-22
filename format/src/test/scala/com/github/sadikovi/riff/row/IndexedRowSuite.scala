@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-package com.github.sadikovi.riff
+package com.github.sadikovi.riff.row
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 
@@ -28,6 +28,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
+import com.github.sadikovi.riff.{IndexedRowReader, IndexedRowWriter, PredicateState, TypeDescription}
 import com.github.sadikovi.riff.io._
 import com.github.sadikovi.riff.tree.{FilterApi, Tree}
 import com.github.sadikovi.riff.tree.FilterApi._
