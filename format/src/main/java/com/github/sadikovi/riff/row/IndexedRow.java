@@ -153,9 +153,9 @@ public final class IndexedRow extends GenericInternalRow {
 
   @Override
   public int hashCode() {
-    int result = 31 * numFields();
-    result += (int) (this.nulls ^ (this.nulls >>> 32));
-    result += (int) (this.indexed ^ (this.indexed >>> 32));
+    int result = numFields();
+    result = 31 * result + (int) (this.nulls ^ (this.nulls >>> 32));
+    result = 31 * result + (int) (this.indexed ^ (this.indexed >>> 32));
     return result;
   }
 

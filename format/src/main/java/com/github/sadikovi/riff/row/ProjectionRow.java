@@ -97,8 +97,8 @@ public class ProjectionRow extends GenericInternalRow {
 
   @Override
   public int hashCode() {
-    int result = 31 * numFields();
-    result += Arrays.hashCode(values);
+    int result = numFields();
+    result = 31 * result + Arrays.hashCode(values);
     return result;
   }
 
