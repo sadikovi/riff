@@ -28,6 +28,7 @@ import java.io.EOFException;
 import org.apache.spark.sql.catalyst.InternalRow;
 
 import com.github.sadikovi.riff.io.InStream;
+import com.github.sadikovi.riff.row.IndexedRow;
 
 /**
  * Reader for [[IndexedRow]] instances, created per stream and reused across rows.

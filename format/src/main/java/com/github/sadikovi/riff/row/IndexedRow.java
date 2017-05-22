@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-package com.github.sadikovi.riff;
+package com.github.sadikovi.riff.row;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -43,7 +43,7 @@ import org.apache.spark.unsafe.types.UTF8String;
  * access. Has a restriction of only Long.SIZE fields to maintain. Assumes that order of fields
  * written is index fields -> data fields.
  */
-final class IndexedRow extends GenericInternalRow {
+public final class IndexedRow extends GenericInternalRow {
   public static final byte MAGIC1 = 67;
   public static final byte MAGIC2 = 73;
 
@@ -58,7 +58,7 @@ final class IndexedRow extends GenericInternalRow {
   // byte buffer for data region
   private ByteBuffer dataBuffer;
 
-  IndexedRow(long indexed, long nulls, int[] offsets) {
+  public IndexedRow(long indexed, long nulls, int[] offsets) {
     if (offsets.length > Long.SIZE) {
       throw new IllegalArgumentException(
         "Too many fields " + offsets.length + ", should be <= " + Long.SIZE);
@@ -74,7 +74,7 @@ final class IndexedRow extends GenericInternalRow {
    * Set index region as array of bytes, array should already be a copy - wrapped byte buffer is
    * created on top of this array.
    */
-  protected void setIndexRegion(byte[] bytes) {
+  public void setIndexRegion(byte[] bytes) {
     this.indexBuffer = ByteBuffer.wrap(bytes);
   }
 
@@ -82,21 +82,21 @@ final class IndexedRow extends GenericInternalRow {
    * Set data region as array of bytes, array should already be a copy - wrapped byte buffer is
    * created, similar to index region.
    */
-  protected void setDataRegion(byte[] bytes) {
+  public void setDataRegion(byte[] bytes) {
     this.dataBuffer = ByteBuffer.wrap(bytes);
   }
 
   /**
    * Get nulls bit set, for internal use only.
    */
-  protected long getNulls() {
+  public long getNulls() {
     return this.nulls;
   }
 
   /**
    * Get indexed bit set, for internal use only.
    */
-  protected long getIndexed() {
+  public long getIndexed() {
     return this.indexed;
   }
 

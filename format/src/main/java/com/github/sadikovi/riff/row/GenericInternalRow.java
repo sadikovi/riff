@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-package com.github.sadikovi.riff;
+package com.github.sadikovi.riff.row;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.util.ArrayData;
