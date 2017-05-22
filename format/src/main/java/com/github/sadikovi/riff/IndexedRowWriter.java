@@ -28,6 +28,7 @@ import org.apache.spark.sql.catalyst.InternalRow;
 
 import com.github.sadikovi.riff.io.OutputBuffer;
 import com.github.sadikovi.riff.io.OutStream;
+import com.github.sadikovi.riff.row.IndexedRow;
 
 /**
  * Writer for [[IndexedRow]] instances, created per stream and reused across rows.

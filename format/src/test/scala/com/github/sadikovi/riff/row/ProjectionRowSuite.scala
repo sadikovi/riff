@@ -63,28 +63,64 @@ class ProjectionRowSuite extends UnitTestSuite {
     row.toString should be ("[1, 2, 3]")
   }
 
-  test("get values") {
-    val row = new ProjectionRow(7)
-    row.update(0, 1)
-    row.update(1, 2L)
-    row.update(2, UTF8String.fromString("abc"))
-    row.update(3, true)
-    row.update(4, false)
-    row.update(5, 12345.toShort)
-    row.update(6, 67.toByte)
+  test("get int value") {
+    val row = new ProjectionRow(1)
+    row.update(0, 12345)
+    row.getInt(0) should be (12345)
+    row.get(0, IntegerType) should be (12345)
+  }
 
-    row.getInt(0) should be (1)
-    row.getLong(1) should be (2L)
-    row.getUTF8String(2) should be (UTF8String.fromString("abc"))
+  test("get long value") {
+    val row = new ProjectionRow(1)
+    row.update(0, -9999L)
+    row.getLong(0) should be (-9999L)
+    row.get(0, LongType) should be (-9999L)
+  }
 
-    row.get(0, IntegerType) should be (1)
-    row.get(1, LongType) should be (2L)
-    row.get(2, StringType) should be (UTF8String.fromString("abc"))
-    row.get(0, DateType) should be (1)
-    row.get(1, TimestampType) should be (2L)
-    assert(row.get(3, BooleanType) === true)
-    assert(row.get(4, BooleanType) === false)
-    row.get(5, ShortType) should be (12345)
-    row.get(6, ByteType) should be (67)
+  test("get string value") {
+    val row = new ProjectionRow(1)
+    row.update(0, UTF8String.fromString("abcdef"))
+    row.getUTF8String(0) should be (UTF8String.fromString("abcdef"))
+    row.get(0, StringType) should be (UTF8String.fromString("abcdef"))
+  }
+
+  test("get date value") {
+    val row = new ProjectionRow(1)
+    // date is stored internally as integer
+    row.update(0, 1230000)
+    row.getInt(0) should be (1230000)
+    row.get(0, DateType) should be (1230000)
+  }
+
+  test("get timestamp value") {
+    val row = new ProjectionRow(1)
+    // timestamp is stored internally as long
+    row.update(0, 4567890L)
+    row.getLong(0) should be (4567890L)
+    row.get(0, TimestampType) should be (4567890L)
+  }
+
+  test("get boolean value") {
+    val row = new ProjectionRow(2)
+    row.update(0, true)
+    row.update(1, false)
+    row.getBoolean(0) should be (true)
+    row.getBoolean(1) should be (false)
+    assert(row.get(0, BooleanType) === true)
+    assert(row.get(1, BooleanType) === false)
+  }
+
+  test("get short value") {
+    val row = new ProjectionRow(1)
+    row.update(0, 763.toShort)
+    row.getShort(0) should be (763.toShort)
+    row.get(0, ShortType) should be (763.toShort)
+  }
+
+  test("get byte value") {
+    val row = new ProjectionRow(1)
+    row.update(0, 68.toByte)
+    row.getByte(0) should be (68.toByte)
+    row.get(0, ByteType) should be (68.toByte)
   }
 }
