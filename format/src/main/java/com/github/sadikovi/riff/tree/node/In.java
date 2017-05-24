@@ -29,7 +29,7 @@ import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.types.DataType;
 
 import com.github.sadikovi.riff.ColumnFilter;
-import com.github.sadikovi.riff.Statistics;
+import com.github.sadikovi.riff.stats.Statistics;
 import com.github.sadikovi.riff.tree.Rule;
 import com.github.sadikovi.riff.tree.Tree;
 import com.github.sadikovi.riff.tree.TypedBoundReference;

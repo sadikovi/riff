@@ -60,7 +60,7 @@ class IntStatistics extends Statistics {
   }
 
   @Override
-  protected void merge(Statistics obj) {
+  public void merge(Statistics obj) {
     IntStatistics that = (IntStatistics) obj;
     this.min = Math.min(that.min, this.min);
     this.max = Math.max(that.max, this.max);

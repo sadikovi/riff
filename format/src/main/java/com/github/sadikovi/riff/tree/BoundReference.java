@@ -25,9 +25,9 @@ package com.github.sadikovi.riff.tree;
 import org.apache.spark.sql.catalyst.InternalRow;
 
 import com.github.sadikovi.riff.ColumnFilter;
-import com.github.sadikovi.riff.Statistics;
 import com.github.sadikovi.riff.TypeDescription;
 import com.github.sadikovi.riff.TypeSpec;
+import com.github.sadikovi.riff.stats.Statistics;
 
 /**
  * [[BoundReference]] represents leaf node with known name/ordinal. This is a leaf node for filters,

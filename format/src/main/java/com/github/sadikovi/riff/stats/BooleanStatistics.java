@@ -72,7 +72,7 @@ class BooleanStatistics extends Statistics {
   }
 
   @Override
-  protected void merge(Statistics obj) {
+  public void merge(Statistics obj) {
     BooleanStatistics that = (BooleanStatistics) obj;
     if (that.min == null || that.max == null) {
       this.min = that.min != null ? (that.min && this.min) : this.min;

@@ -100,7 +100,7 @@ class UTF8Statistics extends Statistics {
   }
 
   @Override
-  protected void merge(Statistics obj) {
+  public void merge(Statistics obj) {
     UTF8Statistics that = (UTF8Statistics) obj;
     // update min
     if (this.min == null || that.min == null) {

@@ -60,7 +60,7 @@ class ByteStatistics extends Statistics {
   }
 
   @Override
-  protected void merge(Statistics obj) {
+  public void merge(Statistics obj) {
     ByteStatistics that = (ByteStatistics) obj;
     this.min = (that.min < this.min) ? that.min : this.min;
     this.max = (that.max > this.max) ? that.max : this.max;

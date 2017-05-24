@@ -25,7 +25,7 @@ package com.github.sadikovi.riff.tree.node;
 import org.apache.spark.sql.catalyst.InternalRow;
 
 import com.github.sadikovi.riff.ColumnFilter;
-import com.github.sadikovi.riff.Statistics;
+import com.github.sadikovi.riff.stats.Statistics;
 import com.github.sadikovi.riff.tree.Rule;
 import com.github.sadikovi.riff.tree.State;
 import com.github.sadikovi.riff.tree.Tree;

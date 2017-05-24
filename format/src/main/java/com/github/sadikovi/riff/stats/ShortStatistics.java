@@ -60,7 +60,7 @@ class ShortStatistics extends Statistics {
   }
 
   @Override
-  protected void merge(Statistics obj) {
+  public void merge(Statistics obj) {
     ShortStatistics that = (ShortStatistics) obj;
     this.min = (that.min < this.min) ? that.min : this.min;
     this.max = (that.max > this.max) ? that.max : this.max;

@@ -82,7 +82,7 @@ public abstract class Statistics extends GenericInternalRow {
    * It is guaranteed that provided statistics instance will be of the same type as this one.
    * @param obj instance to merge
    */
-  protected abstract void merge(Statistics obj);
+  public abstract void merge(Statistics obj);
 
   /**
    * Whether or not this statistics instance has null values.

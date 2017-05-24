@@ -60,7 +60,7 @@ class LongStatistics extends Statistics {
   }
 
   @Override
-  protected void merge(Statistics obj) {
+  public void merge(Statistics obj) {
     LongStatistics that = (LongStatistics) obj;
     LongStatistics res = new LongStatistics();
     this.min = Math.min(that.min, this.min);

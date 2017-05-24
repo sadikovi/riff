@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import com.github.sadikovi.riff.io.ByteBufferStream;
 import com.github.sadikovi.riff.io.OutputBuffer;
+import com.github.sadikovi.riff.stats.Statistics;
 
 /**
  * Header information for Riff file.

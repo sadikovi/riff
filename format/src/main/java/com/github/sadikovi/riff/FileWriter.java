@@ -44,6 +44,7 @@ import com.github.sadikovi.riff.io.FSAppendStream;
 import com.github.sadikovi.riff.io.OutputBuffer;
 import com.github.sadikovi.riff.io.OutStream;
 import com.github.sadikovi.riff.io.StripeOutputBuffer;
+import com.github.sadikovi.riff.stats.Statistics;
 
 /**
  * File writer provides methods to prepare files and write rows into riff data file. It creates two
