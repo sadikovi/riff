@@ -29,6 +29,7 @@ import org.apache.spark.sql.types.{IntegerType, LongType, StringType}
 
 import com.github.sadikovi.riff.io.OutputBuffer
 import com.github.sadikovi.riff.io.StripeOutputBuffer
+import com.github.sadikovi.riff.stats.Statistics
 import com.github.sadikovi.testutil.UnitTestSuite
 
 class StripeInformationSuite extends UnitTestSuite {

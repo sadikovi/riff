@@ -31,11 +31,62 @@ import com.github.sadikovi.riff.io.OutputBuffer;
 
 /**
  * Date values statistics.
- * Mergeable and comparable with integer statistics.
+ * Derived from [[IntStatistics]], because Spark stores dates as integers internally.
  */
-class DateStatistics extends IntStatistics {
+class DateStatistics extends Statistics {
+  protected int min = Integer.MAX_VALUE;
+  protected int max = Integer.MIN_VALUE;
+
   DateStatistics() {
     super();
+  }
+
+  @Override
+  protected void updateNonNullValue(InternalRow row, int ordinal) {
+    int value = row.getInt(ordinal);
+    min = Math.min(min, value);
+    max = Math.max(max, value);
+  }
+
+  @Override
+  protected void writeState(OutputBuffer buf) throws IOException {
+    buf.writeInt(min);
+    buf.writeInt(max);
+  }
+
+  @Override
+  protected void readState(ByteBuffer buf) throws IOException {
+    min = buf.getInt();
+    max = buf.getInt();
+  }
+
+  @Override
+  public void merge(Statistics obj) {
+    DateStatistics that = (DateStatistics) obj;
+    this.min = Math.min(that.min, this.min);
+    this.max = Math.max(that.max, this.max);
+    this.hasNulls = this.hasNulls || that.hasNulls;
+  }
+
+  @Override
+  public int getInt(int ordinal) {
+    if (ordinal == ORD_MIN) return min;
+    if (ordinal == ORD_MAX) return max;
+    throw new UnsupportedOperationException("Invalid ordinal " + ordinal);
+  }
+
+  @Override
+  public boolean isNullAt(int ordinal) {
+    // date statistics values are never null
+    return false;
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (obj == null || !(obj instanceof DateStatistics)) return false;
+    DateStatistics that = (DateStatistics) obj;
+    if (that == this) return true;
+    return that.min == this.min && that.max == this.max && that.hasNulls == this.hasNulls;
   }
 
   @Override

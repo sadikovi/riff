@@ -31,11 +31,63 @@ import com.github.sadikovi.riff.io.OutputBuffer;
 
 /**
  * Timestamp values statistics.
- * Mergeable and comparable with long statistics.
+ * Derived from [[LongStatistics]], because Spark stores timestamps as longs internally.
  */
-class TimestampStatistics extends LongStatistics {
+class TimestampStatistics extends Statistics {
+  protected long min = Long.MAX_VALUE;
+  protected long max = Long.MIN_VALUE;
+
   TimestampStatistics() {
     super();
+  }
+
+  @Override
+  protected void updateNonNullValue(InternalRow row, int ordinal) {
+    long value = row.getLong(ordinal);
+    min = Math.min(min, value);
+    max = Math.max(max, value);
+  }
+
+  @Override
+  protected void writeState(OutputBuffer buf) throws IOException {
+    buf.writeLong(min);
+    buf.writeLong(max);
+  }
+
+  @Override
+  protected void readState(ByteBuffer buf) throws IOException {
+    min = buf.getLong();
+    max = buf.getLong();
+  }
+
+  @Override
+  public void merge(Statistics obj) {
+    TimestampStatistics that = (TimestampStatistics) obj;
+    TimestampStatistics res = new TimestampStatistics();
+    this.min = Math.min(that.min, this.min);
+    this.max = Math.max(that.max, this.max);
+    this.hasNulls = this.hasNulls || that.hasNulls;
+  }
+
+  @Override
+  public long getLong(int ordinal) {
+    if (ordinal == ORD_MIN) return min;
+    if (ordinal == ORD_MAX) return max;
+    throw new UnsupportedOperationException("Invalid ordinal " + ordinal);
+  }
+
+  @Override
+  public boolean isNullAt(int ordinal) {
+    // timestamp statistics values are never null
+    return false;
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (obj == null || !(obj instanceof TimestampStatistics)) return false;
+    TimestampStatistics that = (TimestampStatistics) obj;
+    if (that == this) return true;
+    return that.min == this.min && that.max == this.max && that.hasNulls == this.hasNulls;
   }
 
   @Override
