@@ -26,7 +26,7 @@ import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 
-import com.github.sadikovi.riff.ColumnFilter;
+import com.github.sadikovi.riff.column.ColumnFilter;
 import com.github.sadikovi.riff.tree.TypedExpression;
 
 /**

@@ -27,6 +27,7 @@ import java.nio.ByteBuffer
 
 import org.apache.spark.sql.types.{IntegerType, LongType, StringType}
 
+import com.github.sadikovi.riff.column.ColumnFilter
 import com.github.sadikovi.riff.io.OutputBuffer
 import com.github.sadikovi.riff.io.StripeOutputBuffer
 import com.github.sadikovi.riff.stats.Statistics

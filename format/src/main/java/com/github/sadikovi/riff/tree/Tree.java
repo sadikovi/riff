@@ -26,7 +26,7 @@ import java.io.Serializable;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 
-import com.github.sadikovi.riff.ColumnFilter;
+import com.github.sadikovi.riff.column.ColumnFilter;
 import com.github.sadikovi.riff.TypeDescription;
 import com.github.sadikovi.riff.stats.Statistics;
 

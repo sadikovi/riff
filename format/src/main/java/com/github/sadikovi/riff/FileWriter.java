@@ -39,6 +39,7 @@ import org.apache.spark.sql.catalyst.InternalRow;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.github.sadikovi.riff.column.ColumnFilter;
 import com.github.sadikovi.riff.io.CompressionCodec;
 import com.github.sadikovi.riff.io.FSAppendStream;
 import com.github.sadikovi.riff.io.OutputBuffer;
