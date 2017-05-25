@@ -98,8 +98,9 @@ public abstract class Statistics extends GenericInternalRow {
    * @param ordinal position to read
    */
   public void update(InternalRow row, int ordinal) {
-    hasNulls = hasNulls || row.isNullAt(ordinal);
-    if (!row.isNullAt(ordinal)) {
+    boolean isNull = row.isNullAt(ordinal);
+    hasNulls = hasNulls || isNull;
+    if (!isNull) {
       updateNonNullValue(row, ordinal);
     }
   }
