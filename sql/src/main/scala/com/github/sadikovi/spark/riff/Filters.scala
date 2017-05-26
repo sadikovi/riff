@@ -100,10 +100,30 @@ private[riff] object Filters {
     }
   }
 
+  /** Find references for tree node, park 2.0 does not have references for filters */
+  private def references(value: Filter): Seq[String] = value match {
+    case EqualTo(attribute, _) => Seq(attribute)
+    case EqualNullSafe(attribute, _) => Seq(attribute)
+    case GreaterThan(attribute, _) => Seq(attribute)
+    case GreaterThanOrEqual(attribute, _) => Seq(attribute)
+    case LessThan(attribute, _) => Seq(attribute)
+    case LessThanOrEqual(attribute, _) => Seq(attribute)
+    case In(attribute, _) => Seq(attribute)
+    case IsNull(attribute) => Seq(attribute)
+    case IsNotNull(attribute) => Seq(attribute)
+    case StringStartsWith(attribute, _) => Seq(attribute)
+    case StringEndsWith(attribute, _) => Seq(attribute)
+    case StringContains(attribute, _) => Seq(attribute)
+    case And(left: Filter, right: Filter) => references(left) ++ references(right)
+    case Or(left: Filter, right: Filter) => references(left) ++ references(right)
+    case Not(child: Filter) => references(child)
+    case _ => Seq.empty
+  }
+
   /** Whether or not two filters have the same references */
   def sameReferences(left: Filter, right: Filter): Boolean = {
     left.references.length == right.references.length &&
-      left.references.toSeq == right.references.toSeq
+      references(left) == references(right)
   }
 
   /**
