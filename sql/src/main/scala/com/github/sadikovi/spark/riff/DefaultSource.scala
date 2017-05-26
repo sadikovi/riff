@@ -177,9 +177,10 @@ class DefaultSource
     // right now Spark appends partition values to each row, would be good to do it internally
     // TODO: handle partition values append internally, similar to ParquetFileFormat
     val projectionFields = requiredSchema.fieldNames.distinct.toArray
-    // if projection fields are empty, count is requested, empty projection is generated, but we
-    // read all fields.
-    // TODO: store count in metadata and return dummy iterator of that many rows
+    // if projection fields are empty, we know that count is requested
+    // in this case empty projection records are generated using metadata information
+    val metadataCountEnabled = sparkSession.conf.get(SQL_RIFF_METADATA_COUNT,
+      SQL_RIFF_METADATA_COUNT_DEFAULT).toBoolean
 
     // check if filter pushdown disabled
     val filterPushdownEnabled = sparkSession.conf.get(SQL_RIFF_FILTER_PUSHDOWN,
@@ -212,10 +213,26 @@ class DefaultSource
       val reader = Riff.reader(hadoopConf, path)
       val iter = reader.prepareRead(predicate)
       Option(TaskContext.get()).foreach(_.addTaskCompletionListener(_ => iter.close()))
-      // TODO: this is inefficient, it would be better to apply projection directly on indexed row
+
       val td = reader.getFileHeader().getTypeDescription()
-      if (projectionFields.length < td.size()) {
+      if (metadataCountEnabled && projectionFields.isEmpty) {
+        // only perform optimization if it is enabled
+        // TODO: Move it into Riff format, once projection is fixed
+        var numRecords = reader.getFileHeader().getNumRecords()
+
+        new Iterator[InternalRow] {
+          override def hasNext: Boolean = {
+            numRecords > 0
+          }
+
+          override def next: InternalRow = {
+            numRecords -= 1
+            new ProjectionRow(0)
+          }
+        }
+      } else if (projectionFields.length < td.size()) {
         // do projection if we have fewer fields to return
+        // TODO: this is inefficient, it would be better to apply projection directly on indexed row
         val ordinals = projectionFields.map { fieldName => td.position(fieldName) }
 
         new Iterator[InternalRow]() {
@@ -259,6 +276,9 @@ object RiffFileFormat {
   // enable/disable filter pushdown for the format
   val SQL_RIFF_FILTER_PUSHDOWN = "spark.sql.riff.filterPushdown"
   val SQL_RIFF_FILTER_PUSHDOWN_DEFAULT = "true"
+  // enable/disable count using metadata, if enabled avoid reading file for number of records
+  val SQL_RIFF_METADATA_COUNT = "spark.sql.riff.metadata.count.enabled"
+  val SQL_RIFF_METADATA_COUNT_DEFAULT = "true"
 
   // internal Spark SQL option for output committer
   val SPARK_OUTPUT_COMMITTER_CLASS = "spark.sql.sources.outputCommitterClass"
