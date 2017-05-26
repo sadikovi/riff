@@ -190,13 +190,14 @@ public abstract class ColumnFilter {
    */
   public static byte columnFilterToMagic(ColumnFilter filter) {
     if (filter instanceof NoopColumnFilter) return 1;
-    if (filter instanceof ByteColumnFilter) return 2;
-    if (filter instanceof ShortColumnFilter) return 3;
-    if (filter instanceof IntColumnFilter) return 4;
-    if (filter instanceof LongColumnFilter) return 5;
-    if (filter instanceof UTF8ColumnFilter) return 6;
-    if (filter instanceof DateColumnFilter) return 7;
-    if (filter instanceof TimestampColumnFilter) return 8;
+    if (filter instanceof BooleanColumnFilter) return 2;
+    if (filter instanceof ByteColumnFilter) return 3;
+    if (filter instanceof ShortColumnFilter) return 4;
+    if (filter instanceof IntColumnFilter) return 5;
+    if (filter instanceof LongColumnFilter) return 6;
+    if (filter instanceof UTF8ColumnFilter) return 7;
+    if (filter instanceof DateColumnFilter) return 8;
+    if (filter instanceof TimestampColumnFilter) return 9;
     throw new UnsupportedOperationException("Unrecognized column filter: " + filter);
   }
 
@@ -210,18 +211,20 @@ public abstract class ColumnFilter {
       case 1:
         return new NoopColumnFilter();
       case 2:
-        return new ByteColumnFilter();
+        return new BooleanColumnFilter();
       case 3:
-        return new ShortColumnFilter();
+        return new ByteColumnFilter();
       case 4:
-        return new IntColumnFilter();
+        return new ShortColumnFilter();
       case 5:
-        return new LongColumnFilter();
+        return new IntColumnFilter();
       case 6:
-        return new UTF8ColumnFilter();
+        return new LongColumnFilter();
       case 7:
-        return new DateColumnFilter();
+        return new UTF8ColumnFilter();
       case 8:
+        return new DateColumnFilter();
+      case 9:
         return new TimestampColumnFilter();
       default:
         throw new UnsupportedOperationException("Unrecognized column filter magic: " + magic);
