@@ -74,7 +74,7 @@ private[riff] object Filters {
         // Remove IsNotNull tree node when there exists a leaf node for that column e.g.
         // (!(col1[0] is null)) && (col1[0] > 100). Spark adds IsNotNull that can be removed in
         // file format, since riff filters are always null safe.
-        if (isLeaf(left) && isLeaf(right) && sameReferences(left, right)) {
+        if (isLeaf(left) && isLeaf(right) && references(left) == references(right)) {
           if (left.isInstanceOf[IsNotNull] && !isNullRelated(right)) {
             recurBuild(right)
           } else if (right.isInstanceOf[IsNotNull] && !isNullRelated(left)) {
@@ -101,7 +101,7 @@ private[riff] object Filters {
   }
 
   /** Find references for tree node, park 2.0 does not have references for filters */
-  private def references(value: Filter): Seq[String] = value match {
+  def references(value: Filter): Seq[String] = value match {
     case EqualTo(attribute, _) => Seq(attribute)
     case EqualNullSafe(attribute, _) => Seq(attribute)
     case GreaterThan(attribute, _) => Seq(attribute)
@@ -118,12 +118,6 @@ private[riff] object Filters {
     case Or(left: Filter, right: Filter) => references(left) ++ references(right)
     case Not(child: Filter) => references(child)
     case _ => Seq.empty
-  }
-
-  /** Whether or not two filters have the same references */
-  def sameReferences(left: Filter, right: Filter): Boolean = {
-    left.references.length == right.references.length &&
-      references(left) == references(right)
   }
 
   /**

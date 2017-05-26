@@ -29,31 +29,33 @@ import com.github.sadikovi.riff.tree.FilterApi._
 import com.github.sadikovi.testutil.UnitTestSuite
 
 class SparkFiltersSuite extends UnitTestSuite {
-  test("sameReferences") {
-    Filters.sameReferences(IsNull("col1"), IsNull("col1")) should be (true)
-    Filters.sameReferences(IsNull("col1"), EqualTo("col1", 1)) should be (true)
-    Filters.sameReferences(
+  test("check references") {
+    assert(Filters.references(IsNull("col1")) == Filters.references(IsNull("col1")))
+    assert(Filters.references(IsNull("col1")) == Filters.references(EqualTo("col1", 1)))
+    assert(Filters.references(
       Or(
         EqualTo("col1", 1),
         GreaterThan("col2", 2)
-      ),
+      )
+    ) == Filters.references(
       And(
         EqualTo("col1", 3),
         LessThan("col2", 0)
       )
-    ) should be (true)
+    ))
 
     // check that order of tree nodes is the same
-    Filters.sameReferences(
+    assert(Filters.references(
       And(
         EqualTo("col1", 1),
         EqualTo("col2", 1)
-      ),
+      )
+    ) != Filters.references(
       And(
         EqualTo("col2", 1),
         EqualTo("col1", 1)
       )
-    ) should be (false)
+    ))
   }
 
   test("isLeaf") {
