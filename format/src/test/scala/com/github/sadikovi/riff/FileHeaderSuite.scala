@@ -27,6 +27,7 @@ import java.io.IOException
 import org.apache.hadoop.fs.FSDataInputStream
 import org.apache.spark.sql.types._
 
+import com.github.sadikovi.riff.stats.Statistics
 import com.github.sadikovi.testutil.UnitTestSuite
 import com.github.sadikovi.testutil.implicits._
 

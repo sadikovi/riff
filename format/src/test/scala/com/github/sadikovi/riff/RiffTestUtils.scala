@@ -26,6 +26,9 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
+import com.github.sadikovi.riff.column.ColumnFilter
+import com.github.sadikovi.riff.stats.Statistics
+
 /**
  * General utility methods for unittests.
  * Mainly added for convenience of creating different objects and shortcuts.

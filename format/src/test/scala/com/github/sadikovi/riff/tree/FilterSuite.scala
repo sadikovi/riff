@@ -32,6 +32,7 @@ import org.apache.spark.unsafe.types.UTF8String
 import com.github.sadikovi.riff.TypeDescription
 import com.github.sadikovi.riff.RiffTestUtils._
 import com.github.sadikovi.riff.tree.expression._
+import com.github.sadikovi.riff.tree.node._
 import com.github.sadikovi.testutil.UnitTestSuite
 
 class FilterSuite extends UnitTestSuite {

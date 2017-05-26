@@ -27,7 +27,7 @@ import java.io.Serializable;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.types.DataType;
 
-import com.github.sadikovi.riff.ColumnFilter;
+import com.github.sadikovi.riff.column.ColumnFilter;
 
 /**
  * Typed expression interface encapsulates all options that are used to resolve `BoundReference`

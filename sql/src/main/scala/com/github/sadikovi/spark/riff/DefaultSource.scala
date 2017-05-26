@@ -40,9 +40,9 @@ import org.apache.spark.sql.types.StructType
 import org.slf4j.LoggerFactory
 
 import com.github.sadikovi.hadoop.riff.RiffOutputCommitter
-import com.github.sadikovi.riff.{Riff, ProjectionRow, TypeDescription}
+import com.github.sadikovi.riff.{Riff, TypeDescription}
 import com.github.sadikovi.riff.Riff.Options
-import com.github.sadikovi.riff.io.CompressionCodecFactory
+import com.github.sadikovi.riff.row.ProjectionRow
 
 /**
  * Spark SQL datasource for Riff file format.

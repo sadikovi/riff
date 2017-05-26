@@ -27,7 +27,7 @@ import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.unsafe.types.UTF8String;
 
-import com.github.sadikovi.riff.ColumnFilter;
+import com.github.sadikovi.riff.column.ColumnFilter;
 import com.github.sadikovi.riff.tree.TypedExpression;
 
 /**

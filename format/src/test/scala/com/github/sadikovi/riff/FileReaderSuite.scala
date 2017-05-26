@@ -30,12 +30,13 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
-import com.github.sadikovi.riff.RiffTestUtils._
 import com.github.sadikovi.riff.tree.FilterApi._
 import com.github.sadikovi.testutil.implicits._
 import com.github.sadikovi.testutil.UnitTestSuite
 
 class FileReaderSuite extends UnitTestSuite {
+  import com.github.sadikovi.riff.RiffTestUtils._
+
   val schema = StructType(
     StructField("col1", IntegerType) ::
     StructField("col2", StringType) ::
