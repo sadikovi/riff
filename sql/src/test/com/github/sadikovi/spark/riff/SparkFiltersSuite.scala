@@ -29,6 +29,54 @@ import com.github.sadikovi.riff.tree.FilterApi._
 import com.github.sadikovi.testutil.UnitTestSuite
 
 class SparkFiltersSuite extends UnitTestSuite {
+  test("sameReferences") {
+    Filters.sameReferences(IsNull("col1"), IsNull("col1")) should be (true)
+    Filters.sameReferences(IsNull("col1"), EqualTo("col1", 1)) should be (true)
+    Filters.sameReferences(
+      Or(
+        EqualTo("col1", 1),
+        GreaterThan("col2", 2)
+      ),
+      And(
+        EqualTo("col1", 3),
+        LessThan("col2", 0)
+      )
+    ) should be (true)
+
+    // check that order of tree nodes is the same
+    Filters.sameReferences(
+      And(
+        EqualTo("col1", 1),
+        EqualTo("col2", 1)
+      ),
+      And(
+        EqualTo("col2", 1),
+        EqualTo("col1", 1)
+      )
+    ) should be (false)
+  }
+
+  test("isLeaf") {
+    Filters.isLeaf(EqualTo("col", 1)) should be (true)
+    Filters.isLeaf(GreaterThan("col", 1)) should be (true)
+    Filters.isLeaf(LessThan("col", 1)) should be (true)
+    Filters.isLeaf(IsNull("col")) should be (true)
+    Filters.isLeaf(IsNotNull("col")) should be (true)
+
+    Filters.isLeaf(And(EqualTo("col", 1), EqualTo("col", 1))) should be (false)
+    Filters.isLeaf(Or(EqualTo("col", 1), EqualTo("col", 1))) should be (false)
+    Filters.isLeaf(Not(EqualTo("col", 1))) should be (false)
+  }
+
+  test("isNullRelated") {
+    Filters.isNullRelated(EqualTo("col", 1)) should be (false)
+    Filters.isNullRelated(GreaterThan("col", 1)) should be (false)
+    Filters.isNullRelated(And(EqualTo("col", 1), EqualTo("col", 1))) should be (false)
+
+    Filters.isNullRelated(IsNull("col")) should be (true)
+    Filters.isNullRelated(IsNotNull("col")) should be (true)
+  }
+
   test("convert None filter into tree") {
     Filters.createRiffFilter(None) should be (null)
   }
@@ -85,8 +133,8 @@ class SparkFiltersSuite extends UnitTestSuite {
   test("convert And into tree") {
     Filters.createRiffFilter(Some(And(EqualTo("col1", "a"), GreaterThan("col2", 1)))) should be (
       and(eqt("col1", "a"), gt("col2", 1)))
-    Filters.createRiffFilter(Some(And(IsNotNull("col1"), EqualTo("col1", 1)))) should be (
-      and(FilterApi.not(nvl("col1")), eqt("col1", 1)))
+    Filters.createRiffFilter(Some(And(IsNotNull("col2"), EqualTo("col1", 1)))) should be (
+      and(FilterApi.not(nvl("col2")), eqt("col1", 1)))
   }
 
   test("convert Or into tree") {
@@ -103,5 +151,41 @@ class SparkFiltersSuite extends UnitTestSuite {
     Filters.createRiffFilter(Some(StringStartsWith("col", "abc"))) should be (TRUE)
     Filters.createRiffFilter(Some(StringEndsWith("col", "abc"))) should be (TRUE)
     Filters.createRiffFilter(Some(StringContains("col", "abc"))) should be (TRUE)
+  }
+
+  test("remove IsNotNull in conjunction with leaf tree nodes") {
+    Filters.createRiffFilter(Some(And(IsNotNull("col1"), EqualTo("col1", 1)))) should be (
+      eqt("col1", 1))
+    Filters.createRiffFilter(Some(And(IsNotNull("col1"), GreaterThan("col1", 1)))) should be (
+      gt("col1", 1))
+    Filters.createRiffFilter(Some(And(IsNotNull("col1"), LessThan("col1", 1)))) should be (
+      lt("col1", 1))
+    Filters.createRiffFilter(Some(And(IsNotNull("col1"), In("col1", Array("a", "b"))))) should be (
+      in("col1", "a", "b"))
+
+    // remove when filters are swapped
+    Filters.createRiffFilter(Some(And(EqualTo("col1", 1), IsNotNull("col1")))) should be (
+      eqt("col1", 1))
+  }
+
+  test("do not remove IsNotNull when conditions do not hold") {
+    // do not remove conjunction when references do not mach
+    Filters.createRiffFilter(Some(And(IsNotNull("col1"), EqualTo("col2", 1)))) should be (
+      and(FilterApi.not(nvl("col1")), eqt("col2", 1)))
+    // do not remove conjunction when both filters are null related
+    Filters.createRiffFilter(Some(And(IsNotNull("col1"), IsNull("col1")))) should be (
+      and(FilterApi.not(nvl("col1")), nvl("col1")))
+    Filters.createRiffFilter(Some(And(IsNotNull("col1"), IsNotNull("col1")))) should be (
+      and(FilterApi.not(nvl("col1")), FilterApi.not(nvl("col1"))))
+    // do not remove conjunction when children are non-leaf
+    Filters.createRiffFilter(Some(
+      And(
+        IsNotNull("col1"),
+        And(
+          EqualTo("col1", 1),
+          EqualTo("col1", 1)
+        )
+      )
+    )) should be (and(FilterApi.not(nvl("col1")), and(eqt("col1", 1), eqt("col1", 1))))
   }
 }

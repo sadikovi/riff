@@ -71,11 +71,21 @@ private[riff] object Filters {
       case IsNotNull(attribute: String) =>
         not(nvl(attribute))
       case And(left: Filter, right: Filter) =>
-        // TODO: Remove Not(IsNull) tree node when there exists an equality for that column
-        // e.g. (!(col1[0] is null)) && (col1[0] > 100). This is how Spark pushes down predicate to
-        // source and adds filters that we do not need to evaluate since our filters are already
-        // null safe.
-        and(recurBuild(left), recurBuild(right))
+        // Remove IsNotNull tree node when there exists a leaf node for that column e.g.
+        // (!(col1[0] is null)) && (col1[0] > 100). Spark adds IsNotNull that can be removed in
+        // file format, since riff filters are always null safe.
+        if (isLeaf(left) && isLeaf(right) && sameReferences(left, right)) {
+          if (left.isInstanceOf[IsNotNull] && !isNullRelated(right)) {
+            recurBuild(right)
+          } else if (right.isInstanceOf[IsNotNull] && !isNullRelated(left)) {
+            recurBuild(left)
+          } else {
+            // cannot match filters, apply default transformation
+            and(recurBuild(left), recurBuild(right))
+          }
+        } else {
+          and(recurBuild(left), recurBuild(right))
+        }
       case Or(left: Filter, right: Filter) =>
         or(recurBuild(left), recurBuild(right))
       case Not(child: Filter) =>
@@ -88,5 +98,29 @@ private[riff] object Filters {
         // - StringContains
         TRUE
     }
+  }
+
+  /** Whether or not two filters have the same references */
+  def sameReferences(left: Filter, right: Filter): Boolean = {
+    left.references.length == right.references.length &&
+      left.references.toSeq == right.references.toSeq
+  }
+
+  /**
+   * Determine if filter is leaf tree ndoe, e.g. not a logical filter.
+   * Normally has only one reference.
+   */
+  def isLeaf(filter: Filter): Boolean = {
+    !filter.isInstanceOf[And] &&
+    !filter.isInstanceOf[Or] &&
+    !filter.isInstanceOf[Not]
+  }
+
+  /**
+   * Whether or not this filter is null related. Currently only includes IsNull and IsNotNull.
+   * Mainly because we cannot apply optimizations when both filters exist in conjunction.
+   */
+  def isNullRelated(filter: Filter): Boolean = {
+    filter.isInstanceOf[IsNull] || filter.isInstanceOf[IsNotNull]
   }
 }
