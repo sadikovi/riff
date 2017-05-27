@@ -253,6 +253,8 @@ public class FileWriter {
         StripeInformation stripeInfo =
           new StripeInformation(stripe, currentOffset, stripeStats, stripeFilters);
         currentOffset += stripeInfo.length();
+        // written numRowsInStripe records
+        totalRecords += numRowsInStripe;
         stripe.flush(temporaryStream);
         LOG.debug("Finished writing stripe {}, records={}", stripeInfo, numRowsInStripe);
         stripes.add(stripeInfo);
@@ -265,7 +267,6 @@ public class FileWriter {
       updateColumnFilters(stripeFilters, td, row);
       recordWriter.writeRow(row, stripeStream);
       stripeCurrentRecords--;
-      totalRecords++;
     } catch (IOException ioe) {
       if (temporaryStream != null) {
         temporaryStream.close();
@@ -290,6 +291,8 @@ public class FileWriter {
       stripe.flush(temporaryStream);
       LOG.debug("Finished writing stripe {}, records={}", stripeInfo,
         numRowsInStripe - stripeCurrentRecords);
+      // update total records with delta
+      totalRecords += numRowsInStripe - stripeCurrentRecords;
       stripes.add(stripeInfo);
       stripeStream.close();
       stripe = null;

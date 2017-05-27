@@ -52,7 +52,7 @@ public class FileHeader {
   private final TypeDescription td;
   // file statistics
   private final Statistics[] fileStats;
-  // number of records in file, do not expecte more than Integer.MAX_VALUE
+  // number of records in file, do not expect more than Integer.MAX_VALUE
   private final int numRecords;
 
   /**
