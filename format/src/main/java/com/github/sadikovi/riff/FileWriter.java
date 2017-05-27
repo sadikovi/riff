@@ -113,6 +113,8 @@ public class FileWriter {
   private OutStream stripeStream;
   // number of records in current stripe
   private int stripeCurrentRecords;
+  // total number of records in file
+  private int totalRecords;
   // statistics per stripe
   private Statistics[] stripeStats;
   // column filters per stripe
@@ -212,6 +214,7 @@ public class FileWriter {
     LOG.debug("Prepare file writer {}", this);
     stripeId = 0;
     currentOffset = 0L;
+    totalRecords = 0;
     stripes = new ArrayList<StripeInformation>();
     recordWriter = new IndexedRowWriter(td);
     LOG.debug("Initialized record writer {}", recordWriter);
@@ -250,6 +253,8 @@ public class FileWriter {
         StripeInformation stripeInfo =
           new StripeInformation(stripe, currentOffset, stripeStats, stripeFilters);
         currentOffset += stripeInfo.length();
+        // written numRowsInStripe records
+        totalRecords += numRowsInStripe;
         stripe.flush(temporaryStream);
         LOG.debug("Finished writing stripe {}, records={}", stripeInfo, numRowsInStripe);
         stripes.add(stripeInfo);
@@ -286,6 +291,8 @@ public class FileWriter {
       stripe.flush(temporaryStream);
       LOG.debug("Finished writing stripe {}, records={}", stripeInfo,
         numRowsInStripe - stripeCurrentRecords);
+      // update total records with delta
+      totalRecords += numRowsInStripe - stripeCurrentRecords;
       stripes.add(stripeInfo);
       stripeStream.close();
       stripe = null;
@@ -310,7 +317,7 @@ public class FileWriter {
       // write complete file
       LOG.debug("Write file header");
       outputStream = fs.create(filePath, false, hdfsBufferSize);
-      FileHeader fileHeader = new FileHeader(td, fileStats);
+      FileHeader fileHeader = new FileHeader(td, fileStats, totalRecords);
       fileHeader.setState(0, Riff.encodeCompressionCodec(codec));
       fileHeader.writeTo(outputStream);
       // write stripe information

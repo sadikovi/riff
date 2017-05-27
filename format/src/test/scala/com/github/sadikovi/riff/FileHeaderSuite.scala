@@ -36,19 +36,32 @@ class FileHeaderSuite extends UnitTestSuite {
 
   test("state length check") {
     var err = intercept[IllegalArgumentException] {
-      new FileHeader(new Array[Byte](1), null, null)
+      new FileHeader(new Array[Byte](1), null, null, 0)
     }
     err.getMessage should be ("Invalid state length, 1 != 8")
 
     err = intercept[IllegalArgumentException] {
-      new FileHeader(new Array[Byte](10), null, null)
+      new FileHeader(new Array[Byte](10), null, null, 0)
     }
     err.getMessage should be ("Invalid state length, 10 != 8")
 
     // valid state length
-    val header = new FileHeader(new Array[Byte](8), null, null)
+    val header = new FileHeader(new Array[Byte](8), null, null, 0)
     header.getTypeDescription should be (null)
     header.getFileStatistics should be (null)
+    header.getNumRecords should be (0)
+  }
+
+  test("check wrong number of records") {
+    var err = intercept[IllegalArgumentException] {
+      new FileHeader(new Array[Byte](8), null, null, -1)
+    }
+    err.getMessage should be ("Negative number of records: -1")
+
+    err = intercept[IllegalArgumentException] {
+      new FileHeader(new Array[Byte](8), null, null, Int.MinValue)
+    }
+    err.getMessage should be (s"Negative number of records: ${Int.MinValue}")
   }
 
   test("check wrong magic number") {
@@ -73,7 +86,7 @@ class FileHeaderSuite extends UnitTestSuite {
       val list = Array[Statistics](
         stats(1, 10, false)
       )
-      val header1 = new FileHeader(state, td, list)
+      val header1 = new FileHeader(state, td, list, 156378)
       val out = fs.create(dir / "header")
       header1.writeTo(out)
       out.close()
@@ -84,6 +97,7 @@ class FileHeaderSuite extends UnitTestSuite {
 
       header2.getTypeDescription should be (header1.getTypeDescription)
       header2.getFileStatistics should be (header1.getFileStatistics)
+      header2.getNumRecords should be (156378)
       for (i <- 0 until state.length) {
         header2.state(i) should be (header1.state(i))
       }

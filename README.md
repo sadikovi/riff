@@ -34,6 +34,7 @@ running `spark.conf.set("option", "value")`.
 | `spark.sql.riff.column.filter.enabled` | When enabled, write column filters in addition to min/max/null statistics (`true`, `false`) | `true`
 | `spark.sql.riff.buffer.size` | Buffer size in bytes for out/in stream | `256 * 1024`
 | `spark.sql.riff.filterPushdown` | When enabled, propagate filter to riff format, otherwise filter data in Spark only | `true`
+| `spark.sql.riff.metadata.count.enabled` | When enabled, use metadata information for count queries, otherwise read table data  | `true`
 
 ## DataFrame options
 These options that you can specify when writing DataFrame by calling `df.write.option("key", "value").save(...)`.

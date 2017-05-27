@@ -229,6 +229,64 @@ class RiffSQLSuite extends UnitTestSuite with SparkLocal {
     }
   }
 
+  test("check metadata count") {
+    // default number of records in stripe
+    withSQLConf(RiffFileFormat.SQL_RIFF_METADATA_COUNT -> "true") {
+      withTempDir { dir =>
+        spark.range(1237).write.option("index", "id").riff(dir.toString / "table")
+        spark.read.riff(dir.toString / "table").count should be (1237)
+      }
+
+      withTempDir { dir =>
+        spark.range(0).write.option("index", "id").riff(dir.toString / "table")
+        spark.read.riff(dir.toString / "table").count should be (0)
+      }
+
+      withTempDir { dir =>
+        spark.range(99999).write.riff(dir.toString / "table")
+        spark.read.riff(dir.toString / "table").count should be (99999)
+      }
+    }
+    // small number of records in stripe
+    withSQLConf(
+        RiffFileFormat.SQL_RIFF_METADATA_COUNT -> "true",
+        RiffFileFormat.SQL_RIFF_STRIPE_ROWS -> "12") {
+      withTempDir { dir =>
+        spark.range(1200).write.option("index", "id").riff(dir.toString / "table")
+        spark.read.riff(dir.toString / "table").count should be (1200)
+      }
+
+      withTempDir { dir =>
+        spark.range(11).write.option("index", "id").riff(dir.toString / "table")
+        spark.read.riff(dir.toString / "table").count should be (11)
+      }
+
+      withTempDir { dir =>
+        spark.range(99999).write.riff(dir.toString / "table")
+        spark.read.riff(dir.toString / "table").count should be (99999)
+      }
+    }
+  }
+
+  test("check metadata count + filter") {
+    withSQLConf(RiffFileFormat.SQL_RIFF_METADATA_COUNT -> "true") {
+      withTempDir { dir =>
+        spark.range(1237).write.option("index", "id").riff(dir.toString / "table")
+        spark.read.riff(dir.toString / "table").filter("id < 100").count should be (100)
+      }
+
+      withTempDir { dir =>
+        spark.range(0).write.option("index", "id").riff(dir.toString / "table")
+        spark.read.riff(dir.toString / "table").filter("id = -1").count should be (0)
+      }
+
+      withTempDir { dir =>
+        spark.range(99999).write.riff(dir.toString / "table")
+        spark.read.riff(dir.toString / "table").filter("id != 0").count should be (99998)
+      }
+    }
+  }
+
   //////////////////////////////////////////////////////////////
   // == Write/read tests for different datatypes
   //////////////////////////////////////////////////////////////

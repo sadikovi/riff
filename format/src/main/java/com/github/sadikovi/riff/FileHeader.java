@@ -52,21 +52,28 @@ public class FileHeader {
   private final TypeDescription td;
   // file statistics
   private final Statistics[] fileStats;
+  // number of records in file, do not expect more than Integer.MAX_VALUE
+  private final int numRecords;
 
   /**
    * Initialize file header with state, type description and file statisitcs.
    * @param state file state
    * @param td file type description
    * @param fileStats file statistics
+   * @param numRecords number of records in file
    */
-  public FileHeader(byte[] state, TypeDescription td, Statistics[] fileStats) {
+  public FileHeader(byte[] state, TypeDescription td, Statistics[] fileStats, int numRecords) {
     if (state.length != STATE_LENGTH) {
       throw new IllegalArgumentException("Invalid state length, " +
         state.length + " != " + STATE_LENGTH);
     }
+    if (numRecords < 0) {
+      throw new IllegalArgumentException("Negative number of records: " + numRecords);
+    }
     this.state = state;
     this.td = td;
     this.fileStats = fileStats;
+    this.numRecords = numRecords;
   }
 
   /**
@@ -74,9 +81,10 @@ public class FileHeader {
    * State can be modified using `setState` method.
    * @param td type description
    * @param fileStats file statistics
+   * @param numRecords number of records in file
    */
-  public FileHeader(TypeDescription td, Statistics[] fileStats) {
-    this(new byte[STATE_LENGTH], td, fileStats);
+  public FileHeader(TypeDescription td, Statistics[] fileStats, int numRecords) {
+    this(new byte[STATE_LENGTH], td, fileStats, numRecords);
   }
 
   /**
@@ -105,6 +113,14 @@ public class FileHeader {
   }
 
   /**
+   * Get number of records recorded in file header.
+   * @return number of records in file
+   */
+  public int getNumRecords() {
+    return numRecords;
+  }
+
+  /**
    * Get state flag for posiiton.
    * @param pos position of the flag
    * @return state value
@@ -124,6 +140,7 @@ public class FileHeader {
     // record file header
     buffer.write(state);
     td.writeTo(buffer);
+    buffer.writeInt(numRecords);
     buffer.writeInt(fileStats.length);
     int i = 0;
     while (i < fileStats.length) {
@@ -164,6 +181,7 @@ public class FileHeader {
     // wraps byte buffer, stream updates position of buffer
     ByteBufferStream byteStream = new ByteBufferStream(buffer);
     TypeDescription td = TypeDescription.readFrom(byteStream);
+    int numRecords = buffer.getInt();
     // read file statistics
     Statistics[] fileStats = new Statistics[buffer.getInt()];
     int i = 0;
@@ -172,6 +190,6 @@ public class FileHeader {
       LOG.debug("Read file statistics {}", fileStats[i]);
       ++i;
     }
-    return new FileHeader(state, td, fileStats);
+    return new FileHeader(state, td, fileStats, numRecords);
   }
 }
