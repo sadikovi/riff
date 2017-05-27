@@ -44,13 +44,16 @@ import org.apache.spark.unsafe.types.UTF8String;
 public class ProjectionRow extends GenericInternalRow {
   // internal array to keep all values
   private final Object[] values;
+  private final int numFields;
 
   /**
    * Create instance of this row with expected number of fields.
    * @param size number of fields
    */
   public ProjectionRow(int size) {
-    this.values = new Object[size];
+    if (size < 0) throw new IllegalArgumentException("Negative number of fields: " + size);
+    this.values = (size == 0) ? null : new Object[size];
+    this.numFields = size;
   }
 
   /**
@@ -60,6 +63,7 @@ public class ProjectionRow extends GenericInternalRow {
    */
   protected ProjectionRow(Object[] values) {
     this.values = values;
+    this.numFields = values.length;
   }
 
   /**
@@ -72,7 +76,7 @@ public class ProjectionRow extends GenericInternalRow {
 
   @Override
   public int numFields() {
-    return values.length;
+    return numFields;
   }
 
   @Override
@@ -82,8 +86,8 @@ public class ProjectionRow extends GenericInternalRow {
 
   @Override
   public ProjectionRow copy() {
-    Object[] copy = new Object[values.length];
-    System.arraycopy(values, 0, copy, 0, values.length);
+    Object[] copy = new Object[numFields];
+    System.arraycopy(values, 0, copy, 0, numFields);
     return new ProjectionRow(copy);
   }
 
@@ -104,8 +108,8 @@ public class ProjectionRow extends GenericInternalRow {
 
   @Override
   public boolean anyNull() {
-    int len = values.length, i = 0;
-    while (i < len) {
+    int i = 0;
+    while (i < numFields) {
       if (isNullAt(i)) return true;
       ++i;
     }
@@ -199,7 +203,7 @@ public class ProjectionRow extends GenericInternalRow {
 
   @Override
   public String toString() {
-    if (values.length == 0) {
+    if (numFields == 0) {
       return "[empty row]";
     } else {
       return Arrays.toString(values);

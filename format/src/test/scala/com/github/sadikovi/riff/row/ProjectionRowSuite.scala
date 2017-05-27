@@ -50,6 +50,19 @@ class ProjectionRowSuite extends UnitTestSuite {
     row.toString should be ("[empty row]")
   }
 
+  test("initialize with negative size") {
+    val err = intercept[IllegalArgumentException] {
+      new ProjectionRow(-1)
+    }
+    err.getMessage should be ("Negative number of fields: -1")
+  }
+
+  test("initialize with null array") {
+    intercept[NullPointerException] {
+      new ProjectionRow(null)
+    }
+  }
+
   test("update values") {
     val row = new ProjectionRow(3)
     row.numFields should be (3)
@@ -61,6 +74,19 @@ class ProjectionRowSuite extends UnitTestSuite {
     row.update(2, 3)
     row.anyNull should be (false)
     row.toString should be ("[1, 2, 3]")
+  }
+
+  test("copy projection row") {
+    val row = new ProjectionRow(3)
+    row.update(0, 1)
+    row.update(1, 2L)
+    row.update(2, true)
+
+    val copy = row.copy()
+    copy.numFields should be (row.numFields)
+    copy.anyNull should be (row.anyNull)
+    copy.values should be (row.values)
+    copy.toString should be (row.toString)
   }
 
   test("get int value") {
