@@ -1,5 +1,5 @@
 # riff
-Spark SQL row-oriented file format
+Spark SQL row-oriented indexed file format
 
 [![Build Status](https://travis-ci.org/sadikovi/riff.svg?branch=master)](https://travis-ci.org/sadikovi/riff)
 
