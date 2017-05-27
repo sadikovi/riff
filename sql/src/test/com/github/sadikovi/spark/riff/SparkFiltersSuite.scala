@@ -190,4 +190,53 @@ class SparkFiltersSuite extends UnitTestSuite {
       )
     )) should be (and(FilterApi.not(nvl("col1")), and(eqt("col1", 1), eqt("col1", 1))))
   }
+
+  test("remove IsNotNull from conjunction sequence") {
+    var filters: Seq[Filter] =
+      Seq(IsNotNull("id1"), IsNotNull("id2"), GreaterThan("id1", 1), GreaterThan("id2", 1))
+    Filters.createRiffFilter(filters) should be (
+      and(
+        gt("id1", 1),
+        gt("id2", 1)
+      )
+    )
+
+    filters = Seq(IsNotNull("id1"), EqualTo("id1", 1))
+    Filters.createRiffFilter(filters) should be (eqt("id1", 1))
+
+    filters = Seq(EqualTo("id1", 1), IsNotNull("id1"))
+    Filters.createRiffFilter(filters) should be (eqt("id1", 1))
+  }
+
+  test("keep IsNotNull in conjunction sequence") {
+    var filters: Seq[Filter] = Seq(IsNotNull("id1"), IsNotNull("id2"))
+    Filters.createRiffFilter(filters) should be (
+      and(
+        FilterApi.not(nvl("id1")),
+        FilterApi.not(nvl("id2"))
+      )
+    )
+
+    filters = Seq(IsNotNull("id1"), EqualTo("id2", 1))
+    Filters.createRiffFilter(filters) should be (
+      and(
+        FilterApi.not(nvl("id1")),
+        eqt("id2", 1)
+      )
+    )
+
+    filters = Seq(IsNotNull("id1"), Or(GreaterThan("id1", 1), EqualTo("id2", 1)))
+    Filters.createRiffFilter(filters) should be (
+      and(
+        FilterApi.not(nvl("id1")),
+        or(
+          gt("id1", 1),
+          eqt("id2", 1)
+        )
+      )
+    )
+
+    filters = Seq(IsNotNull("id1"), IsNull("id1"))
+    Filters.createRiffFilter(filters) should be (and(FilterApi.not(nvl("id1")), nvl("id1")))
+  }
 }

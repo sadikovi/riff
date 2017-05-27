@@ -31,6 +31,28 @@ import com.github.sadikovi.riff.tree.FilterApi._
  * Utility functions to convert Spark SQL filters into Riff filters.
  */
 private[riff] object Filters {
+
+  /**
+   * Create new Riff filter from sequence of SQL filters.
+   * Sequence should be collapsed as conjunction.
+   * @param filters sequence of SQL filters
+   * @return predicate tree or null
+   *
+   */
+  def createRiffFilter(filters: Seq[Filter]): Tree = {
+    // collect all references for the top level leaf nodes
+    val refs = filters.flatMap { filter =>
+      if (isLeaf(filter) && !isNullRelated(filter)) references(filter) else Nil
+    }.toSet
+    // remove constraint predicates such as IsNotNull from the top level filters
+    // keep IsNotNull that are not part of constraint propagation
+    val noContraintFilters = filters.collect {
+      case filter if !filter.isInstanceOf[IsNotNull] => filter
+      case nonConstraint @ IsNotNull(attr) if !refs.contains(attr) => nonConstraint
+    }
+    createRiffFilter(noContraintFilters.reduceOption(And))
+  }
+
   /**
    * Create new Riff filter for SQL filter.
    * @param filter optional filter

@@ -186,8 +186,7 @@ class DefaultSource
       SQL_RIFF_FILTER_PUSHDOWN_DEFAULT).toBoolean
 
     val predicate = if (filterPushdownEnabled) {
-      val reducedFilter = filters.reduceOption(And)
-      val tree = Filters.createRiffFilter(reducedFilter)
+      val tree = Filters.createRiffFilter(filters)
       if (tree != null) {
         log.info(s"Applying filter tree $tree")
       }
