@@ -18,7 +18,7 @@ results in [this gist](https://gist.github.com/sadikovi/41c07e9f76177820b7f9894c
 The `riff` package can be added to Spark by using the `--packages` command line option.
 For example, run this to include it when starting `spark-shell` (Scala 2.11.x):
 ```shell
- $SPARK_HOME/bin/spark-shell --packages com.github.sadikovi:riff_2.11:0.1.0
+ $SPARK_HOME/bin/spark-shell --packages sadikovi:riff:0.1.0-s_2.11
 ```
 See build instructions to create jar for Scala 2.10.x
 
