@@ -11,14 +11,14 @@ results in [this gist](https://gist.github.com/sadikovi/41c07e9f76177820b7f9894c
 ## Requirements
 | Spark version | riff latest version |
 |---------------|------------------------------|
-| 2.0.x | 0.1.0 (not published yet, [build from the source](#building-from-source)) |
-| 2.1.x | 0.1.0 (not published yet, [build from the source](#building-from-source)) |
+| 2.0.x | [0.1.0](http://spark-packages.org/package/sadikovi/riff) |
+| 2.1.x | [0.1.0](http://spark-packages.org/package/sadikovi/riff) |
 
 ## Linking
-The `riff` package can be added to Spark by using the `--jars` command line option.
+The `riff` package can be added to Spark by using the `--packages` command line option.
 For example, run this to include it when starting `spark-shell` (Scala 2.11.x):
 ```shell
- $SPARK_HOME/bin/spark-shell --jars ./target/scala-2.11/riff_2.11-0.1.0-SNAPSHOT.jar
+ $SPARK_HOME/bin/spark-shell --packages com.github.sadikovi:riff_2.11:0.1.0
 ```
 See build instructions to create jar for Scala 2.10.x
 
@@ -111,8 +111,9 @@ Run `sbt test` from project root. See `.travis.yml` for CI build matrix.
 
 ## Running benchmark
 
-Run `sbt package` to package project, next run `spark-submit` for following benchmarks. All data
-created during benchmarks is stored in `./temp` folder.
+Run `sbt package` to package project, next run `spark-submit` for following benchmarks
+(jar path/name might be different from example below). All data created during benchmarks is stored
+in `./temp` folder.
 
 - Write benchmark
 ```
