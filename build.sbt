@@ -81,3 +81,49 @@ compileScalastyle := org.scalastyle.sbt.ScalastylePlugin.scalastyle.in(Compile).
 lazy val testScalastyle = taskKey[Unit]("testScalastyle")
 testScalastyle := org.scalastyle.sbt.ScalastylePlugin.scalastyle.in(Test).toTask("").value
 (test in Test) <<= (test in Test).dependsOn(testScalastyle)
+
+/********************
+ * Release settings *
+ ********************/
+
+publishTo := {
+  val nexus = "https://oss.sonatype.org/"
+  if (version.value.endsWith("SNAPSHOT"))
+    Some("snapshots" at nexus + "content/repositories/snapshots")
+  else
+    Some("releases"  at nexus + "service/local/staging/deploy/maven2")
+}
+
+publishMavenStyle := true
+
+publishArtifact in Test := false
+
+pomIncludeRepository := { _ => false }
+
+releaseCrossBuild := false
+
+licenses += ("MIT", url("https://opensource.org/licenses/MIT"))
+
+releasePublishArtifactsAction := PgpKeys.publishSigned.value
+
+pomExtra := (
+  <url>https://github.com/sadikovi/riff</url>
+  <scm>
+    <url>git@github.com:sadikovi/riff.git</url>
+    <connection>scm:git:git@github.com:sadikovi/riff.git</connection>
+  </scm>
+  <developers>
+    <developer>
+      <id>sadikovi</id>
+      <name>Ivan Sadikov</name>
+      <url>https://github.com/sadikovi</url>
+    </developer>
+  </developers>
+)
+
+bintrayReleaseOnPublish in ThisBuild := false
+
+// Credentials for sbt-spark-package
+credentials += Credentials(Path.userHome / ".ivy2" / ".sbtcredentials")
+// Credentials for publishing to sonatype
+credentials += Credentials(Path.userHome / ".ivy2" / ".sonatype.sbt")
