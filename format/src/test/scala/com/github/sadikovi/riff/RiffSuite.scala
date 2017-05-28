@@ -297,6 +297,86 @@ class RiffSuite extends UnitTestSuite {
     }
   }
 
+  test("write/read, check statistics and stripe information") {
+    withTempDir { dir =>
+      import RiffTestUtils._
+      val conf = new Configuration(false)
+      conf.setInt(Riff.Options.STRIPE_ROWS, 2)
+      val td = new TypeDescription(schema, Array("col2", "col1"))
+      val writer = Riff.writer(conf, dir / "file", td)
+      writer.prepareWrite()
+      for (row <- batch) {
+        writer.write(row)
+      }
+      writer.finishWrite()
+
+      val reader = Riff.reader(dir / "file")
+      val rowbuf = reader.prepareRead().asInstanceOf[Buffers.InternalRowBuffer]
+      val header = reader.getFileHeader()
+      // statistics are stored the same way type description keeps fields
+      // col2, col1, col3
+      val stats1 = header.getFileStatistics()(0)
+      stats1 should be (stats("abc", "xyz", false))
+      val stats2 = header.getFileStatistics()(1)
+      stats2 should be (stats(1, 5, false))
+      val stats3 = header.getFileStatistics()(2)
+      stats3 should be (stats(1L, 5L, false))
+
+      rowbuf.getStripes().length should be (3)
+
+      val stripe1 = rowbuf.getStripes()(0)
+      stripe1.getStatistics() should be (
+        Array(stats("abc", "def", false), stats(1, 2, false), stats(1L, 2L, false)))
+      // column filters for col2
+      stripe1.getColumnFilters()(0).hasNulls should be (false)
+      stripe1.getColumnFilters()(0).mightContain(UTF8String.fromString("abc")) should be (true)
+      stripe1.getColumnFilters()(0).mightContain(UTF8String.fromString("def")) should be (true)
+      assert(stripe1.getColumnFilters()(0).toString.contains("UTF8ColumnFilter"))
+      // column filters for col1
+      stripe1.getColumnFilters()(1).hasNulls should be (false)
+      stripe1.getColumnFilters()(1).mightContain(1) should be (true)
+      stripe1.getColumnFilters()(1).mightContain(2) should be (true)
+      assert(stripe1.getColumnFilters()(1).toString.contains("IntColumnFilter"))
+      // column filters for col3 (NoopColumnFilter)
+      stripe1.getColumnFilters()(2).hasNulls should be (false)
+      assert(stripe1.getColumnFilters()(2).toString.contains("NoopColumnFilter"))
+
+      val stripe2 = rowbuf.getStripes()(1)
+      stripe2.getStatistics() should be (
+        Array(stats("abc", "xyz", false), stats(3, 4, false), stats(3L, 4L, false)))
+      // column filters for col2
+      stripe2.getColumnFilters()(0).hasNulls should be (false)
+      stripe2.getColumnFilters()(0).mightContain(UTF8String.fromString("abc")) should be (true)
+      stripe2.getColumnFilters()(0).mightContain(UTF8String.fromString("xyz")) should be (true)
+      assert(stripe2.getColumnFilters()(0).toString.contains("UTF8ColumnFilter"))
+      // column filters for col1
+      stripe2.getColumnFilters()(1).hasNulls should be (false)
+      stripe2.getColumnFilters()(1).mightContain(3) should be (true)
+      stripe2.getColumnFilters()(1).mightContain(4) should be (true)
+      assert(stripe2.getColumnFilters()(1).toString.contains("IntColumnFilter"))
+      // column filters for col3 (NoopColumnFilter)
+      stripe2.getColumnFilters()(2).hasNulls should be (false)
+      assert(stripe2.getColumnFilters()(2).toString.contains("NoopColumnFilter"))
+
+      val stripe3 = rowbuf.getStripes()(2)
+      stripe3.getStatistics() should be (
+        Array(stats("xyz", "xyz", false), stats(5, 5, false), stats(5L, 5L, false)))
+      // column filters for col2
+      stripe3.getColumnFilters()(0).hasNulls should be (false)
+      stripe3.getColumnFilters()(0).mightContain(UTF8String.fromString("abc")) should be (true)
+      stripe3.getColumnFilters()(0).mightContain(UTF8String.fromString("xyz")) should be (true)
+      assert(stripe3.getColumnFilters()(0).toString.contains("UTF8ColumnFilter"))
+      // column filters for col1
+      stripe3.getColumnFilters()(1).hasNulls should be (false)
+      stripe3.getColumnFilters()(1).mightContain(3) should be (true)
+      stripe3.getColumnFilters()(1).mightContain(4) should be (true)
+      assert(stripe3.getColumnFilters()(1).toString.contains("IntColumnFilter"))
+      // column filters for col3 (NoopColumnFilter)
+      stripe3.getColumnFilters()(2).hasNulls should be (false)
+      assert(stripe3.getColumnFilters()(2).toString.contains("NoopColumnFilter"))
+    }
+  }
+
   // == direct scan ==
 
   test("write/read with snappy, direct scan") {
