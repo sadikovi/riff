@@ -33,7 +33,7 @@ libraryDependencies ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "io.netty" % "netty" % "3.6.2.Final",
+  "io.netty" % "netty" % "3.6.2.Final" % "provided",
   "org.scalatest" %% "scalatest" % "2.2.4" % "test"
 )
 
