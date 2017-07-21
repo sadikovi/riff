@@ -130,9 +130,9 @@ public class Riff {
       // bytes should be multiple of hardware pages 4096
       int pageSize = 4096;
       int bytes = conf.getInt(HDFS_BUFFER_SIZE, HDFS_BUFFER_SIZE_DEFAULT);
-      if (bytes > 0 && bytes % pageSize == 0) return bytes;
-      if (bytes < 0) bytes = 0;
-      return (bytes / pageSize + 1) * pageSize;
+      if (bytes > HDFS_BUFFER_SIZE_DEFAULT && bytes % pageSize == 0) return bytes;
+      // otherwise return default size
+      return HDFS_BUFFER_SIZE_DEFAULT;
     }
 
     /**

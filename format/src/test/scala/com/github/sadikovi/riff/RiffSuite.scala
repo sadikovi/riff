@@ -84,7 +84,11 @@ class RiffSuite extends UnitTestSuite {
 
     conf = new Configuration()
     conf.setInt(Riff.Options.HDFS_BUFFER_SIZE, Riff.Options.HDFS_BUFFER_SIZE_DEFAULT + 1)
-    Riff.Options.hdfsBufferSize(conf) should be (Riff.Options.HDFS_BUFFER_SIZE_DEFAULT * 2)
+    Riff.Options.hdfsBufferSize(conf) should be (Riff.Options.HDFS_BUFFER_SIZE_DEFAULT)
+
+    conf = new Configuration()
+    conf.setInt(Riff.Options.HDFS_BUFFER_SIZE, Riff.Options.HDFS_BUFFER_SIZE_DEFAULT + 4096)
+    Riff.Options.hdfsBufferSize(conf) should be (Riff.Options.HDFS_BUFFER_SIZE_DEFAULT + 4096)
   }
 
   test("num rows in stripe") {
