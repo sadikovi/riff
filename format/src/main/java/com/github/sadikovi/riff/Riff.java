@@ -88,8 +88,8 @@ public class Riff {
 
     // buffer size for Hadoop output/input stream
     public static final String HDFS_BUFFER_SIZE = "io.file.buffer.size";
-    // default buffer size for HDFS, should be multiple of 4096 bytes, same as in core-default.xml
-    public static final int HDFS_BUFFER_SIZE_DEFAULT = 4 * 1024;
+    // default buffer size for HDFS, should be multiple of 4096 bytes (core-default.xml)
+    public static final int HDFS_BUFFER_SIZE_DEFAULT = 256 * 1024;
 
     // whether or not column filters are enabled and should be written into header
     public static final String COLUMN_FILTER_ENABLED = "riff.column.filter.enabled";
