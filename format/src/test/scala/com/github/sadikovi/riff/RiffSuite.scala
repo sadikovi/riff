@@ -377,6 +377,31 @@ class RiffSuite extends UnitTestSuite {
     }
   }
 
+  test("write/read, with gzip, check file properties") {
+    withTempDir { dir =>
+      val conf = new Configuration(false)
+      val td = new TypeDescription(schema, Array("col2"))
+      val writer = Riff.writer(conf, dir / "file", td)
+
+      writer.setFileProperty("key1", "value1")
+      writer.setFileProperty("key2", "value2")
+      writer.setFileProperty("", "value3")
+      writer.setFileProperty("key3", "")
+
+      writer.prepareWrite()
+      writer.finishWrite()
+
+      val reader = Riff.reader(dir / "file")
+      reader.readFileInfo(true)
+
+      reader.getFileProperty("key1") should be ("value1")
+      reader.getFileProperty("key2") should be ("value2")
+      reader.getFileProperty("") should be ("value3")
+      reader.getFileProperty("key3") should be ("")
+      reader.getFileProperty("key999") should be (null)
+    }
+  }
+
   // == direct scan ==
 
   test("write/read with snappy, direct scan") {

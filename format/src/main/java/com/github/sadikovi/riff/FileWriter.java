@@ -24,6 +24,7 @@ package com.github.sadikovi.riff;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 
 import org.apache.hadoop.conf.Configuration;
@@ -93,6 +94,8 @@ public class FileWriter {
   private boolean writeFinished;
   // file output stream
   private FSDataOutputStream outputStream;
+  // custom file properties, written as part of header
+  private HashMap<String, String> fileProperties;
   // stripe id (incremented for each stripe)
   private short stripeId;
   // current position in the stream
@@ -150,6 +153,8 @@ public class FileWriter {
     // current stripe stats and filters
     this.stripeStats = null;
     this.stripeFilters = null;
+    // file properties, by default not initialized
+    this.fileProperties = null;
   }
 
   /**
@@ -185,6 +190,26 @@ public class FileWriter {
   }
 
   /**
+   * Set custom file property to be written as part of file header.
+   * Must be called before 'prepareWrite()' method.
+   * @param key non-null key
+   * @param value non-null value for the key
+   */
+  public void setFileProperty(String key, String value) {
+    if (writePrepared || writeFinished) {
+      throw new IllegalStateException("Cannot set property on already prepared/finished file. " +
+        "Method 'setFileProperty()' should be called before 'prepareWrite()'");
+    }
+    if (key == null || value == null) {
+      throw new IllegalArgumentException("Null key/value: key=" + key + ", value=" + value);
+    }
+    if (fileProperties == null) {
+      fileProperties = new HashMap<String, String>();
+    }
+    fileProperties.put(key, value);
+  }
+
+  /**
    * Prepare writer. This method initializes stripes, statistics and counters.
    * @throws IOException
    */
@@ -206,7 +231,7 @@ public class FileWriter {
     stripeCurrentRecords = numRowsInStripe;
     LOG.debug("Initialize stripe outstream {}", stripeStream);
     // create stream for riff file and write header information
-    FileHeader fileHeader = new FileHeader(td);
+    FileHeader fileHeader = new FileHeader(td, fileProperties);
     fileHeader.setState(0, Riff.encodeCompressionCodec(codec));
     try {
       outputStream = fs.create(filePath, false, hdfsBufferSize);

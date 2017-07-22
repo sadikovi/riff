@@ -144,6 +144,36 @@ class FileWriterSuite extends UnitTestSuite {
     }
   }
 
+  test("fail to set property when write is in progress") {
+    withTempDir { dir =>
+      val conf = new Configuration(false)
+      val path = dir / "file"
+      val codec = new ZlibCodec()
+      val td = new TypeDescription(StructType(StructField("col", StringType) :: Nil))
+      val writer = new FileWriter(fs, conf, path, td, codec)
+      writer.prepareWrite()
+      intercept[IllegalStateException] {
+        writer.setFileProperty("key", "value")
+      }
+    }
+  }
+
+  test("fail to set property if key/value is null") {
+    withTempDir { dir =>
+      val conf = new Configuration(false)
+      val path = dir / "file"
+      val codec = new ZlibCodec()
+      val td = new TypeDescription(StructType(StructField("col", StringType) :: Nil))
+      val writer = new FileWriter(fs, conf, path, td, codec)
+      intercept[IllegalArgumentException] {
+        writer.setFileProperty("key", null)
+      }
+      intercept[IllegalArgumentException] {
+        writer.setFileProperty(null, "value")
+      }
+    }
+  }
+
   test("write batch of rows in one stripe") {
     withTempDir { dir =>
       val conf = new Configuration(false)

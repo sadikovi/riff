@@ -24,6 +24,7 @@ package com.github.sadikovi.riff;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.HashMap;
 
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -48,19 +49,33 @@ public class FileHeader {
   private final byte[] state;
   // type description for file
   private final TypeDescription td;
+  // custom file properties
+  private final HashMap<String, String> properties;
 
   /**
    * Initialize file header with state and type description.
    * @param state file state
    * @param td file type description
+   * @param properties custom file properties, can be null
    */
-  public FileHeader(byte[] state, TypeDescription td) {
+  public FileHeader(byte[] state, TypeDescription td, HashMap<String, String> properties) {
     if (state.length != STATE_LENGTH) {
       throw new IllegalArgumentException("Invalid state length, " +
         state.length + " != " + STATE_LENGTH);
     }
     this.state = state;
     this.td = td;
+    this.properties = properties;
+  }
+
+  /**
+   * Initialize file header with default state and type description.
+   * State can be modified using `setState` method.
+   * @param td type description
+   * @param properties file properties, can be null
+   */
+  public FileHeader(TypeDescription td, HashMap<String, String> properties) {
+    this(new byte[STATE_LENGTH], td, properties);
   }
 
   /**
@@ -69,7 +84,7 @@ public class FileHeader {
    * @param td type description
    */
   public FileHeader(TypeDescription td) {
-    this(new byte[STATE_LENGTH], td);
+    this(new byte[STATE_LENGTH], td, null);
   }
 
   /**
@@ -99,6 +114,16 @@ public class FileHeader {
   }
 
   /**
+   * Get property.
+   * @param key property key
+   * @return value as String or null, if properties are not set, or no such key exists
+   */
+  public String getProperty(String key) {
+    if (properties == null) return null;
+    return properties.get(key);
+  }
+
+  /**
    * Write header into output stream.
    * Stream is not closed after this operation is complete.
    * @param out output stream
@@ -109,6 +134,23 @@ public class FileHeader {
     // record file header
     buffer.write(state);
     td.writeTo(buffer);
+    // write properties map, size -1 means that properties is null
+    if (properties == null) {
+      buffer.writeInt(-1);
+    } else {
+      byte[] bytes = null;
+      buffer.writeInt(properties.size());
+      for (String key : properties.keySet()) {
+        // write key
+        bytes = key.getBytes();
+        buffer.writeInt(bytes.length);
+        buffer.writeBytes(bytes);
+        // write value
+        bytes = properties.get(key).getBytes();
+        buffer.writeInt(bytes.length);
+        buffer.writeBytes(bytes);
+      }
+    }
     buffer.align();
     LOG.debug("Write header content of {} bytes", buffer.bytesWritten());
     // write magic 4 bytes + buffer length 4 bytes into output stream
@@ -142,6 +184,25 @@ public class FileHeader {
     // wraps byte buffer, stream updates position of buffer
     ByteBufferStream byteStream = new ByteBufferStream(buffer);
     TypeDescription td = TypeDescription.readFrom(byteStream);
-    return new FileHeader(state, td);
+    // read properties
+    int propertiesLen = buffer.getInt();
+    HashMap<String, String> properties = null;
+    if (propertiesLen >= 0) {
+      properties = new HashMap<String, String>();
+      byte[] bytes = null;
+      while (propertiesLen > 0) {
+        // read key
+        bytes = new byte[buffer.getInt()];
+        buffer.get(bytes);
+        String key = new String(bytes);
+        // read value
+        bytes = new byte[buffer.getInt()];
+        buffer.get(bytes);
+        String value = new String(bytes);
+        properties.put(key, value);
+        --propertiesLen;
+      }
+    }
+    return new FileHeader(state, td, properties);
   }
 }
