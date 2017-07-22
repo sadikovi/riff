@@ -179,6 +179,7 @@ public class FileReader {
    * File footer for this reader.
    * Only available after calling prepareRead() or `readFileFooter` methods.
    * @return file footer
+   * @throws IllegalStateException if not set
    */
   public FileFooter getFileFooter() {
     if (fileFooter == null) {
@@ -211,6 +212,40 @@ public class FileReader {
         in.close();
       }
     }
+  }
+
+  /**
+   * Get file property.
+   * Header must be initialized before calling this method.
+   * @param key file property key
+   * @return value as String or null, if no such key exists
+   */
+  public String getFileProperty(String key) {
+    return getFileHeader().getProperty(key);
+  }
+
+  /**
+   * Get file path for this reader.
+   * @return file path
+   */
+  public Path filePath() {
+    return getFileStatus().getPath();
+  }
+
+  /**
+   * Get file status for this reader.
+   * @return file status
+   */
+  public FileStatus getFileStatus() {
+    return fileStatus;
+  }
+
+  /**
+   * Return buffer size selected for this reader to use in instream.
+   * @return buffer size
+   */
+  public int bufferSize() {
+    return bufferSize;
   }
 
   /**
@@ -264,30 +299,6 @@ public class FileReader {
     }
     Arrays.sort(stripes);
     return stripes;
-  }
-
-  /**
-   * Get file path for this reader.
-   * @return file path
-   */
-  public Path filePath() {
-    return getFileStatus().getPath();
-  }
-
-  /**
-   * Get file status for this reader.
-   * @return file status
-   */
-  public FileStatus getFileStatus() {
-    return fileStatus;
-  }
-
-  /**
-   * Return buffer size selected for this reader to use in instream.
-   * @return buffer size
-   */
-  public int bufferSize() {
-    return bufferSize;
   }
 
   @Override

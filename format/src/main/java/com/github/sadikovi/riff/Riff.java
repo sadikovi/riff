@@ -47,6 +47,9 @@ import com.github.sadikovi.riff.io.CompressionCodecFactory;
  * TypeDescription td = new TypeDescription(structType, indexFields);
  * FileWriter writer = Riff.writer(conf, path, td);
  *
+ * // set custom file property
+ * writer.setFileProperty("key", "value");
+ *
  * writer.prepareWrite();
  * while (rows.hasNext()) {
  *   writer.write(rows.next());
@@ -54,9 +57,14 @@ import com.github.sadikovi.riff.io.CompressionCodecFactory;
  * writer.finishWrite();
  *
  * // reading file
- * TreeNode filter = eqt("indexField", "abc");
+ * TreeNode filter = eqt("fieldName", "value");
  * FileReader reader = Riff.reader(conf, new org.apache.hadoop.fs.Path("file.gz"));
+ *
  * RowBuffer rowbuf = reader.prepareRead(filter);
+ *
+ * // get custom file property, must be called after prepareRead() or readFileInfo()
+ * String value = reader.getFileProperty("key");
+ *
  * while (rowbuf.hasNext()) {
  *   process(rowbuf.next()); // user-specific processing of an InternalRow
  * }
