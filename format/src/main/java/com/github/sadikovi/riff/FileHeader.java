@@ -110,7 +110,7 @@ public class FileHeader {
     buffer.write(state);
     td.writeTo(buffer);
     buffer.align();
-    LOG.info("Write header content of {} bytes", buffer.bytesWritten());
+    LOG.debug("Write header content of {} bytes", buffer.bytesWritten());
     // write magic 4 bytes + buffer length 4 bytes into output stream
     out.writeLong(((long) Riff.MAGIC << 32) + buffer.bytesWritten());
     // write buffer data

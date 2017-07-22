@@ -78,7 +78,7 @@ public class PredicateState {
       this.tree = null;
     }
 
-    LOG.info("Index tree: {}, tree: {}, index_only: {}",
+    LOG.debug("Index tree: {}, tree: {}, index_only: {}",
       this.indexTree, this.tree, this.indexedOnly);
   }
 

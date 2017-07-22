@@ -170,7 +170,7 @@ public class FileFooter {
     buffer.align();
     // magic and number of bytes to read should be written the last in the stream
     buffer.writeLong(((long) Riff.MAGIC << 32) + buffer.bytesWritten());
-    LOG.info("Write footer content of {} bytes", buffer.bytesWritten());
+    LOG.debug("Write footer content of {} bytes", buffer.bytesWritten());
     // write buffer data
     buffer.writeExternal(out);
   }
