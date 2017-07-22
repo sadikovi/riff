@@ -24,6 +24,7 @@ package com.github.sadikovi.riff;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.List;
 
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -75,6 +76,24 @@ public class FileFooter {
 
   public FileFooter(Statistics[] fileStats, long numRecords, ByteBuffer buffer) {
     this(fileStats, numRecords, null, buffer);
+  }
+
+  /**
+   * Create file footer from list of stripe information.
+   * @param fileStats file statistics
+   * @param numRecords number of records
+   * @param stripes list of stripe info
+   * @return file footer
+   */
+  public static FileFooter create(
+      Statistics[] fileStats, long numRecords, List<StripeInformation> stripes) {
+    StripeInformation[] arr = new StripeInformation[stripes.size()];
+    int i = 0;
+    while (i < arr.length) {
+      arr[i] = stripes.get(i);
+      ++i;
+    }
+    return new FileFooter(fileStats, numRecords, arr, null);
   }
 
   /**

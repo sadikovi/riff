@@ -163,16 +163,6 @@ public class Riff {
   }
 
   /**
-   * Construct path to the temporary data file.
-   * @param path file path
-   * @return temporary data path
-   */
-  protected static Path makeDataPath(Path path) {
-    // prefix file name with "." and append ".data" suffix
-    return new Path(path.getParent(), new Path("." + path.getName() + ".data"));
-  }
-
-  /**
    * Encode compression codec into byte flag.
    * @param codec compression codec, can be null
    * @return byte encoded flag
@@ -277,7 +267,11 @@ public class Riff {
    * @return file reader
    */
   public static FileReader reader(FileSystem fs, Configuration conf, Path path) {
-    return new FileReader(fs, conf, path);
+    try {
+      return new FileReader(fs, conf, path);
+    } catch (IOException err) {
+      throw new RuntimeException("Error occured: " + err.getMessage(), err);
+    }
   }
 
   /**

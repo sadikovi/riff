@@ -29,6 +29,7 @@ import java.util.Arrays;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -63,25 +64,32 @@ public class FileReader {
 
   // file system to use
   private final FileSystem fs;
-  // path to the riff file
-  private final Path filePath;
+  // file status of the riff file
+  private final FileStatus fileStatus;
   // buffer size for instream
   private final int bufferSize;
   // HDFS buffer size for opening stream
   private final int hdfsBufferSize;
   // file header
   private FileHeader fileHeader;
+  // file footer
+  private FileFooter fileFooter;
   // whether or not read has been prepared, this flag is also set when reading type description
   private boolean readPrepared;
 
-  FileReader(FileSystem fs, Configuration conf, Path path) {
+  FileReader(FileSystem fs, Configuration conf, Path path) throws IOException {
+    this(fs, conf, fs.getFileStatus(path));
+  }
+
+  FileReader(FileSystem fs, Configuration conf, FileStatus status) {
     this.fs = fs;
-    // we do not check if files exist, it will be checked in prepareRead method
-    this.filePath = fs.makeQualified(path);
+    this.fileStatus = status;
     this.bufferSize = Riff.Options.power2BufferSize(conf);
     this.hdfsBufferSize = Riff.Options.hdfsBufferSize(conf);
     // file header is only available after preparing read
     this.fileHeader = null;
+    // file footer is only available after preparing read
+    this.fileFooter = null;
     this.readPrepared = false;
   }
 
@@ -107,9 +115,10 @@ public class FileReader {
     // validate file and/or resolve statistics
     FSDataInputStream in = null;
     try {
-      in = fs.open(filePath, hdfsBufferSize);
+      in = fs.open(fileStatus.getPath(), hdfsBufferSize);
       // read input stream and return file state
       fileHeader = FileHeader.readFrom(in);
+      fileFooter = FileFooter.readFrom(in, fileStatus.getLen());
       LOG.debug("Found type description {}", fileHeader.getTypeDescription());
       CompressionCodec codec = Riff.decodeCompressionCodec(fileHeader.state(0));
       if (codec == null) {
@@ -127,31 +136,19 @@ public class FileReader {
       boolean skipFile = false;
       if (state != null) {
         if (state.hasIndexedTreeOnly()) {
-          skipFile = !state.indexTree().evaluateState(fileHeader.getFileStatistics());
+          skipFile = !state.indexTree().evaluateState(fileFooter.getFileStatistics());
         } else {
-          skipFile = !state.tree().evaluateState(fileHeader.getFileStatistics());
+          skipFile = !state.tree().evaluateState(fileFooter.getFileStatistics());
         }
       }
       if (skipFile) {
-        LOG.debug("Skip file {}", filePath);
+        LOG.debug("Skip file {}", fileStatus.getPath());
         return Buffers.emptyRowBuffer(in);
       }
-      // read stripe information until no bytes are available in buffer
-      long meta = in.readLong();
-      final int contentLen = (int) (meta >>> 32);
-      final int stripeLen = (int) (meta & 0x7fffffff);
-      LOG.debug("Read content of {} bytes", contentLen);
-      LOG.debug("Found {} stripes in the file", stripeLen);
-      ByteBuffer buffer = ByteBuffer.allocate(contentLen);
-      // do not flip buffer after this operation as we write directly into underlying array
-      in.readFully(buffer.array(), buffer.arrayOffset(), buffer.limit());
-      StripeInformation[] stripes = new StripeInformation[stripeLen];
-      for (int i = 0; i < stripes.length; i++) {
-        stripes[i] = StripeInformation.readExternal(buffer);
-      }
       // reevaluate stripes based on predicate tree
+      StripeInformation[] stripes = fileFooter.getStripeInformation();
       stripes = evaluateStripes(stripes, state);
-      LOG.debug("Prepare to read {} stripes", stripes.length);
+      LOG.debug("Prepare iterator to read data from {} stripes", stripes.length);
       readPrepared = true;
       return Buffers.prepareRowBuffer(in, stripes, fileHeader.getTypeDescription(), codec,
         bufferSize, state);
@@ -165,35 +162,50 @@ public class FileReader {
 
   /**
    * File header information for this reader.
-   * Only available after calling prepareRead() or `readFileHeader` methods, since it file header
-   * as part of that call, otherwise exception is thrown.
+   * Only available after calling prepareRead() or `readFileHeader` methods, because it reads file
+   * header as part of that call, otherwise exception is thrown.
    * @return file header
    * @throws IllegalStateException if not set
    */
   public FileHeader getFileHeader() {
     if (fileHeader == null) {
       throw new IllegalStateException("File header is not set, did you call `prepareRead()` " +
-        "or `readFileHeader` methods?");
+        "or `readFileInfo(false/true)` methods?");
     }
     return fileHeader;
   }
 
   /**
-   * Read file header that is cached by this reader for subsequent requests.
+   * File footer for this reader.
+   * Only available after calling prepareRead() or `readFileFooter` methods.
+   * @return file footer
+   */
+  public FileFooter getFileFooter() {
+    if (fileFooter == null) {
+      throw new IllegalStateException("File footer is not set, did you call `prepareRead()` " +
+        "or `readFileInfo(true)` methods?");
+    }
+    return fileFooter;
+  }
+
+  /**
+   * Read file header and footer that is cached by this reader for subsequent requests.
    * This method should be invoked separately from `prepareRead()`, and after this call type
-   * header is available with `getFileHeader()` call.
-   * @return file header
-   * @throws FileNotFoundException if header file does not exist
+   * header is available with `getFileHeader()` and footer is available with `getFileFooter()`.
+   * @param readFooter when set to true, reads footer as well, otherwise only header
+   * @throws FileNotFoundException if file does not exist
    * @throws IOException if IO error occurs
    */
-  public FileHeader readFileHeader() throws FileNotFoundException, IOException {
+  public void readFileInfo(boolean readFooter) throws FileNotFoundException, IOException {
     if (readPrepared) throw new IOException("Reader reuse");
     FSDataInputStream in = null;
     try {
-      in = fs.open(filePath, hdfsBufferSize);
+      in = fs.open(fileStatus.getPath(), hdfsBufferSize);
       fileHeader = FileHeader.readFrom(in);
+      if (readFooter) {
+        fileFooter = FileFooter.readFrom(in, fileStatus.getLen());
+      }
       readPrepared = true;
-      return fileHeader;
     } finally {
       if (in != null) {
         in.close();
@@ -256,11 +268,18 @@ public class FileReader {
 
   /**
    * Get file path for this reader.
-   * Path might not exist on file system.
    * @return file path
    */
   public Path filePath() {
-    return filePath;
+    return getFileStatus().getPath();
+  }
+
+  /**
+   * Get file status for this reader.
+   * @return file status
+   */
+  public FileStatus getFileStatus() {
+    return fileStatus;
   }
 
   /**
@@ -274,7 +293,7 @@ public class FileReader {
   @Override
   public String toString() {
     return "FileReader[" +
-      "path=" + filePath +
+      "status=" + fileStatus +
       ", buffer_size=" + bufferSize +
       ", hdfs_buffer_size=" + hdfsBufferSize + "]";
   }

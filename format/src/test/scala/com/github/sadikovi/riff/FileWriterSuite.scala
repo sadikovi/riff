@@ -96,20 +96,6 @@ class FileWriterSuite extends UnitTestSuite {
     }
   }
 
-  test("file writer - init, data path exists") {
-    withTempDir { dir =>
-      val conf = new Configuration(false)
-      val path = dir / "file"
-      val codec: CompressionCodec = null
-      val td = new TypeDescription(StructType(StructField("col", StringType) :: Nil))
-
-      touch(Riff.makeDataPath(path))
-      intercept[FileAlreadyExistsException] {
-        new FileWriter(fs, conf, path, td, codec)
-      }
-    }
-  }
-
   test("fail if stripe rows is negative") {
     withTempDir { dir =>
       val conf = new Configuration(false)
