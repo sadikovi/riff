@@ -27,7 +27,6 @@ import java.io.IOException
 import org.apache.hadoop.fs.FSDataInputStream
 import org.apache.spark.sql.types._
 
-import com.github.sadikovi.riff.stats.Statistics
 import com.github.sadikovi.testutil.UnitTestSuite
 import com.github.sadikovi.testutil.implicits._
 
@@ -36,32 +35,18 @@ class FileHeaderSuite extends UnitTestSuite {
 
   test("state length check") {
     var err = intercept[IllegalArgumentException] {
-      new FileHeader(new Array[Byte](1), null, null, 0)
+      new FileHeader(new Array[Byte](1), null)
     }
     err.getMessage should be ("Invalid state length, 1 != 8")
 
     err = intercept[IllegalArgumentException] {
-      new FileHeader(new Array[Byte](10), null, null, 0)
+      new FileHeader(new Array[Byte](10), null)
     }
     err.getMessage should be ("Invalid state length, 10 != 8")
 
     // valid state length
-    val header = new FileHeader(new Array[Byte](8), null, null, 0)
+    val header = new FileHeader(new Array[Byte](8), null)
     header.getTypeDescription should be (null)
-    header.getFileStatistics should be (null)
-    header.getNumRecords should be (0)
-  }
-
-  test("check wrong number of records") {
-    var err = intercept[IllegalArgumentException] {
-      new FileHeader(new Array[Byte](8), null, null, -1)
-    }
-    err.getMessage should be ("Negative number of records: -1")
-
-    err = intercept[IllegalArgumentException] {
-      new FileHeader(new Array[Byte](8), null, null, Int.MinValue)
-    }
-    err.getMessage should be (s"Negative number of records: ${Int.MinValue}")
   }
 
   test("check wrong magic number") {
@@ -83,10 +68,8 @@ class FileHeaderSuite extends UnitTestSuite {
     withTempDir { dir =>
       val td = new TypeDescription(StructType(StructField("col", IntegerType) :: Nil))
       val state = Array[Byte](1, 2, 3, 4, 5, 6, 7, 8)
-      val list = Array[Statistics](
-        stats(1, 10, false)
-      )
-      val header1 = new FileHeader(state, td, list, 156378)
+
+      val header1 = new FileHeader(state, td)
       val out = fs.create(dir / "header")
       header1.writeTo(out)
       out.close()
@@ -96,8 +79,6 @@ class FileHeaderSuite extends UnitTestSuite {
       in.close()
 
       header2.getTypeDescription should be (header1.getTypeDescription)
-      header2.getFileStatistics should be (header1.getFileStatistics)
-      header2.getNumRecords should be (156378)
       for (i <- 0 until state.length) {
         header2.state(i) should be (header1.state(i))
       }

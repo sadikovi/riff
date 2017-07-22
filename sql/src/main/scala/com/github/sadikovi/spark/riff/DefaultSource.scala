@@ -152,7 +152,8 @@ class DefaultSource
           val headerFile = headerFileStatus.get.getPath
           val fs = headerFile.getFileSystem(hadoopConf)
           val reader = Riff.reader(fs, hadoopConf, headerFile)
-          typeDescription = reader.readFileHeader().getTypeDescription()
+          reader.readFileInfo(readFooter = false)
+          typeDescription = reader.getFileHeader().getTypeDescription()
       }
       Option(typeDescription).map(_.toStructType)
     }
@@ -217,7 +218,7 @@ class DefaultSource
       if (metadataCountEnabled && projectionFields.isEmpty) {
         // only perform optimization if it is enabled
         // TODO: Move it into Riff format, once projection is fixed
-        var numRecords = reader.getFileHeader().getNumRecords()
+        var numRecords = reader.getFileFooter().getNumRecords()
 
         new Iterator[InternalRow] {
           override def hasNext: Boolean = {

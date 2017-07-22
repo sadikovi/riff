@@ -41,8 +41,6 @@ import com.github.sadikovi.riff.stats.Statistics;
  */
 public class FileHeader {
   private static final Logger LOG = LoggerFactory.getLogger(FileHeader.class);
-  // magic for Riff file, "RIFF" bytes in UTF8 charset
-  private static final int MAGIC = 1380533830;
   // state length in bytes
   private static final int STATE_LENGTH = 8;
 
@@ -50,41 +48,28 @@ public class FileHeader {
   private final byte[] state;
   // type description for file
   private final TypeDescription td;
-  // file statistics
-  private final Statistics[] fileStats;
-  // number of records in file, do not expect more than Integer.MAX_VALUE
-  private final int numRecords;
 
   /**
-   * Initialize file header with state, type description and file statisitcs.
+   * Initialize file header with state and type description.
    * @param state file state
    * @param td file type description
-   * @param fileStats file statistics
-   * @param numRecords number of records in file
    */
-  public FileHeader(byte[] state, TypeDescription td, Statistics[] fileStats, int numRecords) {
+  public FileHeader(byte[] state, TypeDescription td) {
     if (state.length != STATE_LENGTH) {
       throw new IllegalArgumentException("Invalid state length, " +
         state.length + " != " + STATE_LENGTH);
     }
-    if (numRecords < 0) {
-      throw new IllegalArgumentException("Negative number of records: " + numRecords);
-    }
     this.state = state;
     this.td = td;
-    this.fileStats = fileStats;
-    this.numRecords = numRecords;
   }
 
   /**
-   * Initialize file header with type description and file statisitcs.
+   * Initialize file header with default state and type description.
    * State can be modified using `setState` method.
    * @param td type description
-   * @param fileStats file statistics
-   * @param numRecords number of records in file
    */
-  public FileHeader(TypeDescription td, Statistics[] fileStats, int numRecords) {
-    this(new byte[STATE_LENGTH], td, fileStats, numRecords);
+  public FileHeader(TypeDescription td) {
+    this(new byte[STATE_LENGTH], td);
   }
 
   /**
@@ -102,22 +87,6 @@ public class FileHeader {
    */
   public TypeDescription getTypeDescription() {
     return td;
-  }
-
-  /**
-   * Get file statistics.
-   * @return list of file statistics
-   */
-  public Statistics[] getFileStatistics() {
-    return fileStats;
-  }
-
-  /**
-   * Get number of records recorded in file header.
-   * @return number of records in file
-   */
-  public int getNumRecords() {
-    return numRecords;
   }
 
   /**
@@ -140,18 +109,10 @@ public class FileHeader {
     // record file header
     buffer.write(state);
     td.writeTo(buffer);
-    buffer.writeInt(numRecords);
-    buffer.writeInt(fileStats.length);
-    int i = 0;
-    while (i < fileStats.length) {
-      LOG.debug("Write file statistics {}", fileStats[i]);
-      fileStats[i].writeExternal(buffer);
-      ++i;
-    }
     buffer.align();
-    LOG.info("Write header content of {} bytes", buffer.bytesWritten());
+    LOG.debug("Write header content of {} bytes", buffer.bytesWritten());
     // write magic 4 bytes + buffer length 4 bytes into output stream
-    out.writeLong(((long) MAGIC << 32) + buffer.bytesWritten());
+    out.writeLong(((long) Riff.MAGIC << 32) + buffer.bytesWritten());
     // write buffer data
     buffer.writeExternal(out);
   }
@@ -166,7 +127,7 @@ public class FileHeader {
     // Read first 8 bytes: magic 4 bytes and length of the header 4 bytes
     long meta = in.readLong();
     int magic = (int) (meta >>> 32);
-    if (magic != MAGIC) throw new IOException("Wrong magic: " + magic + " != " + MAGIC);
+    if (magic != Riff.MAGIC) throw new IOException("Wrong magic: " + magic + " != " + Riff.MAGIC);
     int len = (int) (meta & 0x7fffffff);
     LOG.debug("Read header content of {} bytes", len);
     // read full header bytes
@@ -181,15 +142,6 @@ public class FileHeader {
     // wraps byte buffer, stream updates position of buffer
     ByteBufferStream byteStream = new ByteBufferStream(buffer);
     TypeDescription td = TypeDescription.readFrom(byteStream);
-    int numRecords = buffer.getInt();
-    // read file statistics
-    Statistics[] fileStats = new Statistics[buffer.getInt()];
-    int i = 0;
-    while (i < fileStats.length) {
-      fileStats[i] = Statistics.readExternal(buffer);
-      LOG.debug("Read file statistics {}", fileStats[i]);
-      ++i;
-    }
-    return new FileHeader(state, td, fileStats, numRecords);
+    return new FileHeader(state, td);
   }
 }

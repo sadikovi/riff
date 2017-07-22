@@ -104,8 +104,9 @@ public class Metadata {
     public MetadataWriter(FileSystem fs, Configuration conf, Path filepath) throws IOException {
       // infer metadata path and read header file
       FileReader reader = new FileReader(fs, conf, filepath);
+      reader.readFileInfo(false);
       this.fs = fs;
-      this.metadata = new Metadata(reader.readFileHeader().getTypeDescription());
+      this.metadata = new Metadata(reader.getFileHeader().getTypeDescription());
       reader = null;
     }
 

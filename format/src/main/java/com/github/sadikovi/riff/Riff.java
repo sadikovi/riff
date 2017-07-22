@@ -68,6 +68,8 @@ import com.github.sadikovi.riff.io.CompressionCodecFactory;
  */
 public class Riff {
   private static final Logger LOG = LoggerFactory.getLogger(Riff.class);
+  // magic for Riff file, "RIFF" bytes in UTF8 charset
+  public static final int MAGIC = 1380533830;
 
   /**
    * Internal riff options that can be set in hadoop configuration.
@@ -88,8 +90,8 @@ public class Riff {
 
     // buffer size for Hadoop output/input stream
     public static final String HDFS_BUFFER_SIZE = "io.file.buffer.size";
-    // default buffer size for HDFS, should be multiple of 4096 bytes, same as in core-default.xml
-    public static final int HDFS_BUFFER_SIZE_DEFAULT = 4 * 1024;
+    // default buffer size for HDFS, should be multiple of 4096 bytes (core-default.xml)
+    public static final int HDFS_BUFFER_SIZE_DEFAULT = 256 * 1024;
 
     // whether or not column filters are enabled and should be written into header
     public static final String COLUMN_FILTER_ENABLED = "riff.column.filter.enabled";
@@ -130,9 +132,9 @@ public class Riff {
       // bytes should be multiple of hardware pages 4096
       int pageSize = 4096;
       int bytes = conf.getInt(HDFS_BUFFER_SIZE, HDFS_BUFFER_SIZE_DEFAULT);
-      if (bytes > 0 && bytes % pageSize == 0) return bytes;
-      if (bytes < 0) bytes = 0;
-      return (bytes / pageSize + 1) * pageSize;
+      if (bytes > HDFS_BUFFER_SIZE_DEFAULT && bytes % pageSize == 0) return bytes;
+      // otherwise return default size
+      return HDFS_BUFFER_SIZE_DEFAULT;
     }
 
     /**
@@ -158,16 +160,6 @@ public class Riff {
     static boolean columnFilterEnabled(Configuration conf) {
       return conf.getBoolean(COLUMN_FILTER_ENABLED, COLUMN_FILTER_ENABLED_DEFAULT);
     }
-  }
-
-  /**
-   * Construct path to the temporary data file.
-   * @param path file path
-   * @return temporary data path
-   */
-  protected static Path makeDataPath(Path path) {
-    // prefix file name with "." and append ".data" suffix
-    return new Path(path.getParent(), new Path("." + path.getName() + ".data"));
   }
 
   /**
@@ -275,7 +267,11 @@ public class Riff {
    * @return file reader
    */
   public static FileReader reader(FileSystem fs, Configuration conf, Path path) {
-    return new FileReader(fs, conf, path);
+    try {
+      return new FileReader(fs, conf, path);
+    } catch (IOException err) {
+      throw new RuntimeException("Error occured: " + err.getMessage(), err);
+    }
   }
 
   /**

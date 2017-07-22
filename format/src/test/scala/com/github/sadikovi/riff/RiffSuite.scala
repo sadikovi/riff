@@ -84,7 +84,11 @@ class RiffSuite extends UnitTestSuite {
 
     conf = new Configuration()
     conf.setInt(Riff.Options.HDFS_BUFFER_SIZE, Riff.Options.HDFS_BUFFER_SIZE_DEFAULT + 1)
-    Riff.Options.hdfsBufferSize(conf) should be (Riff.Options.HDFS_BUFFER_SIZE_DEFAULT * 2)
+    Riff.Options.hdfsBufferSize(conf) should be (Riff.Options.HDFS_BUFFER_SIZE_DEFAULT)
+
+    conf = new Configuration()
+    conf.setInt(Riff.Options.HDFS_BUFFER_SIZE, Riff.Options.HDFS_BUFFER_SIZE_DEFAULT + 4096)
+    Riff.Options.hdfsBufferSize(conf) should be (Riff.Options.HDFS_BUFFER_SIZE_DEFAULT + 4096)
   }
 
   test("num rows in stripe") {
@@ -112,12 +116,6 @@ class RiffSuite extends UnitTestSuite {
       Riff.Options.numRowsInStripe(conf)
     }
     assert(err.getMessage.contains("Expected positive number of rows in stripe"))
-  }
-
-  test("make data path") {
-    val path = new Path("/a/b/c")
-    val dpath = Riff.makeDataPath(path)
-    dpath should be (new Path("/a/b/.c.data"))
   }
 
   test("select column filter enabled") {
@@ -207,6 +205,7 @@ class RiffSuite extends UnitTestSuite {
 
   test("create file reader") {
     withTempDir { dir =>
+      touch(dir / "file")
       val reader = Riff.reader(dir / "file")
       assert(reader.filePath.toString == s"file:${dir / "file"}")
     }
@@ -269,8 +268,8 @@ class RiffSuite extends UnitTestSuite {
 
       val reader = Riff.reader(dir / "file")
       val rowbuf = reader.prepareRead().asInstanceOf[Buffers.InternalRowBuffer]
-      // previous 616 bytes are 8-byte aligned
-      rowbuf.offset() should be (616)
+      // previous 248 bytes are 8-byte aligned
+      rowbuf.offset() should be (248)
       rowbuf.getStripes().length should be (5)
 
       rowbuf.getStripes()(0).offset() should be (0)
@@ -313,13 +312,14 @@ class RiffSuite extends UnitTestSuite {
       val reader = Riff.reader(dir / "file")
       val rowbuf = reader.prepareRead().asInstanceOf[Buffers.InternalRowBuffer]
       val header = reader.getFileHeader()
+      val footer = reader.getFileFooter()
       // statistics are stored the same way type description keeps fields
       // col2, col1, col3
-      val stats1 = header.getFileStatistics()(0)
+      val stats1 = footer.getFileStatistics()(0)
       stats1 should be (stats("abc", "xyz", false))
-      val stats2 = header.getFileStatistics()(1)
+      val stats2 = footer.getFileStatistics()(1)
       stats2 should be (stats(1, 5, false))
-      val stats3 = header.getFileStatistics()(2)
+      val stats3 = footer.getFileStatistics()(2)
       stats3 should be (stats(1L, 5L, false))
 
       rowbuf.getStripes().length should be (3)
@@ -501,8 +501,8 @@ class RiffSuite extends UnitTestSuite {
       rowbuf.getStripes().length should be (1)
       rowbuf.getStripes()(0).id() should be (1)
       // stripe has a relative offset
-      // previous 616 bytes are 8-byte aligned
-      rowbuf.offset() should be (616)
+      // previous 248 bytes are 8-byte aligned
+      rowbuf.offset() should be (248)
       rowbuf.getStripes()(0).offset() should be (36)
       rowbuf.getStripes()(0).length() should be (36)
       rowbuf.getStripes()(0).hasStatistics() should be (true)

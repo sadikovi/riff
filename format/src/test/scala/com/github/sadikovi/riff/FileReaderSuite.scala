@@ -47,6 +47,7 @@ class FileReaderSuite extends UnitTestSuite {
   test("initialize file reader for non-existent path") {
     withTempDir { dir =>
       val path = dir / "file"
+      touch(path)
       val reader = new FileReader(fs, new Configuration(), path)
       reader.filePath() should be (new Path(s"file:$path"))
       reader.bufferSize() should be (Riff.Options.BUFFER_SIZE_DEFAULT)
@@ -56,6 +57,7 @@ class FileReaderSuite extends UnitTestSuite {
   test("initialize file reader with different buffer size") {
     withTempDir { dir =>
       val path = dir / "file"
+      touch(path)
       val conf = new Configuration()
       conf.setInt(Riff.Options.BUFFER_SIZE, Riff.Options.BUFFER_SIZE_MAX)
       val reader = new FileReader(fs, conf, path)
@@ -147,42 +149,55 @@ class FileReaderSuite extends UnitTestSuite {
       reader1.prepareRead()
       var err = intercept[IOException] { reader1.prepareRead() }
       err.getMessage should be ("Reader reuse")
-      err = intercept[IOException] { reader1.readFileHeader() }
+      err = intercept[IOException] { reader1.readFileInfo(false) }
       err.getMessage should be ("Reader reuse")
 
       // test readTypeDescription
       val reader2 = Riff.reader(dir / "path")
-      reader2.readFileHeader()
-      err = intercept[IOException] { reader2.readFileHeader() }
+      reader2.readFileInfo(false)
+      err = intercept[IOException] { reader2.readFileInfo(false) }
       err.getMessage should be ("Reader reuse")
       err = intercept[IOException] { reader2.prepareRead() }
       err.getMessage should be ("Reader reuse")
     }
   }
 
-  test("read file header") {
+  test("read file header and footer") {
     withTempDir { dir =>
       val writer = Riff.writer(dir / "path", td)
       writer.prepareWrite()
       writer.finishWrite()
 
       val reader = Riff.reader(dir / "path")
-      val td1 = reader.readFileHeader()
-      val td2 = reader.getFileHeader()
-      td1.getTypeDescription() should be (td)
-      td2.getTypeDescription() should be (td)
-      td2.getFileStatistics() should be (td1.getFileStatistics())
-      td2.state(0) should be (td1.state(0))
+      reader.readFileInfo(true)
+      val h1 = reader.getFileHeader()
+      val f1 = reader.getFileFooter()
+      h1.getTypeDescription() should be (td)
+      h1.state(0) should be (0)
+      f1.getNumRecords() should be (0)
+      f1.getFileStatistics().length should be (td.size())
     }
   }
 
-  test("fail to get type description if it is not set") {
+  test("fail to get file header if it is not set") {
     withTempDir { dir =>
+      touch(dir / "path")
       val reader = Riff.reader(dir / "path")
       val err = intercept[IllegalStateException] {
         reader.getFileHeader()
       }
       assert(err.getMessage.contains("File header is not set"))
+    }
+  }
+
+  test("fail to get file footer if it is not set") {
+    withTempDir { dir =>
+      touch(dir / "path")
+      val reader = Riff.reader(dir / "path")
+      val err = intercept[IllegalStateException] {
+        reader.getFileFooter()
+      }
+      assert(err.getMessage.contains("File footer is not set"))
     }
   }
 }
