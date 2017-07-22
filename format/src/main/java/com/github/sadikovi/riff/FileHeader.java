@@ -41,8 +41,6 @@ import com.github.sadikovi.riff.stats.Statistics;
  */
 public class FileHeader {
   private static final Logger LOG = LoggerFactory.getLogger(FileHeader.class);
-  // magic for Riff file, "RIFF" bytes in UTF8 charset
-  private static final int MAGIC = 1380533830;
   // state length in bytes
   private static final int STATE_LENGTH = 8;
 
@@ -151,7 +149,7 @@ public class FileHeader {
     buffer.align();
     LOG.info("Write header content of {} bytes", buffer.bytesWritten());
     // write magic 4 bytes + buffer length 4 bytes into output stream
-    out.writeLong(((long) MAGIC << 32) + buffer.bytesWritten());
+    out.writeLong(((long) Riff.MAGIC << 32) + buffer.bytesWritten());
     // write buffer data
     buffer.writeExternal(out);
   }
@@ -166,7 +164,7 @@ public class FileHeader {
     // Read first 8 bytes: magic 4 bytes and length of the header 4 bytes
     long meta = in.readLong();
     int magic = (int) (meta >>> 32);
-    if (magic != MAGIC) throw new IOException("Wrong magic: " + magic + " != " + MAGIC);
+    if (magic != Riff.MAGIC) throw new IOException("Wrong magic: " + magic + " != " + Riff.MAGIC);
     int len = (int) (meta & 0x7fffffff);
     LOG.debug("Read header content of {} bytes", len);
     // read full header bytes

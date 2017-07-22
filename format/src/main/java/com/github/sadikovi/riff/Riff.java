@@ -68,6 +68,8 @@ import com.github.sadikovi.riff.io.CompressionCodecFactory;
  */
 public class Riff {
   private static final Logger LOG = LoggerFactory.getLogger(Riff.class);
+  // magic for Riff file, "RIFF" bytes in UTF8 charset
+  public static final int MAGIC = 1380533830;
 
   /**
    * Internal riff options that can be set in hadoop configuration.
