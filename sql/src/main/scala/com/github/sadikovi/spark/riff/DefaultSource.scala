@@ -115,7 +115,7 @@ class DefaultSource
       files: Seq[FileStatus]): Option[StructType] = {
     // when inferring schema we expect at least one file in directory
     if (files.isEmpty) {
-      log.warn("No paths found for schema inferrence")
+      log.warn("No paths found for schema inference")
       None
     } else {
       // Spark, when returning parsed file paths, does not include metadata files, only files that
@@ -214,6 +214,8 @@ class DefaultSource
       val iter = reader.prepareRead(predicate)
       Option(TaskContext.get()).foreach(_.addTaskCompletionListener(_ => iter.close()))
 
+      // TODO: compare schema with inferred schema for table and merge if necessary
+      // currently it breaks processing, when files have different schemas
       val td = reader.getFileHeader().getTypeDescription()
       if (metadataCountEnabled && projectionFields.isEmpty) {
         // only perform optimization if it is enabled

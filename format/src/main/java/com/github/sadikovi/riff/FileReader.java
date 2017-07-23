@@ -104,6 +104,7 @@ public class FileReader {
 
   /**
    * Prepare row buffer based on file path.
+   * Method 'close()' should be called on row buffer after reading all data to close stream.
    * @param filter optional filter, if null then no filter applied
    * @return row buffer
    * @throws FileNotFoundException if either data or header file is not found
