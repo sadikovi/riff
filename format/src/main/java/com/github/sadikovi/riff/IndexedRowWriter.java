@@ -177,7 +177,6 @@ public class IndexedRowWriter {
   /** Buffer index region */
   private void bufferIndexRegion(InternalRow row) throws IOException {
     bufferRegion(row, this.desc.indexFields(), this.indexFixedBuffer, this.indexVariableBuffer);
-
   }
 
   /** Buffer data region */

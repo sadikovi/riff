@@ -245,7 +245,7 @@ public class InStream extends InputStream {
       int diff = (int) (bytes - uncompressed.remaining());
       while (source.length() > source.position()) {
         readChunk();
-        if (uncompressed.remaining() > diff) {
+        if (uncompressed.remaining() >= diff) {
           uncompressed.position(uncompressed.position() + diff);
           // we can skip all requested bytes, return the same number
           return bytes;

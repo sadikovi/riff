@@ -202,6 +202,23 @@ class InStreamSuite extends UnitTestSuite {
     in.available() should be (0)
   }
 
+  test("compressed, skip bytes when remaining bytes equal to diff bytes") {
+    // this is problem that occurs when difference to discard equals remaining bytes in the buffer
+    // we need to check that we skip those bytes and do not discard those bytes and read next chunk
+    val source = new StripeInputBuffer(1.toByte, Array[Byte](
+      /* block 1 (header 4 bytes + data 4 bytes) */
+      0, 0, 0, 4,
+      0, 1, 2, 3,
+      /* block 2 (header 4 bytes + data 4 bytes) */
+      0, 0, 0, 4,
+      4, 5, 6, 7
+    ))
+    val in = new InStream(4, new ZlibCodec(), source)
+    val skipped = in.skip(8)
+    skipped should be (8)
+    in.available should be (0)
+  }
+
   test("compressed, available when no bytes left in tmp buffer") {
     val source = new StripeInputBuffer(1.toByte, Array[Byte](
       /* header */
