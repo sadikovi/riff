@@ -74,4 +74,11 @@ class ZlibCodecSuite extends UnitTestSuite {
     err.getMessage should be ("Output buffer is too short, could not insert more bytes from " +
       "compressed byte buffer")
   }
+
+  test("double close zlib codec") {
+    val codec = new ZlibCodec()
+    codec.close()
+    // next close should be no-op
+    codec.close()
+  }
 }

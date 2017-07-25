@@ -101,9 +101,13 @@ public class ZlibCodec implements CompressionCodec {
 
   @Override
   public void close() {
-    deflater.end();
-    deflater = null;
-    inflater.end();
-    inflater = null;
+    if (deflater != null) {
+      deflater.end();
+      deflater = null;
+    }
+    if (inflater != null) {
+      inflater.end();
+      inflater = null;
+    }
   }
 }
