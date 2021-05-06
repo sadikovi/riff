@@ -6,16 +6,16 @@ cache:
     - $HOME/.sbt/launchers
 matrix:
   include:
-    - jdk: openjdk7
+    - jdk: openjdk8
       scala: 2.10.5
       env: TEST_SPARK_VERSION="2.0.2"
-    - jdk: openjdk7
+    - jdk: openjdk8
       scala: 2.10.5
       env: TEST_SPARK_VERSION="2.1.0"
-    - jdk: openjdk7
+    - jdk: openjdk8
       scala: 2.11.7
       env: TEST_SPARK_VERSION="2.0.2"
-    - jdk: openjdk7
+    - jdk: openjdk8
       scala: 2.11.7
       env: TEST_SPARK_VERSION="2.1.0"
 script:
